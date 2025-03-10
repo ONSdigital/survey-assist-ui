@@ -9,8 +9,10 @@ Attributes:
 
 import os
 
-from flask import Flask, render_template
+from flask import Flask
 from flask_misaka import Misaka
+
+from ui.routes import main_blueprint
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -23,6 +25,7 @@ app.jinja_env.lstrip_blocks = True
 app.config["FREEZER_IGNORE_404_NOT_FOUND"] = True
 app.config["FREEZER_DEFAULT_MIMETYPE"] = "text/html"
 app.config["FREEZER_DESTINATION"] = "../build"
+app.register_blueprint(main_blueprint)
 
 
 # Method provides a dictionary to the jinja templates, allowing variables
@@ -41,16 +44,3 @@ def set_variables():
     """
     navigation = {"navigation": {}}
     return {"navigation": navigation}
-
-
-# Method to render the index page
-@app.route("/")
-def index():
-    """Renders the index page.
-
-    This route handles requests to the root URL ("/") and serves the `index.html` template.
-
-    Returns:
-        str: Rendered HTML content of the index page.
-    """
-    return render_template("index.html")

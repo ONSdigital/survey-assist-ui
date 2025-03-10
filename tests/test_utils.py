@@ -5,7 +5,7 @@ Unit tests for utility functions in the survey assist UI.
 
 import pytest
 
-from utils.survey_utils import add_numbers
+from utils.survey import add_numbers
 
 
 @pytest.mark.example
