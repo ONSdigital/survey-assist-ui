@@ -37,7 +37,7 @@
                   run: make install-dev
 
                 - name: Lint Python
-                  run: make format-python-nofix
+                  run: make check-python-nofix
 
                 - name: Cleanup residue file
                   run: make clean
