@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# ignore the Design System files
+ui/templates/components
+ui/templates/layout
+.vscode/spellright.dict
