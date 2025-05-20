@@ -173,4 +173,4 @@ cython_debug/
 # ignore the Design System files
 ui/templates/components
 ui/templates/layout
-.vscode/spellright.dict
+.vscode/
