@@ -1,14 +1,16 @@
-"""This module defines the routes for the survey assist UI.
+"""This module defines the index route for the survey assist UI.
 
-The routes in this module handle requests to the UI and return the appropriate responses.
+This is the home page for the Survey Assist UI
 """
 
 from flask import Blueprint, render_template
+from survey_assist_utils.logging import get_logger
 
 from utils.survey import add_numbers
 
 main_blueprint = Blueprint("main", __name__)
 
+logger = get_logger(__name__)
 
 # Method to render the index page
 @main_blueprint.route("/")
@@ -20,5 +22,6 @@ def index():
     Returns:
         str: Rendered HTML content of the index page.
     """
+    logger.info("Rendering index page")
     add_numbers(1, 2)
     return render_template("index.html")

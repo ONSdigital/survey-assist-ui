@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.12"
 flask = "^3.1.0"
 flask-misaka = "^1.0.1"
+survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", rev = "v0.0.1"}
 
 
 [tool.poetry.group.dev.dependencies]

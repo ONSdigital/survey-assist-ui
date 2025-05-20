@@ -11,8 +11,11 @@ import os
 
 from flask import Flask
 from flask_misaka import Misaka
+from survey_assist_utils.logging import get_logger
 
-from ui.routes import main_blueprint
+from ui.routes.index import main_blueprint
+
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -27,6 +30,7 @@ app.config["FREEZER_DEFAULT_MIMETYPE"] = "text/html"
 app.config["FREEZER_DESTINATION"] = "../build"
 app.register_blueprint(main_blueprint)
 
+logger.info("Flask app initialized with Misaka and Jinja2 extensions.")
 
 # Method provides a dictionary to the jinja templates, allowing variables
 # inside the dictionary to be directly accessed within the template files
