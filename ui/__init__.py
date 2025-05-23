@@ -29,6 +29,7 @@ app.config["FREEZER_IGNORE_404_NOT_FOUND"] = True
 app.config["FREEZER_DEFAULT_MIMETYPE"] = "text/html"
 app.config["FREEZER_DESTINATION"] = "../build"
 app.config["SESSION_DEBUG"] = os.getenv("SESSION_DEBUG", "false").lower() == "true"
+app.config["JSON_DEBUG"] = os.getenv("JSON_DEBUG", "false").lower() == "true"
 
 # Load the survey definition
 with open("ui/survey/survey_definition.json") as file:

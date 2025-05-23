@@ -87,6 +87,8 @@ def print_session_info() -> None:
         session_size = get_encoded_session_size(session_data)
         logger.debug("\n=== Session Debug Info ===")
         logger.debug(f"Session size: {session_size} bytes")
+        if not current_app.config.get("JSON_DEBUG", False):
+            return
         logger.debug("Session content:")
         logger.debug(cleaned_session_data)
     except Exception as e:
