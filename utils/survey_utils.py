@@ -1,7 +1,7 @@
 """Utility functions for managing survey sessions, question routing, and redirects in a Flask-based survey application.
 
 Functions:
-    update_session_and_redirect(session, request, questions, ai_assist, value, route):
+    update_session_and_redirect(session, request, questions, survey_assist, value, route):
         Updates the session with the user's response to the current question, manages survey iteration data,
         handles AI assist interactions, and redirects to the appropriate route.
 
@@ -32,7 +32,7 @@ def update_session_and_redirect(
     session: dict[str, Any],
     request: Request,
     questions: list[dict[str, Any]],
-    ai_assist: dict[str, Any],
+    survey_assist: dict[str, Any],
     value: str,
     route: str,
 ) -> Response:
@@ -43,7 +43,7 @@ def update_session_and_redirect(
         session (dict): The session object for storing user and survey state.
         request (flask.Request): The Flask request object containing form data.
         questions (list): List of question dictionaries for the survey.
-        ai_assist (dict): Configuration for AI assist, including enabled state and interactions.
+        survey_assist (dict): Configuration for AI assist, including enabled state and interactions.
         value (str): The form field name corresponding to the current question's response.
         route (str): The name of the route to redirect to after processing.
 
@@ -112,9 +112,9 @@ def update_session_and_redirect(
     # If ai assist is enabled and the current question has an interaction
     # then redirect to the consent page to ask the user if they want to
     # continue with the AI assist interaction
-    if ai_assist.get("enabled", True):
+    if survey_assist.get("enabled", True):
         session.modified = True
-        interactions = ai_assist.get("interactions")
+        interactions = survey_assist.get("interactions")
         if len(interactions) > 0 and current_question.get(
             "question_id"
         ) == interactions[0].get("after_question_id"):
