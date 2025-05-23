@@ -36,16 +36,6 @@ with open("ui/survey/survey_definition.json") as file:
     app.questions = survey_definition["questions"]
     app.survey_assist = survey_definition["survey_assist"]
 
-# Initialise an iteration of the survey
-app.survey_iteration = {
-    "user": "",
-    "questions": [],
-    "time_start": None,
-    "time_end": None,
-    "survey_assist_time_start": None,
-    "survey_assist_time_end": None,
-}
-
 register_blueprints(app)
 
 logger.info("Flask app initialized with Misaka and Jinja2 extensions.")

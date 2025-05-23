@@ -25,5 +25,11 @@ def index() -> str:
         str: Rendered HTML content of the index page.
     """
     logger.info("Rendering index page")
+
+    # Reset the current question index in the session
+    if "current_question_index" in session:
+        session["current_question_index"] = 0
+        session.modified = True
+
     add_numbers(1, 2)
     return render_template("index.html")

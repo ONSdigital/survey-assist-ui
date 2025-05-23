@@ -12,7 +12,6 @@ flask = "^3.1.0"
 flask-misaka = "^1.0.1"
 survey-assist-utils = {path = "../survey-assist-utils"}
 
-
 [tool.poetry.group.dev.dependencies]
 mkdocs-material = "^9.6.7"
 black = "^25.1.0"

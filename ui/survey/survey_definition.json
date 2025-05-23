@@ -85,7 +85,7 @@
       }    
     ],
     "survey_assist": {
-      "enabled": true,
+      "enabled": false,
       "question_assist_label": "<br><strong>(Asked by Survey Assist)</strong></br>",
       "consent": {
         "required": true,

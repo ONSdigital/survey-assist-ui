@@ -77,7 +77,7 @@ def update_session_and_redirect(
         # Set the time start based on the current timestamp
         survey_iteration["time_start"] = datetime.now(timezone.utc)
         logger.debug("Initialise survey data in update_session_and_redirect")
-        logger.debug("Survey Iteration: %s", session.get("survey_iteration"))
+        logger.debug(f"Survey Iteration: {survey_iteration}")
         session.modified = True
 
     # Get the current question and take a copy so
@@ -136,7 +136,9 @@ def get_question_routing(
     for i, question in enumerate(questions):
         if question["question_name"] == question_name:
             response_name = question["response_name"]
-            route = "core.summary" if i == len(questions) - 1 else "survey.survey"
+            # If the question is the last in the list, redirect to summary
+            # else redirect to the next question
+            route = "survey.summary" if i == len(questions) - 1 else "survey.survey"
             return response_name, route
     raise ValueError(f"Question name '{question_name}' not found in questions.")
 
