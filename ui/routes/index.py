@@ -3,9 +3,10 @@
 This is the home page for the Survey Assist UI
 """
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, session
 from survey_assist_utils.logging import get_logger
 
+from utils.session_utils import session_debug
 from utils.survey import add_numbers
 
 main_blueprint = Blueprint("main", __name__)
@@ -14,7 +15,8 @@ logger = get_logger(__name__)
 
 # Method to render the index page
 @main_blueprint.route("/")
-def index():
+@session_debug
+def index() -> str:
     """Renders the index page.
 
     This route handles requests to the root URL ("/") and serves the `index.html` template.

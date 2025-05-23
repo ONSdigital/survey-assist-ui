@@ -9,11 +9,11 @@ Attributes:
 
 import os
 
-from flask import Flask
+from flask import Flask, json, session
 from flask_misaka import Misaka
 from survey_assist_utils.logging import get_logger
 
-from ui.routes.index import main_blueprint
+from ui.routes import register_blueprints
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,25 @@ app.jinja_env.lstrip_blocks = True
 app.config["FREEZER_IGNORE_404_NOT_FOUND"] = True
 app.config["FREEZER_DEFAULT_MIMETYPE"] = "text/html"
 app.config["FREEZER_DESTINATION"] = "../build"
-app.register_blueprint(main_blueprint)
+app.config["SESSION_DEBUG"] = os.getenv("SESSION_DEBUG", "false").lower() == "true"
+
+# Load the survey definition
+with open("ui/survey/survey_definition.json") as file:
+    survey_definition = json.load(file)
+    app.questions = survey_definition["questions"]
+    app.survey_assist = survey_definition["survey_assist"]
+
+# Initialise an iteration of the survey
+app.survey_iteration = {
+    "user": "",
+    "questions": [],
+    "time_start": None,
+    "time_end": None,
+    "survey_assist_time_start": None,
+    "survey_assist_time_end": None,
+}
+
+register_blueprints(app)
 
 logger.info("Flask app initialized with Misaka and Jinja2 extensions.")
 
