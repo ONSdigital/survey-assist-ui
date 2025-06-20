@@ -17,13 +17,32 @@ Functions:
 Globals:
     number_to_word (dict): Maps integers 1-6 to their corresponding English words.
 """
+
 from datetime import datetime, timezone
 from typing import Any
 
-from flask import Request, Response, redirect, url_for
+from flask import (
+    Request,
+    Response,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from survey_assist_utils.logging import get_logger
 
-number_to_word: dict[int, str] = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+from utils.survey_assist_utils import format_followup
+
+number_to_word: dict[int, str] = {
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five",
+    6: "six",
+}
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -109,16 +128,18 @@ def update_session_and_redirect(
     logger.debug("===== Survey Iteration =====")
     logger.debug(session["survey_iteration"])
 
-    # If ai assist is enabled and the current question has an interaction
+    # If survey assist is enabled and the current question has an interaction
     # then redirect to the consent page to ask the user if they want to
-    # continue with the AI assist interaction
+    # continue with the Survey Assist interaction
     if survey_assist.get("enabled", True):
         session.modified = True
         interactions = survey_assist.get("interactions")
         if len(interactions) > 0 and current_question.get(
             "question_id"
         ) == interactions[0].get("after_question_id"):
-            # print("AI Assist interaction detected - REDIRECTING to consent")
+            logger.debug(
+                f"Survey Assist interaction found for question {current_question.get('question_id')} and {interactions[0].get("after_question_id")}"
+            )
             return redirect(url_for("survey.survey_assist_consent"))
 
     session["current_question_index"] += 1
@@ -143,11 +164,92 @@ def get_question_routing(
     raise ValueError(f"Question name '{question_name}' not found in questions.")
 
 
-def consent_redirect() -> Response:
-    logger.info("Consent redirect stub")
-    return redirect(url_for("error.page_not_found"))
+def consent_redirect():
+
+    survey_iteration = session.get("survey_iteration")
+
+    # Get the form value for survey_assist_consent
+    consent_response = request.form.get("survey-assist-consent")
+
+    logger.info(f"Consent response: {consent_response}")
+
+    # Add the consent response to the survey
+    survey_iteration["questions"].append(
+        {
+            "question_id": current_app.survey_assist["consent"]["question_id"],
+            "question_text": current_app.survey_assist["consent"]["question_text"],
+            "response_type": "radio",
+            "response_name": "survey-assist-consent",
+            "response_options": [
+                {"id": "consent-yes", "label": {"text": "Yes"}, "value": "yes"},
+                {"id": "consent-no", "label": {"text": "No"}, "value": "no"},
+            ],
+            "response": consent_response,
+        }
+    )
+
+    session.modified = True
+
+    # Did the user consent to Survey Assist?
+    if consent_response == "yes":
+        return redirect(url_for("survey_assist.survey_assist"))
+    else:
+        # Mark the end time for the survey assist
+        survey_iteration["survey_assist_time_end"] = datetime.now(timezone.utc)
+
+        # Skip to next standard question
+        session["current_question_index"] += 1
+        session.modified = True
+        return redirect(url_for("survey.survey"))
+
+
+# This is temporary, will be changed to configurable in the future
+FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
 
 
 def followup_redirect() -> Response:
-    logger.info("Followup redirect stub")
+    """Redirects to the follow-up question page.
+
+    This function gest called when there are multiple follow-up questions
+    to display.
+
+    The current assumption is the intial follow up is displayed in the survey_assist
+    route and any extra follow up is displayed here.
+    """
+    # Get the current core question and list of interactions
+    current_question = current_app.questions[session["current_question_index"]]
+    interactions = current_app.survey_assist.get("interactions", [])
+
+    logger.debug(
+        f"followup_redirect - cq: {current_question} interactions: {interactions} len: {len(interactions)} cqi: {current_question.get("question_id")}"
+    )
+    # If the current question has an associated interaction and there
+    # are interactions to process
+    if len(interactions) > 0 and current_question.get("question_id") == interactions[
+        0
+    ].get("after_question_id"):
+        logger.debug(f"follow up length: {len(session.get('follow_up', []))}")
+        # Check if the session has follow-up questions
+        if "follow_up" in session and FOLLOW_UP_TYPE == "both":
+            follow_up = session["follow_up"]
+            if len(follow_up) > 0:
+                # Get the next follow-up question
+                follow_up_question = follow_up.pop(0)
+                formatted_question = format_followup(
+                    follow_up_question,
+                    follow_up_question["question_text"],
+                )
+
+                session.modified = True
+                return render_template(
+                    "question_template.html", **formatted_question.to_dict()
+                )
+        # No more follow up questions, redirect to the next core question
+        # increment the current question index to
+        # get the next question
+        session["current_question_index"] += 1
+        session.modified = True
+
+        return redirect(url_for("survey.survey"))
+
     return redirect(url_for("error.page_not_found"))

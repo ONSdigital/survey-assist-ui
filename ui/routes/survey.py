@@ -22,6 +22,7 @@ survey_blueprint = Blueprint("survey", __name__)
 
 logger = get_logger(__name__, level="DEBUG")
 
+
 # Generic route to handle survey questions
 @survey_blueprint.route("/survey", methods=["GET", "POST"])
 @session_debug
@@ -77,9 +78,6 @@ def survey() -> str:
 # Route called after each question (or interaction) to save response to session data.
 # The response is saved to the session dictionary and the user is redirected to the
 # next question or interaction.
-# TODO - The actions dictionary is currently hardcoded for survey questions, this
-# needs to be updated to be more dynamic.  There is also cruft in the variables passed
-# to the update_session_and_redirect function.
 @survey_blueprint.route("/save_response", methods=["POST"])
 @session_debug
 def save_response() -> Response:
@@ -90,11 +88,7 @@ def save_response() -> Response:
 
     actions: dict[str, Callable[[], Response]] = {
         "core_question": lambda: update_session_and_redirect(
-            session,
-            request,
-            current_app.questions,
-            current_app.survey_assist,
-            *routing
+            session, request, current_app.questions, current_app.survey_assist, *routing
         ),
         "survey_assist_consent": lambda: consent_redirect(),
         "follow_up_question": lambda: followup_redirect(),
@@ -103,12 +97,21 @@ def save_response() -> Response:
     # Store the user response to the question AI asked
     question = request.form.get("question_name")
 
-    # If the question is not consent or AI
-    if question not in ["survey_assist_consent", "follow_up_question"]:
+    logger.debug(f"Received question: {question}")
+    # If the question is not consent or a follow up question from Survey Assist,
+    # then get the routing for the normal survey question
+    if question not in [
+        "survey_assist_consent",
+        "follow_up_question",
+        "survey_assist_followup",
+    ]:
         routing = get_question_routing(question, current_app.questions)
         question = "core_question"
 
-    if question.startswith("survey_assist"):
+    logger.debug(f"QUESTION Before: {question}")
+    # If the question is a follow up question from Survey Assist, then add
+    # the response to the session data and update the question name
+    if question.startswith("survey_assist") and question != "survey_assist_consent":
         question = "follow_up_question"
 
         # get survey data
@@ -122,7 +125,10 @@ def save_response() -> Response:
         # TODO - can this be incorporated in the forward_redirect function?
         last_question["response"] = request.form.get(last_question["response_name"])
 
+    logger.debug(f"QUESTION After: {question}")
+
     if question in actions:
+        logger.debug(f"Executing action for question: {question}")
         return actions[question]()
     else:
         return "Invalid question ID", 400
@@ -145,17 +151,21 @@ def survey_assist_consent() -> str:
             followup_text = f"a maximum of {number_word} additional questions"
 
         # Replace PLACEHOLDER_FOLLOWUP wit the content of the placeholder field
-        current_app.survey_assist["consent"]["question_text"] = current_app.survey_assist["consent"][
-            "question_text"
-        ].replace("PLACEHOLDER_FOLLOWUP", followup_text)
+        current_app.survey_assist["consent"]["question_text"] = (
+            current_app.survey_assist["consent"]["question_text"].replace(
+                "PLACEHOLDER_FOLLOWUP", followup_text
+            )
+        )
 
     if "PLACEHOLDER_REASON" in current_app.survey_assist["consent"]["question_text"]:
         # Replace PLACEHOLDER_REASON wit the content of the placeholder field
-        current_app.survey_assist["consent"]["question_text"] = current_app.survey_assist["consent"][
+        current_app.survey_assist["consent"][
             "question_text"
-        ].replace("PLACEHOLDER_REASON", current_app.survey_assist["consent"]["placeholder_reason"])
+        ] = current_app.survey_assist["consent"]["question_text"].replace(
+            "PLACEHOLDER_REASON",
+            current_app.survey_assist["consent"]["placeholder_reason"],
+        )
 
-    # print("AI Assist consent question text:", survey_assist["consent"]["question_text"])
     return render_template(
         "survey_assist_consent.html",
         title=current_app.survey_assist["consent"]["title"],
@@ -176,7 +186,6 @@ def summary():
     survey_questions = survey_data["questions"]
 
     logger.debug(f"Survey Questions: {survey_questions}")
-    # Print warning when time_start is not set
     if survey_data["time_start"] is None:
         logger.warning("time_start is not set")
 
@@ -184,12 +193,12 @@ def summary():
     survey_data["time_end"] = datetime.now(timezone.utc)
     session.modified = True
 
-    # Print the time taken in seconds to answer the survey
-    time_taken = (
-        survey_data["time_end"] - survey_data["time_start"]
-    ).total_seconds()
+    # Log the time taken in seconds to answer the survey
+    time_taken = (survey_data["time_end"] - survey_data["time_start"]).total_seconds()
 
-    logger.debug(f"Start time: {survey_data['time_start']}, End time: {survey_data['time_end']} Time taken: {time_taken} seconds")
+    logger.debug(
+        f"Start time: {survey_data['time_start']}, End time: {survey_data['time_end']} Time taken: {time_taken} seconds"
+    )
 
     # Loop through the questions, when a question_name starts with survey_assist
     # uppdate the question_text to have a label added to say it was generated by
@@ -197,8 +206,8 @@ def summary():
     for question in survey_questions:
         if question["response_name"].startswith("resp-survey-assist"):
             question["question_text"] = (
-                question["question_text"] + current_app.survey_assist["question_assist_label"]
+                question["question_text"]
+                + current_app.survey_assist["question_assist_label"]
             )
 
-    # print("Survey questions:", survey_questions)
     return render_template("summary_template.html", questions=survey_questions)

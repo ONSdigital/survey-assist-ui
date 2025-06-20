@@ -9,16 +9,23 @@ Attributes:
 
 import os
 
-from flask import Flask, json, session
+from flask import Flask, json, request
 from flask_misaka import Misaka
+from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
 from ui.routes import register_blueprints
+from utils.api_utils import APIClient
 
 logger = get_logger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
+app.jwt_secret_path = os.getenv("JWT_SECRET")
+app.sa_email = os.getenv("SA_EMAIL")
+app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
+app.api_token = ""
+app.token_start_time = 0
 
 Misaka(app)
 
@@ -31,6 +38,7 @@ app.config["FREEZER_DESTINATION"] = "../build"
 app.config["SESSION_DEBUG"] = os.getenv("SESSION_DEBUG", "false").lower() == "true"
 app.config["JSON_DEBUG"] = os.getenv("JSON_DEBUG", "false").lower() == "true"
 
+
 # Load the survey definition
 with open("ui/survey/survey_definition.json") as file:
     survey_definition = json.load(file)
@@ -39,7 +47,21 @@ with open("ui/survey/survey_definition.json") as file:
 
 register_blueprints(app)
 
-logger.info("Flask app initialized with Misaka and Jinja2 extensions.")
+# Generate API JWT token
+app.token_start_time, app.api_token = check_and_refresh_token(
+    app.token_start_time, app.api_token, app.jwt_secret_path, app.api_base, app.sa_email
+)
+
+# Initialise API client for Survey Assist
+app.api_client = APIClient(
+    base_url=app.api_base,
+    token=app.api_token,
+    logger=logger,
+    redirect_on_error=False,
+)
+
+logger.info("Flask app initialised with Misaka and Jinja2 extensions.")
+
 
 # Method provides a dictionary to the jinja templates, allowing variables
 # inside the dictionary to be directly accessed within the template files
@@ -57,3 +79,22 @@ def set_variables():
     """
     navigation = {"navigation": {}}
     return {"navigation": navigation}
+
+
+# Check the JWT token status before processing the request
+@app.before_request
+def before_request():
+    """Check token status before processing the request."""
+    orig_time = app.token_start_time
+    app.token_start_time, app.api_token = check_and_refresh_token(
+        app.token_start_time,
+        app.api_token,
+        app.jwt_secret_path,
+        app.api_base,
+        app.sa_email,
+    )
+
+    if orig_time != app.token_start_time:
+        logger.info(
+            f"JWT token refreshed successfully Rx Method: {request.method} - Route: {request.endpoint}"
+        )

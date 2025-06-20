@@ -12,6 +12,7 @@ error_blueprint = Blueprint("error", __name__)
 
 logger = get_logger(__name__)
 
+
 @error_blueprint.errorhandler(404)
 @error_blueprint.route("/page-not-found")
 @session_debug

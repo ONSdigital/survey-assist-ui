@@ -2,7 +2,7 @@
 
 This module provides helper functions for debugging and inspecting the Flask session object.
 """
-import sys
+
 from datetime import datetime
 from functools import wraps
 
@@ -11,6 +11,7 @@ from flask.sessions import SecureCookieSessionInterface
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__, level="DEBUG")
+
 
 def session_debug(f) -> callable:
     """Decorator to print session information after a view function is executed.
@@ -23,11 +24,13 @@ def session_debug(f) -> callable:
     Returns:
         function: The decorated view function.
     """
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         response = f(*args, **kwargs)
         print_session_info()
         return response
+
     return decorated_function
 
 

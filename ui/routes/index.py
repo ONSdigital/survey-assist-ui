@@ -13,6 +13,7 @@ main_blueprint = Blueprint("main", __name__)
 
 logger = get_logger(__name__)
 
+
 # Method to render the index page
 @main_blueprint.route("/")
 @session_debug
