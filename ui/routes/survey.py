@@ -4,16 +4,18 @@ This is the generic question page for the Survey Assist UI
 """
 
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Callable, cast
 
-from flask import Blueprint, Response, current_app, render_template, request, session
+from flask import Blueprint, current_app, render_template, request, session
 from survey_assist_utils.logging import get_logger
 
+from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.session_utils import session_debug
 from utils.survey_utils import (
     consent_redirect,
     followup_redirect,
     get_question_routing,
+    init_survey_iteration,
     number_to_word,
     update_session_and_redirect,
 )
@@ -27,6 +29,11 @@ logger = get_logger(__name__, level="DEBUG")
 @survey_blueprint.route("/survey", methods=["GET", "POST"])
 @session_debug
 def survey() -> str:
+    """Handles the generic survey question page for the Survey Assist UI.
+
+    Returns:
+        str: Rendered HTML for the current survey question.
+    """
     # Initialise the current question index in the session if it doesn't exist
     if "current_question_index" not in session:
         session["current_question_index"] = 0
@@ -36,14 +43,7 @@ def survey() -> str:
     # and set the time_start
     if session["current_question_index"] == 0:
         # Initialise the survey iteration data in the session
-        session["survey_iteration"] = {
-            "user": "",
-            "questions": [],
-            "time_start": None,
-            "time_end": None,
-            "survey_assist_time_start": None,
-            "survey_assist_time_end": None,
-        }
+        session["survey_iteration"] = init_survey_iteration()
 
         if "response" in session:
             # Initialise the response data in the session
@@ -55,7 +55,10 @@ def survey() -> str:
 
     # Get the current question based on the index
     current_index = session["current_question_index"]
-    current_question = current_app.questions[current_index]
+
+    app = cast(SurveyAssistFlask, current_app)
+    questions = app.questions
+    current_question = questions[current_index]
 
     # if question_text contains PLACEHOLDER_TEXT, get the associated
     # placeholder_field associated with the question and replace the
@@ -80,22 +83,32 @@ def survey() -> str:
 # next question or interaction.
 @survey_blueprint.route("/save_response", methods=["POST"])
 @session_debug
-def save_response() -> Response:
+def save_response() -> ResponseType | str | tuple[str, int]:
+    """Saves the response to the current survey question or interaction and redirects appropriately.
+
+    Returns:
+        ResponseType | str | tuple[str, int]: Redirect or error response.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    questions = app.questions
+    survey_assist = app.survey_assist
 
     # Define a dictionary to store responses
     if "response" not in session:
         session["response"] = {}
 
-    actions: dict[str, Callable[[], Response]] = {
+    actions: dict[str, Callable[[], ResponseType | str]] = {
         "core_question": lambda: update_session_and_redirect(
-            session, request, current_app.questions, current_app.survey_assist, *routing
+            request, questions, survey_assist, *routing
         ),
-        "survey_assist_consent": lambda: consent_redirect(),
-        "follow_up_question": lambda: followup_redirect(),
+        "survey_assist_consent": consent_redirect,
+        "follow_up_question": followup_redirect,
     }
 
     # Store the user response to the question AI asked
     question = request.form.get("question_name")
+    if question is None:
+        raise ValueError("Missing form field: 'question_name'")
 
     logger.debug(f"Received question: {question}")
     # If the question is not consent or a follow up question from Survey Assist,
@@ -105,7 +118,7 @@ def save_response() -> Response:
         "follow_up_question",
         "survey_assist_followup",
     ]:
-        routing = get_question_routing(question, current_app.questions)
+        routing = get_question_routing(question, questions)
         question = "core_question"
 
     logger.debug(f"QUESTION Before: {question}")
@@ -116,13 +129,16 @@ def save_response() -> Response:
 
         # get survey data
         survey_data = session.get("survey_iteration")
+        if survey_data is None:
+            raise ValueError("survey_data is None, cannot extract questions")
+
         # get questions
         survey_questions = survey_data["questions"]
 
         # get the last question
         last_question = survey_questions[-1]
         # update the response name, required by forward_redirect
-        # TODO - can this be incorporated in the forward_redirect function?
+        # TODO - can this be incorporated in the forward_redirect function?  # pylint: disable=fixme
         last_question["response"] = request.form.get(last_question["response_name"])
 
     logger.debug(f"QUESTION After: {question}")
@@ -130,17 +146,24 @@ def save_response() -> Response:
     if question in actions:
         logger.debug(f"Executing action for question: {question}")
         return actions[question]()
-    else:
-        return "Invalid question ID", 400
+
+    return "Invalid question ID", 400
 
 
 @survey_blueprint.route("/survey_assist_consent")
 @session_debug
 def survey_assist_consent() -> str:
+    """Renders the Survey Assist consent page, replacing placeholders as needed.
 
-    if "PLACEHOLDER_FOLLOWUP" in current_app.survey_assist["consent"]["question_text"]:
+    Returns:
+        str: Rendered HTML for the consent page.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    survey_assist = app.survey_assist
+
+    if "PLACEHOLDER_FOLLOWUP" in survey_assist["consent"]["question_text"]:
         # Get the maximum followup
-        max_followup = current_app.survey_assist["consent"]["max_followup"]
+        max_followup = survey_assist["consent"]["max_followup"]
 
         if max_followup == 1:
             followup_text = "one additional question"
@@ -151,27 +174,25 @@ def survey_assist_consent() -> str:
             followup_text = f"a maximum of {number_word} additional questions"
 
         # Replace PLACEHOLDER_FOLLOWUP wit the content of the placeholder field
-        current_app.survey_assist["consent"]["question_text"] = (
-            current_app.survey_assist["consent"]["question_text"].replace(
-                "PLACEHOLDER_FOLLOWUP", followup_text
-            )
-        )
-
-    if "PLACEHOLDER_REASON" in current_app.survey_assist["consent"]["question_text"]:
-        # Replace PLACEHOLDER_REASON wit the content of the placeholder field
-        current_app.survey_assist["consent"][
+        survey_assist["consent"]["question_text"] = survey_assist["consent"][
             "question_text"
-        ] = current_app.survey_assist["consent"]["question_text"].replace(
+        ].replace("PLACEHOLDER_FOLLOWUP", followup_text)
+
+    if "PLACEHOLDER_REASON" in survey_assist["consent"]["question_text"]:
+        # Replace PLACEHOLDER_REASON wit the content of the placeholder field
+        survey_assist["consent"]["question_text"] = survey_assist["consent"][
+            "question_text"
+        ].replace(
             "PLACEHOLDER_REASON",
-            current_app.survey_assist["consent"]["placeholder_reason"],
+            survey_assist["consent"]["placeholder_reason"],
         )
 
     return render_template(
         "survey_assist_consent.html",
-        title=current_app.survey_assist["consent"]["title"],
-        question_name=current_app.survey_assist["consent"]["question_name"],
-        question_text=current_app.survey_assist["consent"]["question_text"],
-        justification_text=current_app.survey_assist["consent"]["justification_text"],
+        title=survey_assist["consent"]["title"],
+        question_name=survey_assist["consent"]["question_name"],
+        question_text=survey_assist["consent"]["question_text"],
+        justification_text=survey_assist["consent"]["justification_text"],
     )
 
 
@@ -181,7 +202,11 @@ def survey_assist_consent() -> str:
 @survey_blueprint.route("/summary")
 @session_debug
 def summary():
+    """Summarises the survey data entered by the user and displays it in a summary template.
 
+    Returns:
+        str: Rendered HTML for the summary page.
+    """
     survey_data = session.get("survey_iteration")
     survey_questions = survey_data["questions"]
 
@@ -197,7 +222,8 @@ def summary():
     time_taken = (survey_data["time_end"] - survey_data["time_start"]).total_seconds()
 
     logger.debug(
-        f"Start time: {survey_data['time_start']}, End time: {survey_data['time_end']} Time taken: {time_taken} seconds"
+        f"Start: {survey_data['time_start']}, End: {survey_data['time_end']}, "
+        f"Duration: {time_taken} seconds"
     )
 
     # Loop through the questions, when a question_name starts with survey_assist

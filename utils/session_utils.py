@@ -3,6 +3,7 @@
 This module provides helper functions for debugging and inspecting the Flask session object.
 """
 
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 
@@ -13,7 +14,7 @@ from survey_assist_utils.logging import get_logger
 logger = get_logger(__name__, level="DEBUG")
 
 
-def session_debug(f) -> callable:
+def session_debug(f: Callable) -> Callable:
     """Decorator to print session information after a view function is executed.
     This decorator checks if the application's config has SESSION_DEBUG set to True,
     and if so, it prints the session's contents and its size in bytes to the console.
@@ -76,10 +77,15 @@ def print_session_info() -> None:
     """Prints debug information about the current Flask session.
 
     If the application's config has SESSION_DEBUG set to True, this function will
-    print the session's contents and its size in bytes to the console. Handles exceptions gracefully.
+    print the session's contents and its size in bytes to the console.
 
     Returns:
         None
+
+    Raises:
+        KeyError: If expected keys are missing in the session or config.
+        TypeError: If session data is not serialisable.
+        ValueError: If session encoding fails.
     """
     if not current_app.config.get("SESSION_DEBUG", False):
         return
@@ -94,5 +100,5 @@ def print_session_info() -> None:
             return
         logger.debug("Session content:")
         logger.debug(cleaned_session_data)
-    except Exception as e:
-        logger.error(f"Error printing session debug info: {e}")
+    except (KeyError, TypeError, ValueError) as err:
+        logger.error(f"Error printing session debug info: {err}")

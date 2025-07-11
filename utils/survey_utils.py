@@ -1,29 +1,19 @@
-"""Utility functions for managing survey sessions, question routing, and redirects in a Flask-based survey application.
+"""Utility functions for managing survey sessions, question routing, and redirects.
 
-Functions:
-    update_session_and_redirect(session, request, questions, survey_assist, value, route):
-        Updates the session with the user's response to the current question, manages survey iteration data,
-        handles AI assist interactions, and redirects to the appropriate route.
-
-    get_question_routing(question_name, questions):
-        Determines the response name and next route based on the current question's name and its position in the questions list.
-
-    consent_redirect():
-        Stub function for redirecting to a consent-related error page.
-
-    followup_redirect():
-        Stub function for redirecting to a follow-up-related error page.
+This module provides functions to update survey session data, determine question routing,
+and handle redirects for consent and follow-up questions in a Flask-based survey application.
+All spelling is British English.
 
 Globals:
     number_to_word (dict): Maps integers 1-6 to their corresponding English words.
+    FOLLOW_UP_TYPE (str): Type of follow-up questions to display ("open", "closed", "both").
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from flask import (
     Request,
-    Response,
     current_app,
     redirect,
     render_template,
@@ -33,6 +23,7 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
+from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.survey_assist_utils import format_followup
 
 number_to_word: dict[int, str] = {
@@ -47,27 +38,44 @@ number_to_word: dict[int, str] = {
 logger = get_logger(__name__, level="DEBUG")
 
 
+def init_survey_iteration() -> dict:
+    """Initialises the survey iteration data in the session.
+
+    This function sets up the initial structure for the survey iteration,
+    including user information, questions, and timestamps for start and end times.
+
+    Returns:
+        dict: The initial survey iteration data structure.
+    """
+    return {
+        "user": "",
+        "questions": [],
+        "time_start": None,
+        "time_end": None,
+        "survey_assist_time_start": None,
+        "survey_assist_time_end": None,
+    }
+
+
 def update_session_and_redirect(
-    session: dict[str, Any],
-    request: Request,
+    req: Request,
     questions: list[dict[str, Any]],
     survey_assist: dict[str, Any],
     value: str,
     route: str,
-) -> Response:
+) -> ResponseType:
     """Updates the survey session with the user's response, manages survey iteration data,
     and redirects to the appropriate route based on the current state and AI assist configuration.
 
     Args:
-        session (dict): The session object for storing user and survey state.
-        request (flask.Request): The Flask request object containing form data.
+        req (flask.Request): The Flask request object containing form data.
         questions (list): List of question dictionaries for the survey.
         survey_assist (dict): Configuration for AI assist, including enabled state and interactions.
         value (str): The form field name corresponding to the current question's response.
         route (str): The name of the route to redirect to after processing.
 
     Returns:
-        flask.Response: A redirect response to the next survey page or AI assist consent page.
+        ResponseType: A redirect response to the next survey page or AI assist consent page.
 
     Side Effects:
         - Modifies the session to store user responses and survey iteration data.
@@ -77,21 +85,14 @@ def update_session_and_redirect(
     """
     # Set key as value but with hyphens replaced with underscores
     key = value.replace("-", "_")
-    session["response"][key] = request.form.get(value)
+    session["response"][key] = req.form.get(value)
 
     # Retrieve the survey data from the session
     survey_iteration = session.get("survey_iteration")
 
     if not survey_iteration:
         # Reinitialise survey in session if not present
-        session["survey_iteration"] = {
-            "user": "",
-            "questions": [],
-            "time_start": None,
-            "time_end": None,
-            "survey_assist_time_start": None,
-            "survey_assist_time_end": None,
-        }
+        session["survey_iteration"] = init_survey_iteration()
         survey_iteration = session["survey_iteration"]
         # Set the time start based on the current timestamp
         survey_iteration["time_start"] = datetime.now(timezone.utc)
@@ -133,13 +134,19 @@ def update_session_and_redirect(
     # continue with the Survey Assist interaction
     if survey_assist.get("enabled", True):
         session.modified = True
-        interactions = survey_assist.get("interactions")
+        interactions: list[dict[str, Any]] = session.get("interactions", [])
+
         if len(interactions) > 0 and current_question.get(
             "question_id"
         ) == interactions[0].get("after_question_id"):
+            question_id = current_question.get("question_id")
+            after_id = interactions[0].get("after_question_id")
             logger.debug(
-                f"Survey Assist interaction found for question {current_question.get('question_id')} and {interactions[0].get("after_question_id")}"
+                f"Survey Assist interaction found for question {question_id} and {after_id}",
             )
+
+            # TODO: Need to cater for SIC lookup interaction before determining  # pylint: disable=fixme
+            # whether to redirect to the consent page or not
             return redirect(url_for("survey.survey_assist_consent"))
 
     session["current_question_index"] += 1
@@ -154,6 +161,18 @@ def get_question_routing(
     question_name: str,
     questions: list[dict[str, Any]],
 ) -> tuple[str, str]:
+    """Determines the response name and next route for a given question.
+
+    Args:
+        question_name (str): The name of the current question.
+        questions (list): List of question dictionaries for the survey.
+
+    Returns:
+        tuple[str, str]: The response name and the next route name.
+
+    Raises:
+        ValueError: If the question name is not found in the questions list.
+    """
     for i, question in enumerate(questions):
         if question["question_name"] == question_name:
             response_name = question["response_name"]
@@ -164,20 +183,38 @@ def get_question_routing(
     raise ValueError(f"Question name '{question_name}' not found in questions.")
 
 
-def consent_redirect():
+def consent_redirect() -> ResponseType:
+    """Handles redirect logic for the Survey Assist consent page.
 
+    Adds the user's consent response to the survey iteration and redirects accordingly.
+
+    Returns:
+        ResponseType: Redirect response to the next page based on consent.
+
+    Raises:
+        ValueError: If the session state is invalid or malformed.
+    """
     survey_iteration = session.get("survey_iteration")
+
+    if not isinstance(survey_iteration, dict) or "questions" not in survey_iteration:
+        raise ValueError(
+            "Invalid session state: survey_iteration is missing or malformed."
+        )
 
     # Get the form value for survey_assist_consent
     consent_response = request.form.get("survey-assist-consent")
 
     logger.info(f"Consent response: {consent_response}")
 
+    questions: list[dict[str, Any]] = survey_iteration["questions"]
+
+    app = cast(SurveyAssistFlask, current_app)
+    survey_assist = app.survey_assist
     # Add the consent response to the survey
-    survey_iteration["questions"].append(
+    questions.append(
         {
-            "question_id": current_app.survey_assist["consent"]["question_id"],
-            "question_text": current_app.survey_assist["consent"]["question_text"],
+            "question_id": survey_assist["consent"]["question_id"],
+            "question_text": survey_assist["consent"]["question_text"],
             "response_type": "radio",
             "response_name": "survey-assist-consent",
             "response_options": [
@@ -188,6 +225,7 @@ def consent_redirect():
         }
     )
 
+    session["survey_iteration"] = survey_iteration
     session.modified = True
 
     # Did the user consent to Survey Assist?
@@ -207,22 +245,27 @@ def consent_redirect():
 FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
 
 
-def followup_redirect() -> Response:
+def followup_redirect() -> ResponseType | str:
     """Redirects to the follow-up question page.
 
-    This function gest called when there are multiple follow-up questions
-    to display.
+    This function is called when there are multiple follow-up questions to display.
+    The current assumption is the initial follow-up is displayed in the survey_assist
+    route and any extra follow-up is displayed here.
 
-    The current assumption is the intial follow up is displayed in the survey_assist
-    route and any extra follow up is displayed here.
+    Returns:
+        ResponseType | str: Rendered follow-up question page or redirect response.
     """
-    # Get the current core question and list of interactions
-    current_question = current_app.questions[session["current_question_index"]]
-    interactions = current_app.survey_assist.get("interactions", [])
+    app = cast(SurveyAssistFlask, current_app)
+    questions = app.questions
+    survey_assist = app.survey_assist
 
-    logger.debug(
-        f"followup_redirect - cq: {current_question} interactions: {interactions} len: {len(interactions)} cqi: {current_question.get("question_id")}"
-    )
+    # Get the current core question and list of interactions
+    current_question = questions[session["current_question_index"]]
+    interactions = survey_assist.get("interactions", [])
+    cqi = current_question.get("question_id")
+
+    debug_text = f"cq: {current_question} interactions: {interactions} len: {len(interactions)} cqi: {cqi}"  # pylint: disable=line-too-long
+    logger.debug(debug_text)
     # If the current question has an associated interaction and there
     # are interactions to process
     if len(interactions) > 0 and current_question.get("question_id") == interactions[

@@ -1,8 +1,34 @@
-# This function maps the API response to the internal representation of the Survey Assist model
-def map_api_response_to_internal(api_response: dict) -> list:
+"""Maps API responses to the internal representation for Survey Assist.
+
+This module provides functions to convert API responses into the internal model
+format required by Survey Assist, including follow-up question generation.
+"""
+
+
+def map_api_response_to_internal(api_response: dict) -> dict:
+    """Maps the API response to the internal Survey Assist model representation.
+
+    Args:
+        api_response (dict): The raw API response dictionary.
+
+    Returns:
+        dict: Internal representation of the survey classification and follow-up questions.
+    """
+
     def create_follow_up_question(
-        api_response: dict, id: str, response_type: str, select_options: list
+        api_response: dict, q_id: str, response_type: str, select_options: list
     ) -> dict:
+        """Creates a follow-up question dictionary for the internal model.
+
+        Args:
+            api_response (dict): The raw API response dictionary.
+            q_id (str): The identifier for the follow-up question.
+            response_type (str): The type of response expected (e.g., 'text', 'select', 'confirm').
+            select_options (list): List of options for select-type questions.
+
+        Returns:
+            dict: A dictionary representing the follow-up question.
+        """
         if response_type == "confirm":
             question_text = f"Does '{select_options[0]}' describe your organisation?"
             select_options[0] = "Yes"
@@ -15,7 +41,7 @@ def map_api_response_to_internal(api_response: dict) -> list:
             )
 
         return {
-            "follow_up_id": id,
+            "follow_up_id": q_id,
             "question_text": question_text,
             "question_name": "survey_assist_followup",
             "response_type": response_type,

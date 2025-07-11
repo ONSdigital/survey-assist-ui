@@ -9,22 +9,25 @@ Attributes:
 
 import os
 
-from flask import Flask, json, request
+from flask import json, request
 from flask_misaka import Misaka
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
 from ui.routes import register_blueprints
 from utils.api_utils import APIClient
+from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__)
 
-app = Flask(__name__)
+app = SurveyAssistFlask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
-app.jwt_secret_path = os.getenv("JWT_SECRET")
-app.sa_email = os.getenv("SA_EMAIL")
+app.jwt_secret_path = os.getenv("JWT_SECRET", "SECRET_PATH_NOT_SET")
+app.sa_email = os.getenv("SA_EMAIL", "SA_EMAIL_NOT_SET")
 app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
-app.api_token = ""
+
+# API token is generated at runtime, so we set it to an empty string initially
+app.api_token = ""  # nosec
 app.token_start_time = 0
 
 Misaka(app)
@@ -40,7 +43,7 @@ app.config["JSON_DEBUG"] = os.getenv("JSON_DEBUG", "false").lower() == "true"
 
 
 # Load the survey definition
-with open("ui/survey/survey_definition.json") as file:
+with open("ui/survey/survey_definition.json", encoding="utf-8") as file:
     survey_definition = json.load(file)
     app.questions = survey_definition["questions"]
     app.survey_assist = survey_definition["survey_assist"]
@@ -96,5 +99,5 @@ def before_request():
 
     if orig_time != app.token_start_time:
         logger.info(
-            f"JWT token refreshed successfully Rx Method: {request.method} - Route: {request.endpoint}"
+            f"JWT token refresh Rx Method: {request.method} - Route: {request.endpoint}"
         )
