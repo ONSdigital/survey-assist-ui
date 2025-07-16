@@ -3,11 +3,13 @@
 This is the home page for the Survey Assist UI
 """
 
-from flask import Blueprint, render_template, session
+from typing import cast
+
+from flask import Blueprint, current_app, render_template, session
 from survey_assist_utils.logging import get_logger
 
+from utils.app_types import SurveyAssistFlask
 from utils.session_utils import session_debug
-from utils.survey import add_numbers
 
 main_blueprint = Blueprint("main", __name__)
 
@@ -27,10 +29,11 @@ def index() -> str:
     """
     logger.info("Rendering index page")
 
+    app = cast(SurveyAssistFlask, current_app)
+
     # Reset the current question index in the session
     if "current_question_index" in session:
         session["current_question_index"] = 0
         session.modified = True
 
-    add_numbers(1, 2)
-    return render_template("index.html")
+    return render_template("index.html", survey_title=app.survey_title)

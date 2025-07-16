@@ -47,9 +47,9 @@ def classify(
     )
 
     if isinstance(response, dict):
-        logger.info(f"Successfully classified {type}.")
+        logger.info(f"Successfully classified {classification_type}.")
         return response
-    logger.error(f"Failed to classify {type}.")
+    logger.error(f"Failed to classify {classification_type}.")
     return None
 
 

@@ -121,7 +121,6 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         routing = get_question_routing(question, questions)
         question = "core_question"
 
-    logger.debug(f"QUESTION Before: {question}")
     # If the question is a follow up question from Survey Assist, then add
     # the response to the session data and update the question name
     if question.startswith("survey_assist") and question != "survey_assist_consent":
@@ -140,8 +139,6 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         # update the response name, required by forward_redirect
         # TODO - can this be incorporated in the forward_redirect function?  # pylint: disable=fixme
         last_question["response"] = request.form.get(last_question["response_name"])
-
-    logger.debug(f"QUESTION After: {question}")
 
     if question in actions:
         logger.debug(f"Executing action for question: {question}")
@@ -173,13 +170,13 @@ def survey_assist_consent() -> str:
 
             followup_text = f"a maximum of {number_word} additional questions"
 
-        # Replace PLACEHOLDER_FOLLOWUP wit the content of the placeholder field
+        # Replace PLACEHOLDER_FOLLOWUP with the content of the placeholder field
         survey_assist["consent"]["question_text"] = survey_assist["consent"][
             "question_text"
         ].replace("PLACEHOLDER_FOLLOWUP", followup_text)
 
     if "PLACEHOLDER_REASON" in survey_assist["consent"]["question_text"]:
-        # Replace PLACEHOLDER_REASON wit the content of the placeholder field
+        # Replace PLACEHOLDER_REASON with the content of the placeholder field
         survey_assist["consent"]["question_text"] = survey_assist["consent"][
             "question_text"
         ].replace(
@@ -208,6 +205,7 @@ def summary():
         str: Rendered HTML for the summary page.
     """
     survey_data = session.get("survey_iteration")
+    logger.warning(f"Survey iteration: {survey_data}")
     survey_questions = survey_data["questions"]
 
     logger.debug(f"Survey Questions: {survey_questions}")

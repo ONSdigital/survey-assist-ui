@@ -38,8 +38,14 @@ check-python-nofix: ## Format the python code (no fix)
 black: ## Run black
 	poetry run black .
 
-unit-tests: ## Run the example unit tests
-	poetry run pytest -m example --cov=utils --cov-report=term-missing --cov-fail-under=80
+unit-tests: ## Run all unit tests
+	poetry run pytest --cov=utils --cov=ui --cov-report=term-missing --cov-fail-under=80
+
+route-tests: ## Run the route tests
+	poetry run pytest -m route --cov=utils --cov=ui --cov-report=term-missing --cov-fail-under=80
+
+utils-tests: ## Run the route tests
+	poetry run pytest -m utils --cov=utils --cov=ui --cov-report=term-missing --cov-fail-under=80
 
 install: ## Install the dependencies
 	poetry install --only main --no-root
