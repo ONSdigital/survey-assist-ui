@@ -1,0 +1,2 @@
+[MESSAGES CONTROL]
+disable = R1705 # Disable unnecessary else, I like to be explicit in conditionals
