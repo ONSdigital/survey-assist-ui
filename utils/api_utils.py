@@ -2,6 +2,11 @@
 
 This module provides an API client class for making HTTP requests to external APIs
 and handling errors in a Flask application.
+
+poetry run python scripts/run_api.py --action config
+poetry run python scripts/run_api.py --type sic --action lookup
+poetry run python scripts/run_api.py --type sic --action classify
+poetry run python scripts/run_api.py --type sic --action both
 """
 
 from http import HTTPStatus
@@ -129,7 +134,11 @@ class APIClient:
         if logger is None:
             logger = self.logger
 
-        logger.info(f"Sending {method} request to {url} with body: {body}")
+        logger.info(f"Sending {method} request to {url}")
+
+        # GET requests don't contain a body
+        if body is not None:
+            logger.info(body)
         data = None
         error = None
         status_code = HTTPStatus.INTERNAL_SERVER_ERROR
@@ -148,7 +157,8 @@ class APIClient:
 
             response.raise_for_status()
             data = response.json() if return_json else response.text
-            logger.info(f"Received response from {url}: {data}")
+            logger.info(f"Received response from {url}")
+            logger.info(data)
 
         except requests.exceptions.Timeout:
             logger.error(f"Request to {url} timed out after {API_TIMER_SEC} seconds")

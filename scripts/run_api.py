@@ -4,13 +4,16 @@
 This script provides command-line utilities to interact with the Survey Assist API,
 including configuration retrieval, lookups, and classification tasks.
 """
-
 import argparse
 import os
+import sys
+from pathlib import Path
 from typing import Optional
 
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from utils.api_utils import APIClient
 
@@ -168,9 +171,16 @@ def main() -> None:
         "--type", choices=["sic", "soc"], help="Type of classification (sic/soc)"
     )
     parser.add_argument(
-        "--action", choices=["lookup", "classify", "both"], help="Action to perform"
+        "--action", choices=["config","lookup", "classify", "both"], help="Action to perform"
     )
     args = parser.parse_args()
+
+    if args.action == "config":
+        api_client = init_api_client()
+        config = get_config(api_client)
+        if config:
+            logger.info(config)
+        return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
     job_description = prompt_input(
