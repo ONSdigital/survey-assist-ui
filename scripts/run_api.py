@@ -184,7 +184,7 @@ def main() -> None:
         api_client = init_api_client()
         config = get_config(api_client)
         if config:
-            logger.info(f"{config}")
+            logger.info(config)
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
