@@ -102,15 +102,14 @@ def save_response() -> ResponseType | str | tuple[str, int]:
             request, questions, survey_assist, *routing
         ),
         "survey_assist_consent": consent_redirect,
-        "follow_up_question": followup_redirect,
+        "survey_assist_followup": followup_redirect,
     }
 
-    # Store the user response to the question AI asked
     question = request.form.get("question_name")
     if question is None:
         raise ValueError("Missing form field: 'question_name'")
 
-    logger.debug(f"Received question: {question}")
+    logger.debug(f"Question: {question}")
     # If the question is not consent or a follow up question from Survey Assist,
     # then get the routing for the normal survey question
     if question not in [
@@ -122,10 +121,8 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         question = "core_question"
 
     # If the question is a follow up question from Survey Assist, then add
-    # the response to the session data and update the question name
-    if question.startswith("survey_assist") and question != "survey_assist_consent":
-        question = "follow_up_question"
-
+    # the user's response to the question to the session data
+    if question == "survey_assist_followup":
         # get survey data
         survey_data = session.get("survey_iteration")
         if survey_data is None:
@@ -134,13 +131,14 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         # get questions
         survey_questions = survey_data["questions"]
 
-        # get the last question
+        # get the last question and store the answer against it
         last_question = survey_questions[-1]
-        # update the response name, required by forward_redirect
-        # TODO - can this be incorporated in the forward_redirect function?  # pylint: disable=fixme
         last_question["response"] = request.form.get(last_question["response_name"])
 
     if question in actions:
+        iteration_data = session.get("survey_iteration", {})
+        logger.debug("Survey Iteration")
+        logger.debug(iteration_data)
         logger.debug(f"Executing action for question: {question}")
         return actions[question]()
 

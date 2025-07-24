@@ -59,6 +59,19 @@ To run the application locally execute:
 make run-ui
 ```
 
+To direct standard error and sys to a log file run use the following command.
+
+```bash
+make run-ui > application_output.log 2>&1
+```
+
+Set the following environment variables for extra logging of session data and to prettify JSON.
+
+```bash
+export JSON_DEBUG=True
+export SESSION_DEBUG=True 
+```
+
 ### GCP Setup
 
 Placeholder

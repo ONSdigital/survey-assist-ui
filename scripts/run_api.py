@@ -3,6 +3,9 @@
 
 This script provides command-line utilities to interact with the Survey Assist API,
 including configuration retrieval, lookups, and classification tasks.
+
+Example usage:
+    poetry run python scripts/run_api.py --type sic --action lookup
 """
 import argparse
 import os
@@ -15,7 +18,7 @@ from survey_assist_utils.logging import get_logger
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from utils.api_utils import APIClient
+from utils.api_utils import APIClient  # pylint: disable=wrong-import-position
 
 logger = get_logger(__name__)
 
@@ -171,7 +174,9 @@ def main() -> None:
         "--type", choices=["sic", "soc"], help="Type of classification (sic/soc)"
     )
     parser.add_argument(
-        "--action", choices=["config","lookup", "classify", "both"], help="Action to perform"
+        "--action",
+        choices=["config", "lookup", "classify", "both"],
+        help="Action to perform",
     )
     args = parser.parse_args()
 
@@ -179,7 +184,7 @@ def main() -> None:
         api_client = init_api_client()
         config = get_config(api_client)
         if config:
-            logger.info(config)
+            logger.info(f"{config}")
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")

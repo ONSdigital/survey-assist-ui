@@ -2,11 +2,9 @@
 
 This module provides functions to update survey session data, determine question routing,
 and handle redirects for consent and follow-up questions in a Flask-based survey application.
-All spelling is British English.
 
 Globals:
     number_to_word (dict): Maps integers 1-6 to their corresponding English words.
-    FOLLOW_UP_TYPE (str): Type of follow-up questions to display ("open", "closed", "both").
 """
 
 from datetime import datetime, timezone
@@ -24,7 +22,13 @@ from flask import (
 from survey_assist_utils.logging import get_logger
 
 from utils.app_types import ResponseType, SurveyAssistFlask
-from utils.survey_assist_utils import format_followup
+from utils.session_utils import add_question_to_survey
+from utils.survey_assist_utils import (
+    FOLLOW_UP_TYPE,
+    SHOW_CONSENT,
+    format_followup,
+    perform_sic_lookup,
+)
 
 number_to_word: dict[int, str] = {
     1: "one",
@@ -57,7 +61,27 @@ def init_survey_iteration() -> dict:
     }
 
 
-def update_session_and_redirect(
+def find_matching_interaction(
+    current_question: dict[str, Any], interactions: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Finds the first interaction that matches the current question ID.
+
+    Args:
+        current_question (dict[str, Any]): The current question being processed.
+        interactions (list[dict[str, Any]]): A list of interaction configuration objects.
+
+    Returns:
+        dict[str, Any] | None: The matching interaction, or None if no match is found.
+    """
+    current_id = current_question.get("question_id")
+    for interaction in interactions:
+        if interaction.get("after_question_id") == current_id:
+            return interaction
+    return None
+
+
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def update_session_and_redirect(  # noqa: C901, PLR0912
     req: Request,
     questions: list[dict[str, Any]],
     survey_assist: dict[str, Any],
@@ -112,43 +136,63 @@ def update_session_and_redirect(
             "PLACEHOLDER_TEXT", session["response"][placeholder_field]
         )
 
-    # Append the question and response to the list of questions
-    survey_iteration["questions"].append(
-        {
-            "question_id": current_question.get("question_id"),
-            "question_text": current_question.get("question_text"),
-            "response_type": current_question.get("response_type"),
-            "response_options": current_question.get("response_options"),
-            "response_name": current_question.get("response_name"),
-            "response": request.form.get(value),
-            "used_for_classifications": current_question.get(
-                "used_for_classifications"
-            ),
-        }
-    )
-    logger.debug("===== Survey Iteration =====")
-    logger.debug(session["survey_iteration"])
+    # Add the question and response to the list of questions
+    add_question_to_survey(current_question, req.form.get(value))
 
     # If survey assist is enabled and the current question has an interaction
     # then redirect to the consent page to ask the user if they want to
     # continue with the Survey Assist interaction
     if survey_assist.get("enabled", True):
         session.modified = True
-        interactions: list[dict[str, Any]] = session.get("interactions", [])
+        interactions: list[dict[str, Any]] = survey_assist.get("interactions", [])
 
-        if len(interactions) > 0 and current_question.get(
-            "question_id"
-        ) == interactions[0].get("after_question_id"):
+        matching_interaction = find_matching_interaction(current_question, interactions)
+
+        if matching_interaction:
             question_id = current_question.get("question_id")
-            after_id = interactions[0].get("after_question_id")
+            after_id = matching_interaction.get("after_question_id")
             logger.debug(
                 f"Survey Assist interaction found for question {question_id} and {after_id}",
             )
 
-            # TODO: Need to cater for SIC lookup interaction before determining  # pylint: disable=fixme
-            # whether to redirect to the consent page or not
-            return redirect(url_for("survey.survey_assist_consent"))
+            perform_classification = True
+            if matching_interaction.get("type") == "lookup_classification":
+                # Make the sic lookup request
+                org_description = session["response"].get("organisation_activity", "")
+                if org_description:
+                    lookup_response = perform_sic_lookup(org_description)
+                else:
+                    logger.warning("No organisation description - SIC lookup skipped")
+                    lookup_response = None
 
+                if lookup_response and lookup_response.get("code"):
+                    # If the SIC lookup returns a code
+                    logger.debug("SIC lookup successful")
+                    logger.debug(f"Lookup response: {lookup_response}")
+                    perform_classification = False
+
+                if lookup_response is not None:
+                    logger.warning(
+                        f"Need to SAVE SIC lookup response: {lookup_response}"
+                    )
+
+            if perform_classification:
+                if SHOW_CONSENT:
+                    return redirect(url_for("survey.survey_assist_consent"))
+                else:
+                    # skip consent screen
+                    logger.debug("Skipping consent screen for Survey Assist")
+
+                    survey_iteration["survey_assist_time_start"] = datetime.now(
+                        timezone.utc
+                    )
+                    session.modified = True
+                    return redirect(url_for("survey_assist.survey_assist"))
+            else:
+                logger.debug("SIC Code lookup successful, skipping classification")
+                survey_iteration["survey_assist_time_end"] = datetime.now(timezone.utc)
+
+    # Look at the next question for routing
     session["current_question_index"] += 1
     session.modified = True
     return redirect(url_for(route))
@@ -210,6 +254,7 @@ def consent_redirect() -> ResponseType:
 
     app = cast(SurveyAssistFlask, current_app)
     survey_assist = app.survey_assist
+
     # Add the consent response to the survey
     questions.append(
         {
@@ -241,10 +286,6 @@ def consent_redirect() -> ResponseType:
         return redirect(url_for("survey.survey"))
 
 
-# This is temporary, will be changed to configurable in the future
-FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
-
-
 def followup_redirect() -> ResponseType | str:
     """Redirects to the follow-up question page.
 
@@ -266,6 +307,7 @@ def followup_redirect() -> ResponseType | str:
 
     debug_text = f"cq: {current_question} interactions: {interactions} len: {len(interactions)} cqi: {cqi}"  # pylint: disable=line-too-long
     logger.debug(debug_text)
+
     # If the current question has an associated interaction and there
     # are interactions to process
     if len(interactions) > 0 and current_question.get("question_id") == interactions[
@@ -283,7 +325,15 @@ def followup_redirect() -> ResponseType | str:
                     follow_up_question["question_text"],
                 )
 
-                session.modified = True
+                # Add to survey iteration
+                # survey_iteration = session.get("survey_iteration", {})
+                question_dict = formatted_question.to_dict()
+
+                add_question_to_survey(
+                    question_dict,
+                    None,  # Response will be filled in later
+                )
+
                 return render_template(
                     "question_template.html", **formatted_question.to_dict()
                 )

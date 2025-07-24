@@ -215,7 +215,7 @@ def test_classify_and_redirect_redirects_to_question_template(app):
 
 
 @pytest.mark.utils
-def test_classify_and_handle_followup_renders_followup(app):
+def test_classify_and_handle_followup_renders_followup(app, valid_question):
     """Tests successful classification and follow-up rendering."""
     classification_response = {"some": "classification"}
     mapped_response = {
@@ -240,11 +240,9 @@ def test_classify_and_handle_followup_renders_followup(app):
         },
     )
 
+    # Mock the question to_dict conversion
     mock_question = MagicMock()
-    mock_question.to_dict.return_value = {
-        "question_text": "Example?",
-        "response_type": "text",
-    }
+    mock_question.to_dict.return_value = valid_question
 
     with patch(
         "utils.survey_assist_utils.classify", return_value=classification_response
@@ -261,6 +259,8 @@ def test_classify_and_handle_followup_renders_followup(app):
     ):
 
         with app.test_request_context():
+            # Initialise the expected session structure
+            session["survey_iteration"] = {"questions": []}
             response = classify_and_handle_followup(
                 job_title="Developer",
                 job_description="Builds systems",

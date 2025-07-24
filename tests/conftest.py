@@ -5,6 +5,7 @@ instance for use in unit and integration tests.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -244,3 +245,31 @@ def followup_questions() -> list[dict]:
         {"question_text": "Second question", "id": 2},
         {"question_text": "Third question", "id": 3},
     ]
+
+
+@pytest.fixture
+def followup_question() -> dict:
+    """Sample follow-up question for tests."""
+    return {
+        "question_id": "f1.1",
+        "question_text": "Does your farm raise livestock or crops?",
+        "response": "crop production",
+        "response_name": "resp-survey-assist-followup",
+        "response_options": [],
+        "response_type": "text",
+        "used_for_classifications": [],
+    }
+
+
+@pytest.fixture
+def valid_question() -> dict[str, Any]:
+    """Fixture to provide a valid question dictionary."""
+    return {
+        "question_id": "q1",
+        "question_text": "What is your exact job title for your main job or business?",  # pylint: disable=line-too-long
+        "response": "Farm Hand",
+        "response_name": "job-title",
+        "response_options": [],
+        "response_type": "text",
+        "used_for_classifications": ["sic", "soc"],
+    }
