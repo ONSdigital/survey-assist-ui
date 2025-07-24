@@ -8,6 +8,7 @@ Example usage:
     poetry run python scripts/run_api.py --type sic --action lookup
 """
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -184,7 +185,7 @@ def main() -> None:
         api_client = init_api_client()
         config = get_config(api_client)
         if config:
-            logger.info(config)
+            logger.debug(json.dumps(config))
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
