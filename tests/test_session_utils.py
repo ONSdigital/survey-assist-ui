@@ -5,7 +5,7 @@ decorators.
 """
 
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +14,7 @@ from flask import current_app, session
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
     _convert_datetimes,
+    add_question_to_survey,
     get_encoded_session_size,
     print_session_info,
     session_debug,
@@ -176,3 +177,87 @@ def test_print_session_info_raises_and_logs_error(app):
             print_session_info()
             mock_error.assert_called_once()
             assert "Error printing session debug info" in mock_error.call_args[0][0]
+
+
+@pytest.mark.utils
+def test_add_question_success(app, valid_question: dict[str, Any]) -> None:
+    """Test successful addition of question and response to session."""
+    with app.test_request_context():
+        session["survey_iteration"] = {"questions": []}
+        add_question_to_survey(valid_question, "Pilot")
+
+        assert len(session["survey_iteration"]["questions"]) == 1
+        added = session["survey_iteration"]["questions"][0]
+        assert added["question_id"] == "q1"
+        assert added["response"] == "Pilot"
+        assert added["used_for_classifications"] == ["sic", "soc"]
+        assert session.modified is True
+
+
+@pytest.mark.utils
+def test_add_question_user_response_none_success(
+    app, valid_question: dict[str, Any]
+) -> None:
+    """Test successful addition of question and response to session."""
+    with app.test_request_context():
+        session["survey_iteration"] = {"questions": []}
+        add_question_to_survey(valid_question, None)
+
+        assert len(session["survey_iteration"]["questions"]) == 1
+        added = session["survey_iteration"]["questions"][0]
+        assert added["question_id"] == "q1"
+        assert added["response"] is None
+        assert added["used_for_classifications"] == ["sic", "soc"]
+        assert session.modified is True
+
+
+@pytest.mark.utils
+def test_missing_required_keys(app, valid_question: dict[str, Any]) -> None:
+    """Test ValueError raised when required keys are missing from question."""
+    del valid_question["response_name"]
+    with app.test_request_context():
+        session["survey_iteration"] = {"questions": []}
+        with pytest.raises(ValueError) as exc:
+            add_question_to_survey(valid_question, "Pilot")
+
+        assert "missing keys" in str(exc.value)
+
+
+@pytest.mark.utils
+def test_missing_survey_iteration_raises_keyerror(
+    app, valid_question: dict[str, Any]
+) -> None:
+    """Test KeyError raised when session lacks survey_iteration."""
+    with app.test_request_context():
+        with pytest.raises(KeyError) as exc:
+            add_question_to_survey(valid_question, "Pilot")
+
+        assert "survey_iteration" in str(exc.value)
+
+
+@pytest.mark.utils
+def test_missing_questions_in_survey_iteration(
+    app, valid_question: dict[str, Any]
+) -> None:
+    """Test KeyError raised when 'questions' key is missing in survey_iteration."""
+    with app.test_request_context():
+        session["survey_iteration"] = {}
+        with pytest.raises(KeyError) as exc:
+            add_question_to_survey(valid_question, "Pilot")
+
+        assert "Session does not contain a valid 'survey_iteration' structure." in str(
+            exc.value
+        )
+
+
+@pytest.mark.utils
+def test_optional_fields_default(app, valid_question: dict[str, Any]) -> None:
+    """Test that optional fields default if missing."""
+    del valid_question["used_for_classifications"]
+
+    with app.test_request_context():
+        session["survey_iteration"] = {"questions": []}
+        add_question_to_survey(valid_question, "Checkout Assistant")
+
+        added = session["survey_iteration"]["questions"][0]
+        assert added["used_for_classifications"] == []

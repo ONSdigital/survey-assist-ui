@@ -53,10 +53,18 @@ poetry install
 
 #### Run the Application Locally
 
+See the [Environment Variables](#environment-variables) section prior to execution.
+
 To run the application locally execute:
 
 ```bash
 make run-ui
+```
+
+To direct standard error and sys to a log file run use the following command.
+
+```bash
+make run-ui > application_output.log 2>&1
 ```
 
 ### GCP Setup
@@ -97,4 +105,17 @@ make unit-tests
 
 ### Environment Variables
 
-Placeholder
+The following environment variables must be set to run the UI against a backend API.
+
+```bash
+export JWT_SECRET=<JSON for appropriate GCP env>
+export BACKEND_API_URL=<URL where API Gateway is running>
+export SA_EMAIL=<service account email associated with API access>
+```
+
+Set the following environment variables for extra logging of session data and to prettify JSON.
+
+```bash
+export JSON_DEBUG=True
+export SESSION_DEBUG=True 
+```

@@ -89,14 +89,12 @@ def test_update_session_and_redirect_to_survey_assist_consent(app):
         "placeholder_field": "job_title",
     }
 
-    survey_assist = {"enabled": True}
-    interactions = [{"after_question_id": "job_role_q"}]
-
     with app.test_request_context(method="POST", data={"job-role": "Engineer"}):
+        interactions = [{"after_question_id": "job_role_q"}]
+        survey_assist = {"enabled": True, "interactions": interactions}
         # Prepare the session for the correct branching
         session["current_question_index"] = 0
         session["response"] = {"job_title": "Engineer"}
-        session["interactions"] = interactions
 
         # Disable duplicate code check as the test needs to match the intent
         # pylint: disable=R0801
@@ -240,27 +238,17 @@ def test_consent_redirect_invalid_session_raises_value_error(app):
 @patch("utils.survey_utils.render_template")
 @patch("utils.survey_utils.format_followup")
 def test_followup_redirect_renders_followup_question(
-    mock_format, mock_render, _mock_url_for, app
+    mock_format, mock_render, _mock_url_for, app, followup_question, valid_question
 ):
     """Test followup_redirect renders a follow-up question correctly."""
-    mock_question = {
-        "question_id": "q1",
-        "question_name": "job-title",
-        "question_text": "What is your job title?",
-        "response_type": "text",
-    }
+    mock_question = valid_question
 
-    mock_followup = [
-        {
-            "follow_up_id": "f1",
-            "question_name": "extra-detail",
-            "question_text": "Can you provide more detail?",
-            "response_type": "text",
-        }
-    ]
+    mock_followup = [followup_question]
 
     mock_question_obj = type(
-        "MockQuestion", (), {"to_dict": lambda self: {"question_text": "rendered"}}
+        "MockQuestion",
+        (),
+        {"to_dict": lambda self: followup_question},
     )()
     mock_format.return_value = mock_question_obj
 
@@ -269,6 +257,7 @@ def test_followup_redirect_renders_followup_question(
     with app.test_request_context():
         session["current_question_index"] = 0
         session["follow_up"] = mock_followup.copy()
+        session["survey_iteration"] = {"questions": []}
 
         mock_app = app
         mock_app.questions = [mock_question]
@@ -291,14 +280,11 @@ def test_followup_redirect_renders_followup_question(
 
 @pytest.mark.utils
 @patch("utils.survey_utils.url_for", return_value="/survey")
-def test_followup_redirect_redirects_to_next_core_question(_mock_url_for, app):
+def test_followup_redirect_redirects_to_next_core_question(
+    _mock_url_for, app, valid_question
+):
     """Test followup_redirect redirects if no follow-up questions remain."""
-    mock_question = {
-        "question_id": "q1",
-        "question_name": "job-title",
-        "question_text": "What is your job title?",
-        "response_type": "text",
-    }
+    mock_question = valid_question
 
     with app.test_request_context():
         session["current_question_index"] = 0
@@ -322,14 +308,12 @@ def test_followup_redirect_redirects_to_next_core_question(_mock_url_for, app):
 
 @pytest.mark.utils
 @patch("utils.survey_utils.url_for", return_value="/page-not-found")
-def test_followup_redirect_to_error_when_no_interaction_match(_mock_url_for, app):
+def test_followup_redirect_to_error_when_no_interaction_match(
+    _mock_url_for, app, valid_question
+):
     """Test redirect to error page if interaction doesn't match current question."""
-    mock_question = {
-        "question_id": "q9",  # No match with after_question_id
-        "question_name": "location",
-        "question_text": "Where do you work?",
-        "response_type": "text",
-    }
+    mock_question = valid_question
+    mock_question["question_id"] = "q9"  # Ensure no match with after_question_id
 
     with app.test_request_context():
         session["current_question_index"] = 0
