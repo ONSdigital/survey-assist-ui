@@ -6,6 +6,7 @@ This module provides helper functions for debugging and inspecting the Flask ses
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
+from typing import Any, Optional
 
 from flask import current_app, session
 from flask.sessions import SecureCookieSessionInterface
@@ -102,3 +103,53 @@ def print_session_info() -> None:
         logger.debug(cleaned_session_data)
     except (KeyError, TypeError, ValueError) as err:
         logger.error(f"Error printing session debug info: {err}")
+
+
+def add_question_to_survey(
+    question: dict[str, Any], user_response: Optional[str]
+) -> None:
+    """Append a new question and user response to the session survey iteration.
+
+    Args:
+        question (dict[str, Any]): A dictionary representing the question metadata,
+            containing keys like "question_id", "question_text", etc.
+        user_response (Optional[str]): The response value submitted by the user.
+
+    Raises:
+        KeyError: If "survey_iteration" or "questions" is not in the session.
+        ValueError: If required keys are missing in the question dictionary.
+    """
+    required_keys = [
+        "question_id",
+        "question_text",
+        "response_type",
+        "response_options",
+        "response_name",
+    ]
+
+    # Validate input
+    missing_keys = [key for key in required_keys if key not in question]
+    if missing_keys:
+        raise ValueError(f"Question dictionary is missing keys: {missing_keys}")
+
+    # Ensure session structure
+    if (
+        "survey_iteration" not in session
+        or "questions" not in session["survey_iteration"]
+    ):
+        raise KeyError("Session does not contain a valid 'survey_iteration' structure.")
+
+    # Append the new question response block
+    session["survey_iteration"]["questions"].append(
+        {
+            "question_id": question["question_id"],
+            "question_text": question["question_text"],
+            "response_type": question["response_type"],
+            "response_options": question.get("response_options", []),
+            "response_name": question["response_name"],
+            "response": user_response,
+            "used_for_classifications": question.get("used_for_classifications", []),
+        }
+    )
+
+    session.modified = True

@@ -12,8 +12,10 @@ from survey_assist_utils.logging import get_logger
 from models.api_map import map_api_response_to_internal
 from models.question import Question
 from utils.app_types import SurveyAssistFlask
+from utils.session_utils import add_question_to_survey
 
 # This is temporary, will be changed to configurable in the future
+SHOW_CONSENT = True  # Whether to show the consent page
 FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
 
 logger = get_logger(__name__)
@@ -83,6 +85,7 @@ def get_next_followup(
 
     followup_list = session.get("follow_up", [])
     if not followup_list:
+        logger.warning("No follow-up questions available in session.")
         return None
 
     if question_type in ("open", "both"):
@@ -141,6 +144,7 @@ def format_followup(question_data: dict, question_text: str) -> Question:
     )
 
     logger.debug(f"Formatted question: {formatted_question.to_dict()}")
+
     return formatted_question
 
 
@@ -215,7 +219,9 @@ def classify_and_redirect(job_title: str, job_description: str, org_description:
         job_description=job_description,
         org_description=org_description,
     )
-    logger.debug(f"Classification response: {classification}")
+    logger.debug("Classification response")
+    logger.debug(f"{classification}")
+
     return redirect(url_for("survey.question_template"))
 
 
@@ -239,7 +245,6 @@ def classify_and_handle_followup(
         job_description=job_description,
         org_description=org_description,
     )
-    logger.debug(f"Classification response: {classification}")
 
     if classification is None:
         # TODO: Handle the error case appropriately, for now skip to next question #pylint: disable=fixme
@@ -247,15 +252,18 @@ def classify_and_handle_followup(
         return redirect(url_for("survey.question_template"))
 
     mapped_api_response = map_api_response_to_internal(classification)
-    logger.debug(f"Mapped response: {mapped_api_response}")
 
     followup_questions = mapped_api_response.get("follow_up", {}).get("questions", [])
 
     if not followup_questions:
+        logger.info(
+            "No follow-up questions available, redirecting to question template."
+        )
         return redirect(url_for("survey.question_template"))
 
     question = get_next_followup(followup_questions, FOLLOW_UP_TYPE)
     if not question:
+        logger.info("No follow-up question found, redirecting to question template.")
         return redirect(url_for("survey.question_template"))
 
     question_text, question_data = question
@@ -265,6 +273,14 @@ def classify_and_handle_followup(
     formatted_question = format_followup(
         question_data=question_data,
         question_text=question_text,
+    )
+
+    # Add to survey iteration
+    # survey_iteration = session.get("survey_iteration", {})
+    question_dict = formatted_question.to_dict()
+    add_question_to_survey(
+        question=question_dict,
+        user_response=None,  # User response is saved later
     )
 
     return render_template(
