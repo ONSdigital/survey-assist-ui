@@ -260,12 +260,9 @@ def consent_redirect() -> ResponseType:
         {
             "question_id": survey_assist["consent"]["question_id"],
             "question_text": survey_assist["consent"]["question_text"],
-            "response_type": "radio",
-            "response_name": "survey-assist-consent",
-            "response_options": [
-                {"id": "consent-yes", "label": {"text": "Yes"}, "value": "yes"},
-                {"id": "consent-no", "label": {"text": "No"}, "value": "no"},
-            ],
+            "response_type": survey_assist["consent"]["response_type"],
+            "response_name": survey_assist["consent"]["response_name"],
+            "response_options": survey_assist["consent"]["response_options"],
             "response": consent_response,
         }
     )

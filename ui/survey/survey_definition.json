@@ -169,6 +169,24 @@
       "title": "Survey Assist Consent",
       "question_name": "survey_assist_consent",
       "question_text": "Can Survey Assist ask PLACEHOLDER_FOLLOWUP to better understand PLACEHOLDER_REASON?",
+      "response_type": "radio",
+      "response_name": "survey-assist-consent",
+      "response_options": [
+        {
+          "id": "consent-yes", 
+          "label": {
+            "text": "Yes"
+          },
+          "value": "yes"
+        },  
+        {
+          "id": "consent-no",
+          "label": {
+            "text": "No"
+          },
+          "value": "no"
+        }
+      ],
       "justification_text": "<p>Survey Assist generates intelligent follow up questions based on the answers you have given so far to help ONS to better understand your main job or the organisation you work for. ONS asks for your consent as Survey Assist uses artifical intelligence to pose questions that enable us to better understand your survey responses.</p>",
       "placeholder_reason": "your main job and workplace",
       "max_followup": 2

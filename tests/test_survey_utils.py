@@ -169,18 +169,13 @@ def test_get_question_routing_invalid_question_name():
 
 @pytest.mark.utils
 @patch("utils.survey_utils.url_for", return_value="/survey-assist")
-def test_consent_redirect_yes(_mock_url_for, app):
+def test_consent_redirect_yes(_mock_url_for, app, mock_survey_assist):
     """Test redirection to survey_assist when consent is given."""
     with app.test_request_context(method="POST", data={"survey-assist-consent": "yes"}):
         session["survey_iteration"] = {"questions": []}
 
         mock_app = app
-        mock_app.survey_assist = {
-            "consent": {
-                "question_id": "consent-1",
-                "question_text": "Do you want to use Survey Assist?",
-            }
-        }
+        mock_app.survey_assist = mock_survey_assist
 
         with patch("utils.survey_utils.current_app", mock_app):
             response = consent_redirect()
@@ -193,19 +188,14 @@ def test_consent_redirect_yes(_mock_url_for, app):
 
 @pytest.mark.utils
 @patch("utils.survey_utils.url_for", return_value="/survey")
-def test_consent_redirect_no(_mock_url_for, app):
+def test_consent_redirect_no(_mock_url_for, app, mock_survey_assist):
     """Test redirection to /survey when consent is declined."""
     with app.test_request_context(method="POST", data={"survey-assist-consent": "no"}):
         session["survey_iteration"] = {"questions": []}
         session["current_question_index"] = 0
 
         mock_app = app
-        mock_app.survey_assist = {
-            "consent": {
-                "question_id": "consent-2",
-                "question_text": "Use AI to assist?",
-            }
-        }
+        mock_app.survey_assist = mock_survey_assist
 
         with patch("utils.survey_utils.current_app", mock_app):
             response = consent_redirect()
