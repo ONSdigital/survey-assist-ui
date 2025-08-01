@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from flask import current_app, session
 from flask.sessions import SecureCookieSessionInterface
+from pydantic import BaseModel
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__, level="DEBUG")
@@ -152,4 +153,18 @@ def add_question_to_survey(
         }
     )
 
+    session.modified = True
+
+
+def save_model_to_session(key: str, model: BaseModel) -> None:
+    """Convert a Pydantic model to dict and saves in session."""
+    session[key] = model.model_dump(mode="json")
+
+def load_model_from_session(key: str, model_class: type[BaseModel]) -> BaseModel:
+    """Loads and reconstructs a Pydantic model from Flask session."""
+    return model_class.model_validate(session[key])
+
+def remove_model_from_session(key: str) -> None:
+    """Remove a model from the Flask session."""
+    session.pop(key, None)
     session.modified = True
