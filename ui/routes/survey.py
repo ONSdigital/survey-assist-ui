@@ -6,7 +6,6 @@ This is the generic question page for the Survey Assist UI
 import re
 from datetime import datetime, timezone
 from typing import Callable, cast
-from unittest import result
 
 from flask import Blueprint, current_app, render_template, request, session
 from survey_assist_utils.logging import get_logger
@@ -59,7 +58,6 @@ def survey() -> str:
         # Set the time start based on the current timestamp
         session["survey_iteration"]["time_start"] = datetime.now(timezone.utc)
 
-
         # Initialise the results model in the session
         result_model = GenericSurveyAssistResult(
             survey_id=re.sub(r"\s+", "_", survey_title.strip().lower()),
@@ -76,8 +74,10 @@ def survey() -> str:
             time_end=session["survey_iteration"]["time_start"],  # will be updated later
             survey_assist_interactions=[],
         )
-
-        result_model.responses.append(new_response)
+        # Despite responses being a list pylint can't figure it out
+        # so we have to disable the linter warning
+        responses: list[GenericResponse] = result_model.responses
+        responses.append(new_response)  # pylint: disable=no-member
 
         save_model_to_session("survey_result", result_model)
         session.modified = True

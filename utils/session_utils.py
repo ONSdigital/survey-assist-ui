@@ -160,9 +160,11 @@ def save_model_to_session(key: str, model: BaseModel) -> None:
     """Convert a Pydantic model to dict and saves in session."""
     session[key] = model.model_dump(mode="json")
 
+
 def load_model_from_session(key: str, model_class: type[BaseModel]) -> BaseModel:
     """Loads and reconstructs a Pydantic model from Flask session."""
     return model_class.model_validate(session[key])
+
 
 def remove_model_from_session(key: str) -> None:
     """Remove a model from the Flask session."""
