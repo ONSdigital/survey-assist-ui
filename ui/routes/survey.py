@@ -10,9 +10,23 @@ from typing import Callable, cast
 from flask import Blueprint, current_app, render_template, request, session
 from survey_assist_utils.logging import get_logger
 
-from models.result import GenericResponse, GenericSurveyAssistResult
+from models.result import (
+    GenericCandidate,
+    GenericClassificationResult,
+    GenericResponse,
+    GenericSurveyAssistInteraction,
+    GenericSurveyAssistResult,
+    LookupResponse,
+    PotentialCode,
+    PotentialDivision,
+)
 from utils.app_types import ResponseType, SurveyAssistFlask
-from utils.session_utils import save_model_to_session, session_debug
+from utils.session_utils import (
+    add_interaction_to_response,
+    load_model_from_session,
+    save_model_to_session,
+    session_debug,
+)
 from utils.survey_utils import (
     consent_redirect,
     followup_redirect,
@@ -81,6 +95,88 @@ def survey() -> str:
 
         save_model_to_session("survey_result", result_model)
         session.modified = True
+
+        # Get the result
+        # TODO: Remove once tested
+        result = load_model_from_session("survey_result", GenericSurveyAssistResult)
+
+        interaction = GenericSurveyAssistInteraction(
+            type="classify",
+            flavour="sic",
+            time_start=session["survey_iteration"]["time_start"],
+            time_end=session["survey_iteration"]["time_start"],
+            input=[],
+            response=[
+                GenericClassificationResult(
+                    type="sic",
+                    classified=True,
+                    code="12345",
+                    description="Example Description",
+                    reasoning="Example reasoning",
+                    candidates=[
+                        GenericCandidate(
+                            code="12345", descriptive="Example", likelihood=0.85
+                        )
+                    ],
+                    follow_up=None,
+                )
+            ],
+        )
+
+        inputs_dict = {
+            "job_title": "Electrician",
+            "job_description": "Installing electrical systems",
+        }
+        result = add_interaction_to_response(
+            result,
+            person_id="user.respondent-a",
+            interaction=interaction,
+            input_fields=inputs_dict,
+        )
+        save_model_to_session("survey_result", result)
+
+        # Add a SIC LOOKUP interaction to the response
+        result = load_model_from_session("survey_result", GenericSurveyAssistResult)
+
+        # Create a LookupResponse
+        lookup_response = LookupResponse(
+            found=True,
+            potential_codes_count=2,
+            potential_divisions=[
+                PotentialDivision(
+                    code="E",
+                    title="Construction",
+                    detail="Covers buildings, electrical, etc.",
+                )
+            ],
+            potential_codes=[
+                PotentialCode(code="43210", description="Electrical installation"),
+                PotentialCode(code="43320", description="Plumbing installation"),
+            ],
+        )
+
+        # Create the interaction
+        interaction = GenericSurveyAssistInteraction(
+            type="lookup",
+            flavour="sic",
+            time_start=session["survey_iteration"]["time_start"],
+            time_end=session["survey_iteration"]["time_start"],
+            input=[],
+            response=lookup_response,
+        )
+        inputs_dict = {
+            "job_title": "Electrician",
+            "job_description": "Installing electrical systems",
+            "org_description": "Financial services industry",
+        }
+
+        result = add_interaction_to_response(
+            result,
+            person_id="user.respondent-a",
+            interaction=interaction,
+            input_fields=inputs_dict,
+        )
+        save_model_to_session("survey_result", result)
 
     # Get the current question based on the index
     current_index = session["current_question_index"]

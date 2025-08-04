@@ -6,12 +6,20 @@ This module provides helper functions for debugging and inspecting the Flask ses
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 from flask import current_app, session
 from flask.sessions import SecureCookieSessionInterface
 from pydantic import BaseModel
 from survey_assist_utils.logging import get_logger
+
+from models.result import (
+    GenericSurveyAssistInteraction,
+    GenericSurveyAssistResult,
+    InputField,
+)
+
+T = TypeVar("T", bound=BaseModel)
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -161,7 +169,7 @@ def save_model_to_session(key: str, model: BaseModel) -> None:
     session[key] = model.model_dump(mode="json")
 
 
-def load_model_from_session(key: str, model_class: type[BaseModel]) -> BaseModel:
+def load_model_from_session(key: str, model_class: type[T]) -> T:
     """Loads and reconstructs a Pydantic model from Flask session."""
     return model_class.model_validate(session[key])
 
@@ -170,3 +178,37 @@ def remove_model_from_session(key: str) -> None:
     """Remove a model from the Flask session."""
     session.pop(key, None)
     session.modified = True
+
+
+def add_interaction_to_response(
+    result_model: GenericSurveyAssistResult,
+    person_id: str,
+    interaction: GenericSurveyAssistInteraction,
+    input_fields: Optional[dict[str, str]] = None,
+) -> GenericSurveyAssistResult:
+    """Adds an interaction to a person's response and optionally appends inputs.
+
+    Args:
+        result_model: The full survey result.
+        person_id: The person to attach the interaction to.
+        interaction: The interaction to append.
+        input_fields: Optional dictionary of input fields to add to the interaction.
+
+    Returns:
+        The updated result model.
+
+    Raises:
+        ValueError: If no response matches the person_id.
+    """
+    if input_fields:
+        input_objs = [InputField(field=k, value=v) for k, v in input_fields.items()]
+        interaction.input.extend(input_objs)
+
+    for response in result_model.responses:
+        if response.person_id == person_id:
+            response.survey_assist_interactions.append(interaction)
+            response.time_end = interaction.time_end
+            result_model.time_end = max(result_model.time_end, interaction.time_end)
+            return result_model
+
+    raise ValueError(f"No response found for person_id '{person_id}'")
