@@ -80,7 +80,7 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     flask_app.api_client = APIClient(
         base_url=flask_app.api_base,
         token=flask_app.api_token,
-        logger=logger,
+        logger_handle=logger,
         redirect_on_error=False,
     )
 

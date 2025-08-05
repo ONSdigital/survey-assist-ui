@@ -72,7 +72,7 @@ def test_unsupported_method_error(client, api_client):
     """Tests that unsupported HTTP methods return an error and log appropriately."""
     app = cast(SurveyAssistFlask, current_app)
 
-    with app.app_context(), patch.object(api_client.logger, "error") as mock_error:
+    with app.app_context(), patch.object(api_client.logger_handle, "error") as mock_error:
         response, status_code = api_client._request(  # pylint:disable=protected-access
             "DELETE", "/unsupported"
         )

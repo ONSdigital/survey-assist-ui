@@ -4,6 +4,7 @@ This module provides helper functions for classifying survey responses, handling
 questions, and performing SIC code lookups.
 """
 
+from datetime import datetime, timezone
 from typing import Optional, cast
 
 from flask import current_app, redirect, render_template, session, url_for
@@ -148,58 +149,25 @@ def format_followup(question_data: dict, question_text: str) -> Question:
     return formatted_question
 
 
-def handle_sic_interaction(user_response):
-    """Handles SIC code lookup interaction for a user's survey response.
-
-    Args:
-        user_response (dict): Dictionary containing user response fields.
-
-    Returns:
-        Response: Redirect or rendered template based on SIC lookup and classification results.
-    """
-    logger.info("SIC lookup interaction found")
-
-    org_description = user_response.get("organisation_activity")
-    job_title = user_response.get("job_title")
-    job_description = user_response.get("job_description")
-
-    if not org_description:
-        logger.info("No organisation activity provided for SIC lookup. Try classify")
-        return classify_and_redirect(job_title, job_description, org_description)
-
-    response = perform_sic_lookup(org_description)
-
-    if not response:
-        logger.error("SIC lookup API request failure")
-        return redirect(url_for("survey.question_template"))
-
-    lookup_code = response.get("code")
-    if lookup_code:
-        logger.info(
-            f"Skip classify. SIC lookup successful org: {org_description} code: {lookup_code}"
-        )
-        return redirect(url_for("survey.question_template"))
-
-    logger.info("SIC lookup failed, redirecting to classify")
-    return classify_and_handle_followup(job_title, job_description, org_description)
-
-
-def perform_sic_lookup(org_description: str) -> dict | None:
+def perform_sic_lookup(org_description: str) -> tuple[dict, datetime, datetime]:
     """Performs a SIC code lookup using the API client.
 
     Args:
         org_description (str): The organisation description to look up.
 
     Returns:
-        dict | None: The API response dictionary, or None if lookup fails.
+        tuple: A tuple containing the API response dictionary, lookup start time,
+            and lookup end time.
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+    start_time = datetime.now(timezone.utc)
     api_url = f"/survey-assist/sic-lookup?description={org_description}&similarity=true"
     response = api_client.get(endpoint=api_url)
+    end_time = datetime.now(timezone.utc)
     logger.debug(f"SIC lookup response: {response}")
     session.modified = True
-    return response
+    return response, start_time, end_time
 
 
 def classify_and_redirect(job_title: str, job_description: str, org_description: str):

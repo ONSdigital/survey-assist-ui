@@ -176,7 +176,7 @@ def test_perform_sic_lookup(app, client, mock_api_client):
         pass  # Ensure session is initialised
 
     with patch.object(app, "api_client", mock_api_client), app.test_request_context():
-        result = perform_sic_lookup(test_description)
+        result, start_time, end_time = perform_sic_lookup(test_description)
 
         # Assert correct URL was called
         expected_url = (

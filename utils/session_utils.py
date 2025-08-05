@@ -18,6 +18,7 @@ from models.result import (
     GenericSurveyAssistResult,
     InputField,
 )
+from utils.api_utils import map_to_lookup_response
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -212,3 +213,50 @@ def add_interaction_to_response(
             return result_model
 
     raise ValueError(f"No response found for person_id '{person_id}'")
+
+
+def add_sic_lookup_interaction(
+    lookup_resp: Any,
+    start_time: datetime,
+    end_time: datetime,
+    inputs_dict: dict[str, str],
+):
+    """Adds a SIC lookup interaction to the survey result in the session.
+
+    This function loads the current survey result from the session, creates a new
+    GenericSurveyAssistInteraction for a SIC lookup, and appends it to the respondent's
+    interactions. The updated survey result is then saved back to the session.
+
+    Args:
+        lookup_resp (Any): The raw lookup response from the SIC API.
+        start_time (datetime): The start time of the lookup interaction.
+        end_time (datetime): The end time of the lookup interaction.
+        inputs_dict (dict[str, str]): Dictionary of input fields for the interaction.
+
+    Returns:
+        None
+    """
+    survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
+
+    lookup_result = map_to_lookup_response(lookup_resp, max_codes=3, max_divisions=3)
+
+    # Create the interaction
+    interaction = GenericSurveyAssistInteraction(
+        type="lookup",
+        flavour="sic",
+        time_start=start_time,
+        time_end=end_time,
+        input=[],
+        response=lookup_result,
+    )
+
+    survey_result = add_interaction_to_response(
+        survey_result,
+        person_id="user.respondent-a",
+        interaction=interaction,
+        input_fields=inputs_dict,
+    )
+
+    logger.debug("Survey Result")
+    logger.debug(survey_result.model_dump_json(indent=2))
+    save_model_to_session("survey_result", survey_result)
