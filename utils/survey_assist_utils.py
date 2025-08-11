@@ -5,15 +5,24 @@ questions, and performing SIC code lookups.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, cast
+from typing import cast
 
 from flask import current_app, redirect, render_template, session, url_for
+from pydantic import ValidationError
 from survey_assist_utils.logging import get_logger
 
-from models.api_map import map_api_response_to_internal
+from models.api_map import (
+    map_api_response_to_internal,
+)
+from models.classify import GenericClassificationResponse
 from models.question import Question
+from models.result import FollowUpQuestion
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import add_question_to_survey
+from utils.session_utils import (
+    add_classify_interaction,
+    add_follow_up_to_latest_classify,
+    add_question_to_survey,
+)
 
 # This is temporary, will be changed to configurable in the future
 SHOW_CONSENT = True  # Whether to show the consent page
@@ -24,7 +33,7 @@ logger = get_logger(__name__)
 
 def classify(
     classification_type: str, job_title: str, job_description: str, org_description: str
-) -> Optional[dict]:
+) -> tuple[GenericClassificationResponse | None, datetime]:
     """Classifies the given parameters using the API client.
 
     Args:
@@ -34,10 +43,12 @@ def classify(
         org_description (str): The organisation description to classify.
 
     Returns:
-        Optional[dict]: The classification response dictionary, or None if classification fails.
+        tuple[dict, datetime] | None: A tuple containing the classification response
+        and the classification start time, or None and start_time if classification fails.
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+    start_time = datetime.now(timezone.utc)
     response = api_client.post(
         "/survey-assist/classify",
         body={
@@ -49,11 +60,14 @@ def classify(
         },
     )
 
-    if isinstance(response, dict):
-        logger.info(f"Successfully classified {classification_type}.")
-        return response
-    logger.error(f"Failed to classify {classification_type}.")
-    return None
+    try:
+        validated_response = GenericClassificationResponse.model_validate(response)
+        logger.info(f"Classification type {classification_type}.")
+        logger.info(f"Followup question: {validated_response.results[0].followup}")
+        return validated_response, start_time
+    except ValidationError as e:
+        logger.error(f"Validation error in classification response: {e}")
+        return None, start_time
 
 
 def get_next_followup(
@@ -207,7 +221,7 @@ def classify_and_handle_followup(
     Returns:
         Response: Redirect or rendered template for the next follow-up question.
     """
-    classification = classify(
+    classification, start_time = classify(
         classification_type="sic",
         job_title=job_title,
         job_description=job_description,
@@ -219,9 +233,25 @@ def classify_and_handle_followup(
         logger.error("Classification response was None.")
         return redirect(url_for("survey.question_template"))
 
-    mapped_api_response = map_api_response_to_internal(classification)
+    # POC code option (need to also export BACKEND_API_URL)
+    # mapped_api_response = map_api_response_to_internal(classification.model_dump)
+    mapped_api_response = map_api_response_to_internal(classification.model_dump())
 
     followup_questions = mapped_api_response.get("follow_up", {}).get("questions", [])
+
+    inputs_dict = {
+        "job_title": job_title,
+        "job_description": job_description,
+        "org_description": org_description,
+    }
+    # Add interaction to survey_results
+    add_classify_interaction(
+        flavour="sic",
+        classify_resp=classification,
+        start_time=start_time,
+        end_time=start_time,  # intentional - end time added when user responds
+        inputs_dict=inputs_dict,
+    )
 
     if not followup_questions:
         logger.info(
@@ -235,8 +265,20 @@ def classify_and_handle_followup(
         return redirect(url_for("survey.question_template"))
 
     question_text, question_data = question
-    logger.debug(f"Next follow-up question: {question_text}")
-    logger.debug(f"Question data: {question_data}")
+
+    questions = [
+        FollowUpQuestion(
+            id=question_data["follow_up_id"],
+            text=question_data["question_text"],
+            type=question_data["response_type"],
+            select_options=question_data["select_options"],
+            response="",  # Added when user responds
+        )
+    ]
+
+    add_follow_up_to_latest_classify(
+        "sic", questions=questions, person_id="user.respondent-a"
+    )
 
     formatted_question = format_followup(
         question_data=question_data,

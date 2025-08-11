@@ -16,7 +16,11 @@ import requests
 from flask import jsonify, redirect, url_for
 from survey_assist_utils.logging import get_logger
 
-from models.result import LookupResponse, PotentialCode, PotentialDivision
+from models.result import (
+    LookupResponse,
+    PotentialCode,
+    PotentialDivision,
+)
 
 API_TIMER_SEC = 10
 logger = get_logger(__name__, level="DEBUG")
@@ -207,7 +211,7 @@ class APIClient:
         Returns:
             Response: A Flask redirect or JSON error response.
         """
-        self.logger_handle.exception(message)
+        self.logger_handle(message)
         if self.redirect_on_error:
             return redirect(url_for("error_page"))
         return jsonify({"error": message}), status_code

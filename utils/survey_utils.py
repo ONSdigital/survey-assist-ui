@@ -21,8 +21,13 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
+from models.result import FollowUpQuestion
 from utils.app_types import ResponseType, SurveyAssistFlask
-from utils.session_utils import add_question_to_survey, add_sic_lookup_interaction
+from utils.session_utils import (
+    add_follow_up_to_latest_classify,
+    add_question_to_survey,
+    add_sic_lookup_interaction,
+)
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
     SHOW_CONSENT,
@@ -322,6 +327,22 @@ def followup_redirect() -> ResponseType | str:
             if len(follow_up) > 0:
                 # Get the next follow-up question
                 follow_up_question = follow_up.pop(0)
+
+                fu_questions = [
+                    FollowUpQuestion(
+                        id=follow_up_question["follow_up_id"],
+                        text=follow_up_question["question_text"],
+                        type=follow_up_question["response_type"],
+                        select_options=follow_up_question["select_options"],
+                        response="",  # Added when user responds
+                    )
+                ]
+
+                # SG - Assuming this is SIC !!!!
+                add_follow_up_to_latest_classify(
+                    "sic", questions=fu_questions, person_id="user.respondent-a"
+                )
+
                 formatted_question = format_followup(
                     follow_up_question,
                     follow_up_question["question_text"],

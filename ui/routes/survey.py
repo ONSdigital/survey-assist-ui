@@ -16,6 +16,7 @@ from models.result import (
 )
 from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.session_utils import (
+    add_follow_up_response_to_classify,
     save_model_to_session,
     session_debug,
 )
@@ -248,6 +249,11 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         # get the last question and store the answer against it
         last_question = survey_questions[-1]
         last_question["response"] = request.form.get(last_question["response_name"])
+
+        logger.info("Saving response against follow_up, questions")
+        add_follow_up_response_to_classify(
+            last_question["question_id"], last_question["response"], "user.respondent-a"
+        )
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})
