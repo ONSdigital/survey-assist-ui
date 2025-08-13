@@ -13,7 +13,8 @@ from flask import Flask, current_app
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError, Timeout
 
-from utils.api_utils import APIClient
+from models.result import LookupResponse
+from utils.api_utils import APIClient, map_to_lookup_response
 from utils.app_types import SurveyAssistFlask
 
 BASE_URL = "https://api.example.com"
@@ -165,3 +166,56 @@ def test_handle_error_json_response(client, api_client):
         )
         assert result[1] == HTTPStatus.NOT_FOUND
         assert result[0].json == {"error": "Something went wrong"}
+
+
+POTENTIAL_CODES = 2
+POTENTIAL_DIVISIONS = 2
+POTENTIAL_CODE_STR = "123"
+POTENTIAL_DIVISION_TITLE = "Div A"
+
+
+@pytest.mark.utils
+def test_map_to_lookup_response_with_limits() -> None:
+    """Test limits in map_to_lookup_response."""
+    raw = {
+        "code": "12345",
+        "potential_matches": {
+            "codes": ["123", "456", "789", "999"],
+            "codes_count": 4,
+            "divisions": [
+                {"code": "A", "meta": {"title": "Div A", "detail": "Detail A"}},
+                {"code": "B", "meta": {"title": "Div B", "detail": "Detail B"}},
+                {"code": "C", "meta": {"title": "Div C", "detail": "Detail C"}},
+            ],
+            "divisions_count": 3,
+        },
+    }
+
+    result = map_to_lookup_response(raw, max_codes=2, max_divisions=2)
+
+    assert result.found is True
+    assert isinstance(result, LookupResponse)
+    assert len(result.potential_codes) == POTENTIAL_CODES
+    assert len(result.potential_divisions) == POTENTIAL_DIVISIONS
+    assert result.potential_codes[0].code == POTENTIAL_CODE_STR
+    assert result.potential_divisions[0].title == POTENTIAL_DIVISION_TITLE
+
+
+@pytest.mark.utils
+def test_map_to_lookup_response_empty_data() -> None:
+    """Test empty data in map_to_lookup_response."""
+    raw = {
+        "potential_matches": {
+            "codes": [],
+            "codes_count": 0,
+            "divisions": [],
+            "divisions_count": 0,
+        }
+    }
+
+    result = map_to_lookup_response(raw)
+
+    assert result.found is False
+    assert result.potential_codes == []
+    assert result.potential_divisions == []
+    assert result.potential_codes_count == 0
