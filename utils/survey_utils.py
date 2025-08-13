@@ -328,7 +328,7 @@ def followup_redirect() -> ResponseType | str:
                 # Get the next follow-up question
                 follow_up_question = follow_up.pop(0)
 
-                fu_questions = [
+                follow_up_questions = [
                     FollowUpQuestion(
                         id=follow_up_question["follow_up_id"],
                         text=follow_up_question["question_text"],
@@ -341,7 +341,9 @@ def followup_redirect() -> ResponseType | str:
                 if interactions[0].get("param") == "sic":
                     # SIC interaction
                     add_follow_up_to_latest_classify(
-                        "sic", questions=fu_questions, person_id="user.respondent-a"
+                        "sic",
+                        questions=follow_up_questions,
+                        person_id="user.respondent-a",
                     )
 
                     # Format for rendering and add to survey iteration in session
