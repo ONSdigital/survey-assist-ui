@@ -233,8 +233,6 @@ def classify_and_handle_followup(
         logger.error("Classification response was None.")
         return redirect(url_for("survey.question_template"))
 
-    # POC code option (need to also export BACKEND_API_URL)
-    # mapped_api_response = map_api_response_to_internal(classification.model_dump)
     mapped_api_response = map_api_response_to_internal(classification.model_dump())
 
     followup_questions = mapped_api_response.get("follow_up", {}).get("questions", [])
