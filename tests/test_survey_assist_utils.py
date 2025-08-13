@@ -61,7 +61,7 @@ def test_classify_response_handling(
         assert result is None
     else:
         assert isinstance(result, GenericClassificationResponse)
-        # Compare normalized dicts for stability
+        # Compare dicts for stability
         assert (
             result.model_dump() == generic_classification_response_no_meta.model_dump()
         )
