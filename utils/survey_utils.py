@@ -338,28 +338,33 @@ def followup_redirect() -> ResponseType | str:
                     )
                 ]
 
-                # SG - Assuming this is SIC !!!!
-                add_follow_up_to_latest_classify(
-                    "sic", questions=fu_questions, person_id="user.respondent-a"
-                )
+                if interactions[0].get("param") == "sic":
+                    # SIC interaction
+                    add_follow_up_to_latest_classify(
+                        "sic", questions=fu_questions, person_id="user.respondent-a"
+                    )
 
-                formatted_question = format_followup(
-                    follow_up_question,
-                    follow_up_question["question_text"],
-                )
+                    # Format for rendering and add to survey iteration in session
+                    formatted_question = format_followup(
+                        follow_up_question,
+                        follow_up_question["question_text"],
+                    )
 
-                # Add to survey iteration
-                # survey_iteration = session.get("survey_iteration", {})
-                question_dict = formatted_question.to_dict()
+                    question_dict = formatted_question.to_dict()
 
-                add_question_to_survey(
-                    question_dict,
-                    None,  # Response will be filled in later
-                )
+                    add_question_to_survey(
+                        question_dict,
+                        None,  # Response will be filled in later
+                    )
 
-                return render_template(
-                    "question_template.html", **formatted_question.to_dict()
-                )
+                    return render_template(
+                        "question_template.html", **formatted_question.to_dict()
+                    )
+                else:
+                    logger.error(
+                        f"Interaction {interactions[0].get("param")} is yet to be supported"
+                    )
+
         # No more follow up questions, redirect to the next core question
         # increment the current question index to
         # get the next question
