@@ -9,7 +9,7 @@ from flask import Blueprint, current_app, render_template, session
 from survey_assist_utils.logging import get_logger
 
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import session_debug
+from utils.session_utils import remove_model_from_session, session_debug
 
 main_blueprint = Blueprint("main", __name__)
 
@@ -34,6 +34,8 @@ def index() -> str:
     # Reset the current question index in the session
     if "current_question_index" in session:
         session["current_question_index"] = 0
-        session.modified = True
+
+    # Remove the survey_result if it exists
+    remove_model_from_session("survey_result")
 
     return render_template("index.html", survey_title=app.survey_title)

@@ -11,10 +11,22 @@ from unittest.mock import MagicMock
 import pytest
 from flask import Flask
 
+from models.classify import (
+    AppliedOptions,
+    ClassificationType,
+    GenericCandidate,
+    GenericClassificationResponse,
+    GenericClassificationResult,
+    LLMModel,
+    ResponseMeta,
+)
 from ui import create_app
 
 # Disable line too long warnings for this file
 # pylint: disable=line-too-long
+
+# pylint cannot differentiate the use of fixtures in the test functions
+# pylint: disable=unused-argument, disable=redefined-outer-name
 
 
 # This fixture creates a Flask application instance for testing purposes.
@@ -98,6 +110,12 @@ def mock_survey_assist() -> dict:
             "title": "Survey Assist Consent",
             "question_name": "survey_assist_consent",
             "question_text": "Can Survey Assist ask PLACEHOLDER_FOLLOWUP to better understand PLACEHOLDER_REASON?",
+            "response_type": "radio",
+            "response_name": "survey-assist-consent",
+            "response_options": [
+                {"id": "consent-yes", "label": {"text": "Yes"}, "value": "yes"},
+                {"id": "consent-no", "label": {"text": "No"}, "value": "no"},
+            ],
             "justification_text": "<p>Survey Assist generates intelligent follow up questions based on the answers you have given so far to help ONS to better understand your main job or the organisation you work for. ONS asks for your consent as Survey Assist uses artifical intelligence to pose questions that enable us to better understand your survey responses.</p>",
             "placeholder_reason": "your main job and workplace",
             "max_followup": 2,
@@ -273,3 +291,131 @@ def valid_question() -> dict[str, Any]:
         "response_type": "text",
         "used_for_classifications": ["sic", "soc"],
     }
+
+
+@pytest.fixture
+def generic_candidate() -> GenericCandidate:
+    """Generic candidate entry."""
+    return GenericCandidate(
+        code="62012",
+        descriptive="Business and domestic software development",
+        likelihood=0.87,
+    )
+
+
+@pytest.fixture
+def generic_classify_result(
+    generic_candidate: GenericCandidate,
+) -> GenericClassificationResult:
+    """Generic classify result."""
+    return GenericClassificationResult(
+        type=ClassificationType.SIC.value,  # "sic"
+        classified=True,
+        followup=None,
+        code="62012",
+        description="Business and domestic software development",
+        candidates=[generic_candidate],
+        reasoning="Job title and description strongly align with code 62012.",
+    )
+
+
+@pytest.fixture
+def response_meta() -> ResponseMeta:
+    """Valid response meta."""
+    return ResponseMeta(
+        llm=LLMModel.GEMINI.value,  # "gemini"
+        applied_options=AppliedOptions(
+            sic={"rephrased": True},
+            soc={"rephrased": True},
+        ),
+    )
+
+
+@pytest.fixture
+def generic_classification_response(
+    generic_classify_result: GenericClassificationResult,
+    response_meta: ResponseMeta,
+) -> GenericClassificationResponse:
+    """Valid response INCLUDING meta."""
+    return GenericClassificationResponse(
+        requested_type=ClassificationType.SIC.value,  # "sic"
+        results=[generic_classify_result],
+        meta=response_meta,
+    )
+
+
+@pytest.fixture
+def generic_classification_response_no_meta(
+    generic_classify_result: GenericClassificationResult,
+) -> GenericClassificationResponse:
+    """Valid response WITHOUT meta (meta is optional)."""
+    return GenericClassificationResponse(
+        requested_type=ClassificationType.SIC.value,
+        results=[generic_classify_result],
+        # meta omitted on purpose
+    )
+
+
+@pytest.fixture
+def make_generic_classification_response():
+    """Factory to build a GenericClassificationResponse with easy overrides.
+
+    Example:
+        resp = make_generic_classification_response(
+            requested_type="soc",
+            result_overrides={"classified": False, "followup": "What does your role involve daily?"},
+            meta=False,  # to omit meta
+        )
+    """
+
+    def _make(
+        *,
+        requested_type: str = ClassificationType.SIC.value,
+        candidate_overrides: dict | None = None,
+        result_overrides: dict | None = None,
+        meta: bool | ResponseMeta = True,
+    ) -> GenericClassificationResponse:
+        candidate = GenericCandidate(
+            code="62012",
+            descriptive="Business and domestic software development",
+            likelihood=0.87,
+        )
+        if candidate_overrides:
+            candidate = GenericCandidate(
+                **{**candidate.model_dump(), **candidate_overrides}
+            )
+
+        result = GenericClassificationResult(
+            type=requested_type,
+            classified=True,
+            followup=None,
+            code=candidate.code,
+            description=candidate.descriptive,
+            candidates=[candidate],
+            reasoning="Strong semantic similarity between inputs and target code.",
+        )
+        if result_overrides:
+            result = GenericClassificationResult(
+                **{**result.model_dump(), **result_overrides}
+            )
+
+        meta_value: ResponseMeta | None
+        if meta is True:
+            meta_value = ResponseMeta(
+                llm=LLMModel.GEMINI.value,
+                applied_options=AppliedOptions(
+                    sic={"rephrased": True}, soc={"rephrased": True}
+                ),
+            )
+        elif meta is False:
+            meta_value = None
+        else:
+            meta_value = meta  # already a ResponseMeta
+
+        return GenericClassificationResponse(
+            requested_type=requested_type,
+            results=[result],
+            meta=meta_value,
+        )
+
+    return _make

@@ -4,15 +4,25 @@ This module provides helper functions for classifying survey responses, handling
 questions, and performing SIC code lookups.
 """
 
-from typing import Optional, cast
+from datetime import datetime, timezone
+from typing import cast
 
 from flask import current_app, redirect, render_template, session, url_for
+from pydantic import ValidationError
 from survey_assist_utils.logging import get_logger
 
-from models.api_map import map_api_response_to_internal
+from models.api_map import (
+    map_api_response_to_internal,
+)
+from models.classify import GenericClassificationResponse
 from models.question import Question
+from models.result import FollowUpQuestion
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import add_question_to_survey
+from utils.session_utils import (
+    add_classify_interaction,
+    add_follow_up_to_latest_classify,
+    add_question_to_survey,
+)
 
 # This is temporary, will be changed to configurable in the future
 SHOW_CONSENT = True  # Whether to show the consent page
@@ -23,7 +33,7 @@ logger = get_logger(__name__)
 
 def classify(
     classification_type: str, job_title: str, job_description: str, org_description: str
-) -> Optional[dict]:
+) -> tuple[GenericClassificationResponse | None, datetime]:
     """Classifies the given parameters using the API client.
 
     Args:
@@ -33,10 +43,12 @@ def classify(
         org_description (str): The organisation description to classify.
 
     Returns:
-        Optional[dict]: The classification response dictionary, or None if classification fails.
+        tuple[dict, datetime] | None: A tuple containing the classification response
+        and the classification start time, or None and start_time if classification fails.
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+    start_time = datetime.now(timezone.utc)
     response = api_client.post(
         "/survey-assist/classify",
         body={
@@ -48,11 +60,14 @@ def classify(
         },
     )
 
-    if isinstance(response, dict):
-        logger.info(f"Successfully classified {classification_type}.")
-        return response
-    logger.error(f"Failed to classify {classification_type}.")
-    return None
+    try:
+        validated_response = GenericClassificationResponse.model_validate(response)
+        logger.info(f"Classification type {classification_type}.")
+        logger.info(f"Followup question: {validated_response.results[0].followup}")
+        return validated_response, start_time
+    except ValidationError as e:
+        logger.error(f"Validation error in classification response: {e}")
+        return None, start_time
 
 
 def get_next_followup(
@@ -148,58 +163,25 @@ def format_followup(question_data: dict, question_text: str) -> Question:
     return formatted_question
 
 
-def handle_sic_interaction(user_response):
-    """Handles SIC code lookup interaction for a user's survey response.
-
-    Args:
-        user_response (dict): Dictionary containing user response fields.
-
-    Returns:
-        Response: Redirect or rendered template based on SIC lookup and classification results.
-    """
-    logger.info("SIC lookup interaction found")
-
-    org_description = user_response.get("organisation_activity")
-    job_title = user_response.get("job_title")
-    job_description = user_response.get("job_description")
-
-    if not org_description:
-        logger.info("No organisation activity provided for SIC lookup. Try classify")
-        return classify_and_redirect(job_title, job_description, org_description)
-
-    response = perform_sic_lookup(org_description)
-
-    if not response:
-        logger.error("SIC lookup API request failure")
-        return redirect(url_for("survey.question_template"))
-
-    lookup_code = response.get("code")
-    if lookup_code:
-        logger.info(
-            f"Skip classify. SIC lookup successful org: {org_description} code: {lookup_code}"
-        )
-        return redirect(url_for("survey.question_template"))
-
-    logger.info("SIC lookup failed, redirecting to classify")
-    return classify_and_handle_followup(job_title, job_description, org_description)
-
-
-def perform_sic_lookup(org_description: str) -> dict | None:
+def perform_sic_lookup(org_description: str) -> tuple[dict, datetime, datetime]:
     """Performs a SIC code lookup using the API client.
 
     Args:
         org_description (str): The organisation description to look up.
 
     Returns:
-        dict | None: The API response dictionary, or None if lookup fails.
+        tuple: A tuple containing the API response dictionary, lookup start time,
+            and lookup end time.
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+    start_time = datetime.now(timezone.utc)
     api_url = f"/survey-assist/sic-lookup?description={org_description}&similarity=true"
     response = api_client.get(endpoint=api_url)
+    end_time = datetime.now(timezone.utc)
     logger.debug(f"SIC lookup response: {response}")
     session.modified = True
-    return response
+    return response, start_time, end_time
 
 
 def classify_and_redirect(job_title: str, job_description: str, org_description: str):
@@ -239,7 +221,7 @@ def classify_and_handle_followup(
     Returns:
         Response: Redirect or rendered template for the next follow-up question.
     """
-    classification = classify(
+    classification, start_time = classify(
         classification_type="sic",
         job_title=job_title,
         job_description=job_description,
@@ -251,9 +233,23 @@ def classify_and_handle_followup(
         logger.error("Classification response was None.")
         return redirect(url_for("survey.question_template"))
 
-    mapped_api_response = map_api_response_to_internal(classification)
+    mapped_api_response = map_api_response_to_internal(classification.model_dump())
 
     followup_questions = mapped_api_response.get("follow_up", {}).get("questions", [])
+
+    inputs_dict = {
+        "job_title": job_title,
+        "job_description": job_description,
+        "org_description": org_description,
+    }
+    # Add interaction to survey_results
+    add_classify_interaction(
+        flavour="sic",
+        classify_resp=classification,
+        start_time=start_time,
+        end_time=start_time,  # intentional - end time added when user responds
+        inputs_dict=inputs_dict,
+    )
 
     if not followup_questions:
         logger.info(
@@ -267,8 +263,20 @@ def classify_and_handle_followup(
         return redirect(url_for("survey.question_template"))
 
     question_text, question_data = question
-    logger.debug(f"Next follow-up question: {question_text}")
-    logger.debug(f"Question data: {question_data}")
+
+    questions = [
+        FollowUpQuestion(
+            id=question_data["follow_up_id"],
+            text=question_data["question_text"],
+            type=question_data["response_type"],
+            select_options=question_data["select_options"],
+            response="",  # Added when user responds
+        )
+    ]
+
+    add_follow_up_to_latest_classify(
+        "sic", questions=questions, person_id="user.respondent-a"
+    )
 
     formatted_question = format_followup(
         question_data=question_data,

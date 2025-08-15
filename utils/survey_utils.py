@@ -21,8 +21,13 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
+from models.result import FollowUpQuestion
 from utils.app_types import ResponseType, SurveyAssistFlask
-from utils.session_utils import add_question_to_survey
+from utils.session_utils import (
+    add_follow_up_to_latest_classify,
+    add_question_to_survey,
+    add_sic_lookup_interaction,
+)
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
     SHOW_CONSENT,
@@ -81,7 +86,7 @@ def find_matching_interaction(
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-def update_session_and_redirect(  # noqa: C901, PLR0912
+def update_session_and_redirect(
     req: Request,
     questions: list[dict[str, Any]],
     survey_assist: dict[str, Any],
@@ -160,21 +165,26 @@ def update_session_and_redirect(  # noqa: C901, PLR0912
                 # Make the sic lookup request
                 org_description = session["response"].get("organisation_activity", "")
                 if org_description:
-                    lookup_response = perform_sic_lookup(org_description)
+                    lookup_response, start_time, end_time = perform_sic_lookup(
+                        org_description
+                    )
+
+                    # Add response to survey_result
+                    add_sic_lookup_interaction(
+                        lookup_response,
+                        start_time,
+                        end_time,
+                        {"org_description": org_description},
+                    )
+
                 else:
                     logger.warning("No organisation description - SIC lookup skipped")
                     lookup_response = None
 
                 if lookup_response and lookup_response.get("code"):
-                    # If the SIC lookup returns a code
-                    logger.debug("SIC lookup successful")
-                    logger.debug(f"Lookup response: {lookup_response}")
+                    # If the SIC lookup returns a code skip
+                    # classification
                     perform_classification = False
-
-                if lookup_response is not None:
-                    logger.warning(
-                        f"Need to SAVE SIC lookup response: {lookup_response}"
-                    )
 
             if perform_classification:
                 if SHOW_CONSENT:
@@ -189,7 +199,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912
                     session.modified = True
                     return redirect(url_for("survey_assist.survey_assist"))
             else:
-                logger.debug("SIC Code lookup successful, skipping classification")
+                logger.debug("SIC lookup successful, skipping classification")
                 survey_iteration["survey_assist_time_end"] = datetime.now(timezone.utc)
 
     # Look at the next question for routing
@@ -260,12 +270,9 @@ def consent_redirect() -> ResponseType:
         {
             "question_id": survey_assist["consent"]["question_id"],
             "question_text": survey_assist["consent"]["question_text"],
-            "response_type": "radio",
-            "response_name": "survey-assist-consent",
-            "response_options": [
-                {"id": "consent-yes", "label": {"text": "Yes"}, "value": "yes"},
-                {"id": "consent-no", "label": {"text": "No"}, "value": "no"},
-            ],
+            "response_type": survey_assist["consent"]["response_type"],
+            "response_name": survey_assist["consent"]["response_name"],
+            "response_options": survey_assist["consent"]["response_options"],
             "response": consent_response,
         }
     )
@@ -320,23 +327,46 @@ def followup_redirect() -> ResponseType | str:
             if len(follow_up) > 0:
                 # Get the next follow-up question
                 follow_up_question = follow_up.pop(0)
-                formatted_question = format_followup(
-                    follow_up_question,
-                    follow_up_question["question_text"],
-                )
 
-                # Add to survey iteration
-                # survey_iteration = session.get("survey_iteration", {})
-                question_dict = formatted_question.to_dict()
+                follow_up_questions = [
+                    FollowUpQuestion(
+                        id=follow_up_question["follow_up_id"],
+                        text=follow_up_question["question_text"],
+                        type=follow_up_question["response_type"],
+                        select_options=follow_up_question["select_options"],
+                        response="",  # Added when user responds
+                    )
+                ]
 
-                add_question_to_survey(
-                    question_dict,
-                    None,  # Response will be filled in later
-                )
+                if interactions[0].get("param") == "sic":
+                    # SIC interaction
+                    add_follow_up_to_latest_classify(
+                        "sic",
+                        questions=follow_up_questions,
+                        person_id="user.respondent-a",
+                    )
 
-                return render_template(
-                    "question_template.html", **formatted_question.to_dict()
-                )
+                    # Format for rendering and add to survey iteration in session
+                    formatted_question = format_followup(
+                        follow_up_question,
+                        follow_up_question["question_text"],
+                    )
+
+                    question_dict = formatted_question.to_dict()
+
+                    add_question_to_survey(
+                        question_dict,
+                        None,  # Response will be filled in later
+                    )
+
+                    return render_template(
+                        "question_template.html", **formatted_question.to_dict()
+                    )
+                else:
+                    logger.error(
+                        f"Interaction {interactions[0].get("param")} is yet to be supported"
+                    )
+
         # No more follow up questions, redirect to the next core question
         # increment the current question index to
         # get the next question

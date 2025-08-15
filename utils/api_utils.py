@@ -14,8 +14,16 @@ from typing import Optional
 
 import requests
 from flask import jsonify, redirect, url_for
+from survey_assist_utils.logging import get_logger
+
+from models.result import (
+    LookupResponse,
+    PotentialCode,
+    PotentialDivision,
+)
 
 API_TIMER_SEC = 10
+logger = get_logger(__name__, level="DEBUG")
 
 
 # Disabling pylint warning for too many arguments/locals in APIClient class
@@ -29,19 +37,19 @@ class APIClient:
     """
 
     def __init__(
-        self, base_url: str, token: str, logger, redirect_on_error: bool = False
+        self, base_url: str, token: str, logger_handle, redirect_on_error: bool = False
     ):
         """Initialises the API client with base URL, token, and logger.
 
         Args:
             base_url (str): The base URL for the API.
             token (str): The authentication token for API requests.
-            logger: Logger instance for logging messages.
+            logger_handle: Logger instance for logging messages.
             redirect_on_error (bool): Whether to redirect on error.
         """
         self.base_url = base_url
         self.token = token
-        self.logger = logger
+        self.logger_handle = logger_handle
         self.redirect_on_error = redirect_on_error
 
     def _default_headers(self):
@@ -56,7 +64,7 @@ class APIClient:
         self,
         endpoint: str,
         headers: Optional[dict] = None,
-        logger=None,
+        logger_handle=None,
         return_json: bool = True,
     ):
         """Sends a GET request to the specified API endpoint.
@@ -64,14 +72,18 @@ class APIClient:
         Args:
             endpoint (str): The API endpoint to send the request to.
             headers (dict, optional): Additional headers for the request.
-            logger (optional): Logger instance for logging messages.
+            logger_handle (optional): Logger instance for logging messages.
             return_json (bool): Whether to return JSON response.
 
         Returns:
             dict or str: The API response data.
         """
         return self._request(
-            "GET", endpoint, headers=headers, logger=logger, return_json=return_json
+            "GET",
+            endpoint,
+            headers=headers,
+            logger_handle=logger_handle,
+            return_json=return_json,
         )
 
     def post(
@@ -79,7 +91,7 @@ class APIClient:
         endpoint: str,
         body: Optional[dict] = None,
         headers: Optional[dict] = None,
-        logger=None,
+        logger_handle=None,
         return_json: bool = True,
     ):
         """Sends a POST request to the specified API endpoint.
@@ -88,7 +100,7 @@ class APIClient:
             endpoint (str): The API endpoint to send the request to.
             body (dict, optional): The request body as a dictionary.
             headers (dict, optional): Additional headers for the request.
-            logger (optional): Logger instance for logging messages.
+            logger_handle (optional): Logger instance for logging messages.
             return_json (bool): Whether to return JSON response.
 
         Returns:
@@ -99,7 +111,7 @@ class APIClient:
             endpoint,
             body=body,
             headers=headers,
-            logger=logger,
+            logger_handle=logger_handle,
             return_json=return_json,
         )
 
@@ -109,7 +121,7 @@ class APIClient:
         endpoint: str,
         body: Optional[dict] = None,
         headers: Optional[dict] = None,
-        logger=None,
+        logger_handle=None,
         return_json: bool = True,
     ):
         """Sends an HTTP request to the specified API endpoint.
@@ -119,7 +131,7 @@ class APIClient:
             endpoint (str): The API endpoint to send the request to.
             body (dict, optional): The request body for POST requests.
             headers (dict, optional): Additional headers for the request.
-            logger (optional): Logger instance for logging messages.
+            logger_handle (optional): Logger instance for logging messages.
             return_json (bool): Whether to return JSON response.
 
         Returns:
@@ -131,14 +143,14 @@ class APIClient:
         url = f"{self.base_url}{endpoint}"
         combined_headers = {**self._default_headers(), **(headers or {})}
 
-        if logger is None:
-            logger = self.logger
+        if logger_handle is None:
+            logger_handle = self.logger_handle
 
-        logger.info(f"Sending {method} request to {url}")
+        logger_handle.info(f"Sending {method} request to {url}")
 
         # GET requests don't contain a body
         if body is not None:
-            logger.info(body)
+            logger_handle.info(body)
         data = None
         error = None
         status_code = HTTPStatus.INTERNAL_SERVER_ERROR
@@ -157,29 +169,31 @@ class APIClient:
 
             response.raise_for_status()
             data = response.json() if return_json else response.text
-            logger.info(f"Received response from {url}")
-            logger.info(data)
+            logger_handle.info(f"Received response from {url}")
+            logger_handle.info(data)
 
         except requests.exceptions.Timeout:
-            logger.error(f"Request to {url} timed out after {API_TIMER_SEC} seconds")
+            logger_handle.error(
+                f"Request to {url} timed out after {API_TIMER_SEC} seconds"
+            )
             error = "Request timed out"
             status_code = HTTPStatus.GATEWAY_TIMEOUT
         except requests.exceptions.ConnectionError:
-            logger.error(f"Failed to connect to API at {url}")
+            logger_handle.error(f"Failed to connect to API at {url}")
             error = "Failed to connect to API"
             status_code = HTTPStatus.BAD_GATEWAY
         except requests.exceptions.HTTPError as http_err:
-            logger.error(f"HTTP error occurred: {http_err}")
+            logger_handle.error(f"HTTP error occurred: {http_err}")
             error = f"HTTP error: {http_err.response.status_code}"
         except ValueError as val_err:
-            logger.error(f"Value error: {val_err}")
+            logger_handle.error(f"Value error: {val_err}")
             error = f"Value error: {val_err}"
         except KeyError as key_err:
-            logger.error(f"Missing expected data in response: {key_err}")
+            logger_handle.error(f"Missing expected data in response: {key_err}")
             error = f"Missing expected data: {key_err}"
             status_code = HTTPStatus.BAD_GATEWAY
         except (TypeError, AttributeError) as exc:
-            logger.error(f"Unexpected type or attribute error: {exc}")
+            logger_handle.error(f"Unexpected type or attribute error: {exc}")
             error = f"Unexpected error: {exc!s}"
 
         if error:
@@ -197,7 +211,61 @@ class APIClient:
         Returns:
             Response: A Flask redirect or JSON error response.
         """
-        self.logger.exception(message)
+        self.logger_handle(message)
         if self.redirect_on_error:
             return redirect(url_for("error_page"))
         return jsonify({"error": message}), status_code
+
+
+def map_to_lookup_response(
+    data: dict,
+    max_codes: Optional[int] = None,
+    max_divisions: Optional[int] = None,
+) -> LookupResponse:
+    """Maps raw API data to a LookupResponse, with optional limits on results.
+
+    Args:
+        data: The raw dictionary from the API.
+        max_codes: Optional maximum number of codes to include.
+        max_divisions: Optional maximum number of divisions to include.
+
+    Returns:
+        A populated LookupResponse object.
+    """
+    found = data.get("code") is not None
+
+    codes = data.get("potential_matches", {}).get("codes") or []
+    codes_count = data.get("potential_matches", {}).get("codes_count") or 0
+    divisions = data.get("potential_matches", {}).get("divisions") or []
+    divisions_count = data.get("potential_matches", {}).get("divisions_count") or 0
+
+    # Apply limits
+    if max_codes is not None and codes_count > max_codes:
+        logger.info(
+            f"Limit potential sic-lookup codes to {max_codes}, received {codes_count}"
+        )
+        codes = codes[:max_codes]
+
+    if max_divisions is not None and divisions_count > max_divisions:
+        logger.info(
+            f"Limit potential sic-lookup divisions to {max_divisions}, received {divisions_count}"
+        )
+        divisions = divisions[:max_divisions]
+
+    potential_codes = [PotentialCode(code=code, description="") for code in codes]
+
+    potential_divisions = [
+        PotentialDivision(
+            code=div.get("code", ""),
+            title=div.get("meta", {}).get("title", ""),
+            detail=div.get("meta", {}).get("detail", None),
+        )
+        for div in divisions
+    ]
+
+    return LookupResponse(
+        found=found,
+        potential_codes_count=len(potential_codes),
+        potential_codes=potential_codes,
+        potential_divisions=potential_divisions,
+    )

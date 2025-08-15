@@ -4,6 +4,10 @@ This module provides functions to convert API responses into the internal model
 format required by Survey Assist, including follow-up question generation.
 """
 
+from survey_assist_utils.logging import get_logger
+
+logger = get_logger(__name__, level="DEBUG")
+
 
 def map_api_response_to_internal(api_response: dict) -> dict:
     """Maps the API response to the internal Survey Assist model representation.
@@ -16,12 +20,12 @@ def map_api_response_to_internal(api_response: dict) -> dict:
     """
 
     def create_follow_up_question(
-        api_response: dict, q_id: str, response_type: str, select_options: list
+        result: dict, q_id: str, response_type: str, select_options: list
     ) -> dict:
         """Creates a follow-up question dictionary for the internal model.
 
         Args:
-            api_response (dict): The raw API response dictionary.
+            result (dict): The raw API result dictionary.
             q_id (str): The identifier for the follow-up question.
             response_type (str): The type of response expected (e.g., 'text', 'select', 'confirm').
             select_options (list): List of options for select-type questions.
@@ -35,7 +39,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             response_type = "select"
         else:
             question_text = (
-                api_response.get("followup", "")
+                result.get("followup", "")
                 if response_type == "text"
                 else "Which of these best describes your organisation's activities?"
             )
@@ -48,22 +52,27 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             "select_options": select_options,
         }
 
+    results = api_response.get("results", [])
+    candidates = results[0].get("candidates", [])
+
     # Map SIC candidates to internal codings format
     codings = [
         {
-            "code": candidate["sic_code"],
-            "code_description": candidate["sic_descriptive"],
+            "code": candidate["code"],
+            "code_description": candidate["descriptive"],
             "confidence": candidate["likelihood"],
         }
-        for candidate in api_response.get("sic_candidates", [])
+        for candidate in candidates
     ]
 
+    # Note - this still uses sic_code for internal representation
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     internal_representation = {
         "categorisation": {
             "codeable": api_response.get("classified", False),
             "codings": codings,
-            "sic_code": api_response.get("sic_code", ""),
-            "sic_description": api_response.get("sic_description", ""),
+            "sic_code": api_response.get("code", ""),
+            "sic_description": api_response.get("description", ""),
             "justification": api_response.get("reasoning", ""),
         },
         "follow_up": {"questions": []},
@@ -72,38 +81,22 @@ def map_api_response_to_internal(api_response: dict) -> dict:
     if not api_response.get("classified", False):
         # There is a choice of classifications, create follow-up question
         # list which will be a text based question and a select based question
-        if api_response.get("followup"):
+        if results[0].get("followup"):
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
-                create_follow_up_question(api_response, "f1.1", "text", [])
+                create_follow_up_question(results[0], "f1.1", "text", [])
             )
 
         # Create select follow-up question
-        if api_response.get("sic_candidates"):
-            select_options = [
-                candidate["sic_descriptive"]
-                for candidate in api_response["sic_candidates"]
-            ]
+        if candidates:
+            select_options = [candidate["descriptive"] for candidate in candidates]
             select_options.append("None of the above")
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
-                create_follow_up_question(
-                    api_response, "f1.2", "select", select_options
-                )
+                create_follow_up_question(results[0], "f1.2", "select", select_options)
             )
     else:
-        # V3 classify can return classified == True when it
-        # is confident a sic mapping has been found
-        # In this case, we want to confirm the mapping by asking the user
-        # if they agree with organisation classification description
-        follow_up = internal_representation["follow_up"]
-        follow_up["questions"].append(
-            create_follow_up_question(
-                api_response,
-                "f1.1",
-                "confirm",
-                [api_response.get("sic_description"), "No"],
-            )
-        )
-
+        # Classification is set to True
+        # Currently not implemented in Survey Assist prompt
+        logger.error("/classify returned: classified (true) - must add support!")
     return internal_representation

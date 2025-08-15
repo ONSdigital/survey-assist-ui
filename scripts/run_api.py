@@ -63,7 +63,7 @@ def init_api_client() -> APIClient:
     return APIClient(
         base_url=api_base,
         token=api_token,
-        logger=logger,
+        logger_handle=logger,
         redirect_on_error=False,
     )
 

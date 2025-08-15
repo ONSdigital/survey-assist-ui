@@ -3,14 +3,23 @@
 This is the generic question page for the Survey Assist UI
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Callable, cast
 
 from flask import Blueprint, current_app, render_template, request, session
 from survey_assist_utils.logging import get_logger
 
+from models.result import (
+    GenericResponse,
+    GenericSurveyAssistResult,
+)
 from utils.app_types import ResponseType, SurveyAssistFlask
-from utils.session_utils import session_debug
+from utils.session_utils import (
+    add_follow_up_response_to_classify,
+    save_model_to_session,
+    session_debug,
+)
 from utils.survey_utils import (
     consent_redirect,
     followup_redirect,
@@ -34,6 +43,10 @@ def survey() -> str:
     Returns:
         str: Rendered HTML for the current survey question.
     """
+    app = cast(SurveyAssistFlask, current_app)
+    survey_title = app.survey_title
+    questions = app.questions
+
     # Initialise the current question index in the session if it doesn't exist
     if "current_question_index" not in session:
         session["current_question_index"] = 0
@@ -51,13 +64,37 @@ def survey() -> str:
 
         # Set the time start based on the current timestamp
         session["survey_iteration"]["time_start"] = datetime.now(timezone.utc)
+
+        # Initialise the results model in the session
+        # case_id is a unique identifier that identifies a household
+        # that received the survey.
+        # user is the main user that starts the survey.
+        result_model = GenericSurveyAssistResult(
+            survey_id=re.sub(r"\s+", "_", survey_title.strip().lower()),
+            case_id="test-case-xyz",
+            user="user.respondent-a",
+            time_start=session["survey_iteration"]["time_start"],
+            time_end=session["survey_iteration"]["time_start"],  # will be updated later
+            responses=[],
+        )
+
+        # person-id is an indiviual respondent in the household
+        new_response = GenericResponse(
+            person_id="user.respondent-a",
+            time_start=session["survey_iteration"]["time_start"],
+            time_end=session["survey_iteration"]["time_start"],  # will be updated later
+            survey_assist_interactions=[],
+        )
+        # Despite responses being a list pylint can't figure it out
+        # so we have to disable the linter warning
+        responses: list[GenericResponse] = result_model.responses
+        responses.append(new_response)  # pylint: disable=no-member
+
+        save_model_to_session("survey_result", result_model)
         session.modified = True
 
     # Get the current question based on the index
     current_index = session["current_question_index"]
-
-    app = cast(SurveyAssistFlask, current_app)
-    questions = app.questions
     current_question = questions[current_index]
 
     # if question_text contains PLACEHOLDER_TEXT, get the associated
@@ -134,6 +171,11 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         # get the last question and store the answer against it
         last_question = survey_questions[-1]
         last_question["response"] = request.form.get(last_question["response_name"])
+
+        logger.info("Saving response against follow_up, questions")
+        add_follow_up_response_to_classify(
+            last_question["question_id"], last_question["response"], "user.respondent-a"
+        )
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})
