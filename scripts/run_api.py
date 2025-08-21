@@ -13,6 +13,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
@@ -51,17 +52,22 @@ def init_api_client() -> APIClient:
     jwt_secret_path = get_env_var("JWT_SECRET")
     sa_email = get_env_var("SA_EMAIL")
     api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
+    api_version = os.getenv("BACKEND_API_VERSION", "v1")
+    base_url = f"{api_base}{api_version}/"
+
+    parsed = urlparse(api_base)
+    gw_hostname = parsed.netloc.rstrip("/")
 
     _token_start_time, api_token = check_and_refresh_token(
         0,
         "",
         jwt_secret_path,
-        api_base,
+        gw_hostname,
         sa_email,
     )
 
     return APIClient(
-        base_url=api_base,
+        base_url=base_url,
         token=api_token,
         logger_handle=logger,
         redirect_on_error=False,

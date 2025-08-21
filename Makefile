@@ -63,15 +63,23 @@ colima-stop: ## Stop Colima
 
 .PHONY: docker-build
 docker-build: ## Build the Docker image
-	DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" docker build -t ai-assist-builder .
+	DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" docker build -t survey-assist-ui .
+
+# Allow CRED_FILE to be specified as part of make command
+# e.g make docker-run CRED_FILE=/path/to/service-account.json
+CRED_FILE ?= ~/gcp-project-ui-service-account.json
 
 .PHONY: docker-run
 docker-run: ## Run the Docker container
 	DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" docker run \
 		-p 8000:8000 \
-		-e FLASK_SECRET_KEY=FLASK_SECRET_KEY \
-		-e FLASK_ENV=production \
-		ai-assist-builder
+		-e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+		-v $(CRED_FILE):/app/service-account-key.json \
+		-e FLASK_SECRET_KEY=$(FLASK_SECRET_KEY) \
+		-e BACKEND_API_URL=$(BACKEND_API_URL) \
+		-e BACKEND_API_VERSION=$(BACKEND_API_VERSION) \
+		-e SA_EMAIL=$(SA_EMAIL) \
+		survey-assist-ui
 
 .PHONY: docker-clean
 docker-clean: ## Clean Docker resources

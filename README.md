@@ -67,9 +67,28 @@ To direct standard error and sys to a log file run use the following command.
 make run-ui > application_output.log 2>&1
 ```
 
-### GCP Setup
+#### Run the Application in a Container
 
-Placeholder
+To run the application in a container against API gateway deployed in GCP then you can do the following:
+
+##### Build the Docker Image
+
+```bash
+make docker-image
+```
+
+#### Set Appropriate Credentials
+
+When running locally the container needs to be passed a credential file for a service account that has permissions to generate an API token (this would typically be the UI service account assuming the role of the API account to generate a token). You will need to
+download the key file associated with the UI service account from the appropriate GCP account.
+
+#### Run the Docker Image
+
+See the section [Set environment variables](#set-the-required-environment-variables) for the values to set in shell before running the container.
+
+```bash
+make run-docker CRED_FILE=/path/to/service-account-cred.json
+```
 
 ### Code Quality
 
@@ -105,11 +124,40 @@ make unit-tests
 
 ### Environment Variables
 
+As the UI uses Google Application Default Credentials to generate tokens it is **important** to ensure that:
+
+#### Unset the GOOGLE_APPLICATION_CREDENTIALS variable
+
+Ensure the environment variable is not set in your poetry virtual environment:
+
+```bash
+unset GOOGLE_APPLICATION_CREDENTIALS
+poetry run python -c 'import os; print(repr(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")))'
+
+None
+```
+
+#### Project setting for default application credentials
+
+The application default credentials are governed by a json file usually stored at:
+
+```bash
+cat ~/.config/gcloud/application_default_credentials.json
+```
+
+The project is indicated by the **quota_project_id** field, this can be set by using the command:
+
+```bash
+gcloud auth application-default set-quota-project survey-assist-sandbox
+```
+
+#### Set the required environment variables
+
 The following environment variables must be set to run the UI against a backend API.
 
 ```bash
-export JWT_SECRET=<JSON for appropriate GCP env>
 export BACKEND_API_URL=<URL where API Gateway is running>
+export BACKEND_API_VERSION=v1 (or desired version)
 export SA_EMAIL=<service account email associated with API access>
 ```
 
