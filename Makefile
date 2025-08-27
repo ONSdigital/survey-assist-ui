@@ -38,7 +38,7 @@ check-python-nofix: ## Format the python code (no fix)
 black: ## Run black
 	poetry run black .
 
-unit-tests: ## Run all unit tests
+all-tests: ## Run all unit tests
 	poetry run pytest --cov=utils --cov=ui --cov-report=term-missing --cov-fail-under=80
 
 route-tests: ## Run the route tests
@@ -67,14 +67,17 @@ docker-build: ## Build the Docker image
 
 # Allow CRED_FILE to be specified as part of make command
 # e.g make docker-run CRED_FILE=/path/to/service-account.json
-CRED_FILE ?= ~/gcp-project-ui-service-account.json
+CRED_FILE ?= $(HOME)/gcp-project-creds-ui.json
 
+# Runs as user id to mount file for dev purposes only, in production
+# CRED_FILE is not used, instead GCP application default credentials are used.
 .PHONY: docker-run
 docker-run: ## Run the Docker container
 	DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" docker run \
 		-p 8000:8000 \
-		-e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
-		-v $(CRED_FILE):/app/service-account-key.json \
+		--user "$(id -u):$(id -g)" \
+  		--mount type=bind,src=$(CRED_FILE),target=/run/secrets/gcp-key.json,readonly \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp-key.json \
 		-e FLASK_SECRET_KEY=$(FLASK_SECRET_KEY) \
 		-e BACKEND_API_URL=$(BACKEND_API_URL) \
 		-e BACKEND_API_VERSION=$(BACKEND_API_VERSION) \

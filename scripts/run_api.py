@@ -49,11 +49,10 @@ def init_api_client() -> APIClient:
     Returns:
         APIClient: Configured API client for Survey Assist API.
     """
-    jwt_secret_path = get_env_var("JWT_SECRET")
     sa_email = get_env_var("SA_EMAIL")
     api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
-    api_version = os.getenv("BACKEND_API_VERSION", "v1")
-    base_url = f"{api_base}{api_version}/"
+    api_version = os.getenv("BACKEND_API_VERSION", "/v1")
+    base_url = f"{api_base}{api_version}"
 
     parsed = urlparse(api_base)
     gw_hostname = parsed.netloc.rstrip("/")
@@ -61,7 +60,6 @@ def init_api_client() -> APIClient:
     _token_start_time, api_token = check_and_refresh_token(
         0,
         "",
-        jwt_secret_path,
         gw_hostname,
         sa_email,
     )

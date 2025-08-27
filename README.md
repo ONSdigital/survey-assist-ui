@@ -119,7 +119,7 @@ make run-docs
 Unit testing for utility functions is added to the [/tests](./tests/)
 
 ```bash
-make unit-tests
+make all-tests
 ```
 
 ### Environment Variables
@@ -166,4 +166,34 @@ Set the following environment variables for extra logging of session data and to
 ```bash
 export JSON_DEBUG=True
 export SESSION_DEBUG=True 
+```
+
+### Scripts
+
+You can test API endpoints from the CLI using the [run_api.py script](scripts/run_api.py) with the following command:
+
+#### Execute API GET /config
+
+```bash
+poetry run python scripts/run_api.py --action config
+```
+
+#### Execute API GET /sic-lookup
+
+Note: "pubs" for the 'Enter organisation description' question will return a match.
+
+```bash
+poetry run python scripts/run_api.py --type sic --action lookup
+```
+
+#### Execute API POST /classify
+
+```bash
+poetry run python scripts/run_api.py --type sic --action classify
+```
+
+#### Execute API GET /sic-lookup and POST /classify
+
+```bash
+poetry run python scripts/run_api.py --type sic --action both
 ```

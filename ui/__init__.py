@@ -12,14 +12,12 @@ from urllib.parse import urlparse
 
 from flask import json, request
 from flask_misaka import Misaka
-
-#from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
+from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
 from ui.routes import register_blueprints
 from utils.api_utils import APIClient
 from utils.app_types import SurveyAssistFlask
-from utils.temp_jwt_utils import check_and_refresh_token
 
 logger = get_logger(__name__)
 
@@ -41,7 +39,7 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     flask_app.jwt_secret_path = os.getenv("JWT_SECRET", "SECRET_PATH_NOT_SET")
     flask_app.sa_email = os.getenv("SA_EMAIL", "SA_EMAIL_NOT_SET")
     flask_app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
-    flask_app.api_ver = os.getenv("BACKEND_API_VERSION", "v1")
+    flask_app.api_ver = os.getenv("BACKEND_API_VERSION", "/v1")
 
     # API token is generated at runtime, so we set it to an empty string initially
     flask_app.api_token = ""  # nosec
@@ -76,7 +74,6 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     flask_app.token_start_time, flask_app.api_token = check_and_refresh_token(
         flask_app.token_start_time,
         flask_app.api_token,
-        flask_app.jwt_secret_path,
         gw_hostname,
         flask_app.sa_email,
     )
@@ -116,14 +113,12 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
         """Check token status before processing the request."""
         orig_time = app.token_start_time
 
-
         parsed = urlparse(flask_app.api_base)
         gw_hostname = parsed.netloc.rstrip("/")
 
         app.token_start_time, app.api_token = check_and_refresh_token(
             app.token_start_time,
             app.api_token,
-            app.jwt_secret_path,
             gw_hostname,
             app.sa_email,
         )

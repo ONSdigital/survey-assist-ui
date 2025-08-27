@@ -11,8 +11,9 @@ python = "^3.12"
 flask = "^3.1.0"
 flask-misaka = "^1.0.1"
 #survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", rev = "89f4e86"}
-survey-assist-utils = { git = "https://github.com/ONSdigital/survey-assist-utils.git", rev = "8ae9f89" }
+survey-assist-utils = { git = "https://github.com/ONSdigital/survey-assist-utils.git", rev = "72a9743" }
 pydantic = "^2.11.7"
+gunicorn = "^23.0.0"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs-material = "^9.6.7"
