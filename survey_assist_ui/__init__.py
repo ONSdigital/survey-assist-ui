@@ -15,9 +15,11 @@ from flask_misaka import Misaka
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
-from ui.routes import register_blueprints
+from survey_assist_ui.routes import register_blueprints
 from utils.api_utils import APIClient
 from utils.app_types import SurveyAssistFlask
+
+from .versioning import get_app_version
 
 logger = get_logger(__name__)
 
@@ -59,7 +61,9 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     flask_app.config["JSON_DEBUG"] = os.getenv("JSON_DEBUG", "false").lower() == "true"
 
     # Load the survey definition
-    with open("ui/survey/survey_definition.json", encoding="utf-8") as file:
+    with open(
+        "survey_assist_ui/survey/survey_definition.json", encoding="utf-8"
+    ) as file:
         survey_definition = json.load(file)
         flask_app.survey_title = survey_definition.get(
             "survey_title", "Survey Assist Example"
@@ -128,7 +132,14 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
                 f"JWT token refresh Rx Method: {request.method} - Route: {request.endpoint}"
             )
 
-    logger.info("Flask app initialised with Misaka and Jinja2 extensions.")
+    @flask_app.after_request
+    def add_version_header(resp):
+        """Add a version header to requests to trace deployed software version."""
+        resp.headers["X-App-Version"] = get_app_version()
+        resp.headers["X-App-Revision"] = os.environ.get("APP_GIT_SHA", "unknown")
+        return resp
+
+    logger.info(f"Survey Assist UI initialised - version {get_app_version()}")
 
     return flask_app
 

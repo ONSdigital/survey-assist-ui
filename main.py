@@ -10,7 +10,7 @@ Example:
 
 """
 
-from ui import app
+from survey_assist_ui import app
 
 if __name__ == "__main__":
     # Run the Flask app directly when the script is executed

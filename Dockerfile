@@ -5,6 +5,18 @@
 ############################
 FROM python:3.12-slim AS builder
 
+ARG VERSION
+ARG GIT_SHA
+ARG BUILD_DATE
+
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$GIT_SHA \
+      org.opencontainers.image.created=$BUILD_DATE
+
+ENV APP_VERSION=$VERSION \
+    APP_GIT_SHA=$GIT_SHA \
+    APP_BUILD_DATE=$BUILD_DATE
+
 # System deps for building wheels (runtime will not include these)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -38,6 +50,7 @@ WORKDIR /app
 
 # ---- Dependency layer (maximises cache)
 COPY pyproject.toml poetry.lock ./
+COPY README.md ./
 
 # Install export plugin for poetry (to enable pip install from reqs)
 RUN poetry --version \
@@ -48,13 +61,13 @@ RUN poetry --version \
  && rm /tmp/req.txt
 
 # ---- App layer
-COPY ui ./ui
+COPY survey_assist_ui ./survey_assist_ui
 COPY models ./models
 COPY utils ./utils
 COPY main.py ./
 
 # Install gunicorn:
-RUN pip install --no-cache-dir gunicorn
+RUN pip install --no-cache-dir .
 
  # Sanity check - verify gunicorn is installed
 RUN ls -l /opt/venv/bin/gunicorn && /opt/venv/bin/python -c "import flask; print('flask ok')"
@@ -90,6 +103,14 @@ USER app
 
 #Expose the port
 EXPOSE 8000
+
+ARG VERSION
+ARG GIT_SHA
+ARG BUILD_DATE
+ENV APP_VERSION=$VERSION APP_GIT_SHA=$GIT_SHA APP_BUILD_DATE=$BUILD_DATE
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$GIT_SHA \
+      org.opencontainers.image.created=$BUILD_DATE
 
 # Optional: adjust to your health endpoint
 # Disabling in favour of GCP healthchecks in cloud run

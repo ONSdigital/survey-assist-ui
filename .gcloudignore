@@ -16,7 +16,6 @@ tests/
 LICENSE
 CHANGELOG.md
 .pre-commit-config.yaml
-README.md
 PIRR.md
 CODEOWNERS
 Makefile

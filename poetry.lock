@@ -3921,8 +3921,8 @@ toml = "^0.10.2"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/survey-assist-utils.git"
-reference = "72a9743"
-resolved_reference = "72a9743d4024fea848b9a5e78427cf902b553f4d"
+reference = "v0.0.3"
+resolved_reference = "d57e7f3a967f8890db2fb50cb9e80814eeaf6ecc"
 
 [[package]]
 name = "tenacity"
@@ -4288,4 +4288,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "0dbe991ee9d58d2f57f295372a63fc3c19f2600e94839c96712bec520ec5efe6"
+content-hash = "3c6269c6c9da0b77b93ee2b39650b534b2fcf6fe72ea8199a7b83304a5d9d712"

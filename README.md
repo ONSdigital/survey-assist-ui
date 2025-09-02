@@ -73,8 +73,24 @@ To run the application in a container against API gateway deployed in GCP then y
 
 ##### Build the Docker Image
 
+The docker image will bake in build date and version (from pyproject.toml) by default.
+
+View the build parameters:
+
 ```bash
-make docker-image
+make show-docker-build
+```
+
+To override the env settings for the build you can set the following environment variables:
+
+```bash
+export VERSION=<desired version name>
+export GIT_SHA=<specific git sha>
+export BUILD_DATE=<specific date in format - YYYY-MM-DDTHH:MM:SSZ>
+```
+
+```bash
+make build-docker
 ```
 
 #### Set Appropriate Credentials

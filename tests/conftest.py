@@ -20,7 +20,7 @@ from models.classify import (
     LLMModel,
     ResponseMeta,
 )
-from ui import create_app
+from survey_assist_ui import create_app
 
 # Disable line too long warnings for this file
 # pylint: disable=line-too-long

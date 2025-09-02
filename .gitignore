@@ -171,6 +171,6 @@ cython_debug/
 .pypirc
 
 # ignore the Design System files
-ui/templates/components
-ui/templates/layout
+survey_assist_ui/templates/components
+survey_assist_ui/templates/layout
 .vscode/
