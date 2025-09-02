@@ -12,15 +12,25 @@ steps:
   # Docker Build
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
-    args: ['build', '-t',
-           '${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}',
-           '.']
+    args:
+      - build
+      # build args baked into the image
+      - --build-arg
+      - VERSION=${_IMAGE_TAG}
+      - --build-arg
+      - GIT_SHA=${_GIT_SHA}
+      - --build-arg
+      - BUILD_DATE=${_BUILD_DATE}
+      # tags: version, sha, latest
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_GIT_SHA}
+      - .
 
-  # Docker Push
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-image'
-    args: ['push',
-           '${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}']
+images:
+  - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}
+  - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_GIT_SHA}
 
 # set build options
 timeout: 600s
