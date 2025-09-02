@@ -20,10 +20,78 @@ from survey_assist_utils.logging import get_logger
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from models.result_sic_only import (
+    Candidate,
+    ClassificationResponse,
+    FollowUp,
+    FollowUpQuestion,
+    InputField,
+    Response,
+    SurveyAssistInteraction,
+    SurveyAssistResult,
+)
+
+# Disabling lint error as this is a test script to manually verify endpoints, not used
+# in production.
 from utils.api_utils import APIClient  # pylint: disable=wrong-import-position
 
 logger = get_logger(__name__)
 
+# The API currently uses a model that only expects SIC in results
+result_sic_only: SurveyAssistResult = SurveyAssistResult(
+    survey_id="test-survey-123",
+    case_id="test-case-456",
+    user="test.userSA187",
+    time_start="2025-08-19T10:00:00Z",
+    time_end="2025-08-19T10:05:00Z",
+    responses=[
+        Response(
+            person_id="person-1",
+            time_start="2025-08-19T10:00:00Z",
+            time_end="2025-08-19T10:05:00Z",
+            survey_assist_interactions=[
+                # --- classify interaction (SIC) ---
+                SurveyAssistInteraction(
+                    type="classify",
+                    flavour="sic",
+                    time_start="2025-08-19T10:00:00Z",
+                    time_end="2025-08-19T10:01:00Z",
+                    input=[
+                        InputField(field="job_title", value="Electrician"),
+                        InputField(field="job_description", value="Installing electrical systems"),
+                    ],
+                    response= ClassificationResponse(
+                            classified=True,
+                            code="43210",
+                            description="Electrical installation",
+                            candidates=[
+                                Candidate(code="43210", description="Electrical installation", likelihood=0.9),
+                                Candidate(code="43220", description="Plumbing, heat and air-conditioning installation", likelihood=0.2),
+                            ],
+                            reasoning="Role and duties align with electrical installation (SIC 43210).",
+                            follow_up=FollowUp(
+                                questions=[
+                                    FollowUpQuestion(
+                                        id="q1",
+                                        text="What type of premises do you mostly work in?",
+                                        type="select",
+                                        select_options=["Domestic", "Commercial", "Industrial"],
+                                        response="Commercial",
+                                    ),
+                                    FollowUpQuestion(
+                                        id="q2",
+                                        text="Do you primarily install or maintain systems?",
+                                        type="text",
+                                        response="Mostly install new systems.",
+                                    ),
+                                ]
+                            ),
+                        )
+                ),
+            ],
+        )
+    ],
+)
 
 def get_env_var(name: str) -> str:
     """Retrieves the value of an environment variable or raises an error if missing.
@@ -151,6 +219,30 @@ def post_classify(
     return None
 
 
+def post_result_sic_only(
+    client: APIClient,
+    result: SurveyAssistResult
+) -> Optional[dict]:
+    """Sends a result to the Survey Assist API.
+
+    Args:
+        client (APIClient): The API client instance.
+        result (SurveyAssistResult): Pydantic model of result to send.
+
+    Returns:
+        Optional[dict]: The result response dictionary if successful, else None.
+    """
+    response = client.post(
+        "/survey-assist/result",
+        body=result_sic_only.model_dump(mode="json") #required for datetime
+    )
+    if isinstance(response, dict):
+        logger.info(f"Successfully saved response {response.get("result_id")}")
+        return response
+    logger.error("Failed to save result")
+    return None
+
+
 def prompt_input(prompt_text: str, default: str) -> str:
     """Prompts the user for input, returning the default if no input is given.
 
@@ -180,7 +272,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--action",
-        choices=["config", "lookup", "classify", "both"],
+        choices=["config", "lookup", "classify", "both", "result"],
         help="Action to perform",
     )
     args = parser.parse_args()
@@ -191,6 +283,15 @@ def main() -> None:
         if config:
             logger.debug(json.dumps(config))
         return
+
+
+    if args.action == "result":
+        api_client = init_api_client()
+        result_resp = post_result_sic_only(api_client, result_sic_only)
+        if result_resp:
+            logger.debug(json.dumps(result_resp))
+        return
+
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
     job_description = prompt_input(
