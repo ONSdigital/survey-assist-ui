@@ -67,9 +67,44 @@ To direct standard error and sys to a log file run use the following command.
 make run-ui > application_output.log 2>&1
 ```
 
-### GCP Setup
+#### Run the Application in a Container
 
-Placeholder
+To run the application in a container against API gateway deployed in GCP then you can do the following:
+
+##### Build the Docker Image
+
+The docker image will bake in build date and version (from pyproject.toml) by default.
+
+View the build parameters:
+
+```bash
+make show-docker-build
+```
+
+To override the env settings for the build you can set the following environment variables:
+
+```bash
+export VERSION=<desired version name>
+export GIT_SHA=<specific git sha>
+export BUILD_DATE=<specific date in format - YYYY-MM-DDTHH:MM:SSZ>
+```
+
+```bash
+make build-docker
+```
+
+#### Set Appropriate Credentials
+
+When running locally the container needs to be passed a credential file for a service account that has permissions to generate an API token (this would typically be the UI service account assuming the role of the API account to generate a token). You will need to
+download the key file associated with the UI service account from the appropriate GCP account.
+
+#### Run the Docker Image
+
+See the section [Set environment variables](#set-the-required-environment-variables) for the values to set in shell before running the container.
+
+```bash
+make run-docker CRED_FILE=/path/to/service-account-cred.json
+```
 
 ### Code Quality
 
@@ -100,16 +135,45 @@ make run-docs
 Unit testing for utility functions is added to the [/tests](./tests/)
 
 ```bash
-make unit-tests
+make all-tests
 ```
 
 ### Environment Variables
 
+As the UI uses Google Application Default Credentials to generate tokens it is **important** to ensure that:
+
+#### Unset the GOOGLE_APPLICATION_CREDENTIALS variable
+
+Ensure the environment variable is not set in your poetry virtual environment:
+
+```bash
+unset GOOGLE_APPLICATION_CREDENTIALS
+poetry run python -c 'import os; print(repr(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")))'
+
+None
+```
+
+#### Project setting for default application credentials
+
+The application default credentials are governed by a json file usually stored at:
+
+```bash
+cat ~/.config/gcloud/application_default_credentials.json
+```
+
+The project is indicated by the **quota_project_id** field, this can be set by using the command:
+
+```bash
+gcloud auth application-default set-quota-project survey-assist-sandbox
+```
+
+#### Set the required environment variables
+
 The following environment variables must be set to run the UI against a backend API.
 
 ```bash
-export JWT_SECRET=<JSON for appropriate GCP env>
 export BACKEND_API_URL=<URL where API Gateway is running>
+export BACKEND_API_VERSION=v1 (or desired version)
 export SA_EMAIL=<service account email associated with API access>
 ```
 
@@ -118,4 +182,34 @@ Set the following environment variables for extra logging of session data and to
 ```bash
 export JSON_DEBUG=True
 export SESSION_DEBUG=True 
+```
+
+### Scripts
+
+You can test API endpoints from the CLI using the [run_api.py script](scripts/run_api.py) with the following command:
+
+#### Execute API GET /config
+
+```bash
+poetry run python scripts/run_api.py --action config
+```
+
+#### Execute API GET /sic-lookup
+
+Note: "pubs" for the 'Enter organisation description' question will return a match.
+
+```bash
+poetry run python scripts/run_api.py --type sic --action lookup
+```
+
+#### Execute API POST /classify
+
+```bash
+poetry run python scripts/run_api.py --type sic --action classify
+```
+
+#### Execute API GET /sic-lookup and POST /classify
+
+```bash
+poetry run python scripts/run_api.py --type sic --action both
 ```

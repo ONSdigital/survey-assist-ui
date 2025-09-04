@@ -1,0 +1,30 @@
+# run: gcloud meta list-files-for-upload to test
+
+# main ignore including everything in the .gitignore
+.gcloudignore
+.git
+.gitignore
+.github
+#!include:.gitignore
+
+# ingnore additional folders not needed for building
+docs/
+tests/
+.ruff_cache/
+
+# ignore additional individual files
+LICENSE
+CHANGELOG.md
+.pre-commit-config.yaml
+PIRR.md
+CODEOWNERS
+Makefile
+ui-cloud-build-submit.sh
+
+# scripts that are not needed for building
+scripts/
+
+# secrets and example files
+.secrets.baseline
+.secrets.example
+.envrc

@@ -1,0 +1,38 @@
+steps:
+  # Get ONS Design System (templates required in build)
+  - name: alpine:3.20
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        set -e
+        apk add --no-cache wget unzip ca-certificates
+        chmod +x ./get_design_system.sh
+        ./get_design_system.sh
+  # Docker Build
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - build
+      # build args baked into the image
+      - --build-arg
+      - VERSION=${_IMAGE_TAG}
+      - --build-arg
+      - GIT_SHA=${_GIT_SHA}
+      - --build-arg
+      - BUILD_DATE=${_BUILD_DATE}
+      # tags: version, sha, latest
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_GIT_SHA}
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}
+  - ${_REGION}-docker.pkg.dev/${_DEPLOY_PROJECT_ID}/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_GIT_SHA}
+
+# set build options
+timeout: 600s
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,17 +1,19 @@
 [tool.poetry]
 name = "survey-assist-ui"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "User Interface for Survey Assist API and Backend"
 authors = ["Steve Gibbard <steve.gibbard@ons.gov.uk>"]
 license = "MIT"
 readme = "README.md"
+packages =[{ include = "survey_assist_ui"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
 flask = "^3.1.0"
 flask-misaka = "^1.0.1"
-survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", rev = "89f4e86"}
+survey-assist-utils = { git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.3" }
 pydantic = "^2.11.7"
+gunicorn = "^23.0.0"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs-material = "^9.6.7"
