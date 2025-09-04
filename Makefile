@@ -14,6 +14,7 @@ load-design-system-templates:  ## Load the design system templates
 	./get_design_system.sh
 
 run-ui: ## Run the UI
+	APP_BUILD_DATE=$(BUILD_DATE) \
 	poetry run flask --app survey_assist_ui run --debug -p 8000
 
 run-docs: ## Run the mkdocs
