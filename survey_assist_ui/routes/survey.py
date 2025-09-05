@@ -7,7 +7,15 @@ import re
 from datetime import datetime, timezone
 from typing import Callable, cast
 
-from flask import Blueprint, current_app, render_template, request, session
+from flask import (
+    Blueprint,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from survey_assist_utils.logging import get_logger
 
 from models.result import (
@@ -15,11 +23,13 @@ from models.result import (
     GenericSurveyAssistResult,
 )
 from utils.app_types import ResponseType, SurveyAssistFlask
+from utils.map_results_utils import translate_session_to_model
 from utils.session_utils import (
     add_follow_up_response_to_classify,
     save_model_to_session,
     session_debug,
 )
+from utils.survey_assist_utils import result_sic_only
 from utils.survey_utils import (
     consent_redirect,
     followup_redirect,
@@ -275,3 +285,36 @@ def summary():
             )
 
     return render_template("summary_template.html", questions=survey_questions)
+
+
+SURVEY_NAME = "Shape Tomorrow Prototype"
+
+
+# The survey_result route handles sending the result to the
+# survey assist API.
+@survey_blueprint.route("/survey_result")
+@session_debug
+def survey_result():
+    """Maps the session result to the API result body and makes API request.
+
+    Returns:
+    TBD
+    """
+    sr = session.get("survey_result")
+
+    result = translate_session_to_model(sr)
+
+    response = result_sic_only(result)
+
+    if response:
+        return redirect(url_for("survey.thank_you"))
+    else:
+        logger.error("Error saving survey result")
+        # Will add error splash in later PR
+        return redirect(url_for("survey.thank_you"))
+
+
+@survey_blueprint.route("/thank_you")
+def thank_you():
+    """Render a thnk you page to show results were submitted."""
+    return render_template("thank_you.html", survey=SURVEY_NAME)

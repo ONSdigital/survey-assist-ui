@@ -419,3 +419,145 @@ def make_generic_classification_response():
         )
 
     return _make
+
+
+@pytest.fixture()
+def survey_result_session() -> dict[str, Any]:
+    """Provide a realistic example session payload mirroring production shape.
+
+    Returns:
+        dict[str, Any]: A session dict containing a 'survey_result' key with nested responses.
+    """
+    return {
+        "survey_result": {
+            "case_id": "test-case-xyz",
+            "responses": [
+                {
+                    "person_id": "user.respondent-a",
+                    "survey_assist_interactions": [
+                        {
+                            "flavour": "sic",
+                            "input": [
+                                {
+                                    "field": "org_description",
+                                    "value": "Farm providing food for shops and wholesalers",
+                                }
+                            ],
+                            "response": {
+                                "found": False,
+                                "potential_codes": [],
+                                "potential_codes_count": 0,
+                                "potential_divisions": [],
+                            },
+                            "time_end": "2025-09-05T08:12:21.861831Z",
+                            "time_start": "2025-09-05T08:12:18.275881Z",
+                            "type": "lookup",
+                        },
+                        {
+                            "flavour": "sic",
+                            "input": [
+                                {"field": "job_title", "value": "Farm Hand"},
+                                {
+                                    "field": "job_description",
+                                    "value": "I tend crops on a farm applying fertaliser and harvesting plants",
+                                },
+                                {
+                                    "field": "org_description",
+                                    "value": "Farm providing food for shops and wholesalers",
+                                },
+                            ],
+                            "response": [
+                                {
+                                    "candidates": [
+                                        {
+                                            "code": "46210",
+                                            "descriptive": "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                            "likelihood": 0.6,
+                                        },
+                                        {
+                                            "code": "46390",
+                                            "descriptive": "Non-specialised wholesale of food, beverages and tobacco",
+                                            "likelihood": 0.4,
+                                        },
+                                    ],
+                                    "classified": False,
+                                    "code": "46210",
+                                    "description": "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                    "follow_up": {
+                                        "questions": [
+                                            {
+                                                "id": "f1.1",
+                                                "response": "sells grain and animal feeds",
+                                                "select_options": [],
+                                                "text": "Does your farm primarily sell grain, seeds, animal feeds, or other types of food products?",
+                                                "type": "text",
+                                            },
+                                            {
+                                                "id": "f1.2",
+                                                "response": "wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                                "select_options": [
+                                                    "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                                    "Non-specialised wholesale of food, beverages and tobacco",
+                                                    "None of the above",
+                                                ],
+                                                "text": "Which of these best describes your organisation's activities?",
+                                                "type": "select",
+                                            },
+                                        ]
+                                    },
+                                    "reasoning": "Follow-up needed to determine most appropriate SIC code.",
+                                    "type": "sic",
+                                }
+                            ],
+                            "time_end": "2025-09-05T08:12:26.599931Z",
+                            "time_start": "2025-09-05T08:12:26.599931Z",
+                            "type": "classify",
+                        },
+                    ],
+                    "time_end": "2025-09-05T08:12:26.599931Z",
+                    "time_start": "2025-09-05T08:12:06.412975Z",
+                }
+            ],
+            "survey_id": "shape_tomorrow_prototype",
+            "time_end": "2025-09-05T08:12:26.599931Z",
+            "time_start": "2025-09-05T08:12:06.412975Z",
+            "user": "user.respondent-a",
+        }
+    }
+
+
+# Simulate a user answereing org description question with an answer that is in the lookup data
+@pytest.fixture()
+def survey_result_session_lookup_found() -> dict[str, Any]:
+    """Mock survey result when SIC lookup finds a match."""
+    return {
+        "survey_result": {
+            "case_id": "test-case-xyz",
+            "responses": [
+                {
+                    "person_id": "user.respondent-a",
+                    "survey_assist_interactions": [
+                        {
+                            "flavour": "sic",
+                            "input": [{"field": "org_description", "value": "pubs"}],
+                            "response": {
+                                "found": True,
+                                "potential_codes": [],
+                                "potential_codes_count": 0,
+                                "potential_divisions": [],
+                            },
+                            "time_end": "2025-09-05T09:00:46.000783Z",
+                            "time_start": "2025-09-05T09:00:45.864491Z",
+                            "type": "lookup",
+                        }
+                    ],
+                    "time_end": "2025-09-05T09:00:46.000783Z",
+                    "time_start": "2025-09-05T09:00:28.493081Z",
+                }
+            ],
+            "survey_id": "shape_tomorrow_prototype",
+            "time_end": "2025-09-05T09:00:46.000783Z",
+            "time_start": "2025-09-05T09:00:28.493081Z",
+            "user": "user.respondent-a",
+        }
+    }
