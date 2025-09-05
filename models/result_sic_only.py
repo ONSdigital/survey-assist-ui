@@ -12,6 +12,10 @@ from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
+# The ui and api use pydantic models which are very similar
+# This needs to be refactored under a separate ticket
+# pylint: disable=duplicate-code
+
 
 class InputField(BaseModel):
     """Model for input field data."""

@@ -44,7 +44,8 @@ def classify(
         org_description (str): The organisation description to classify.
 
     Returns:
-        tuple[GenericClassificationResponse, datetime] | None: A tuple containing the classification response
+        tuple[GenericClassificationResponse, datetime] | None: A tuple containing the classification
+        response.
         and the classification start time, or None and start_time if classification fails.
     """
     app = cast(SurveyAssistFlask, current_app)
@@ -71,11 +72,8 @@ def classify(
         return None, start_time
 
 
-
 # This option is added to interwork with the initial API that only supports SIC
-def result_sic_only(
-    result: SurveyAssistResult
-) -> ResultResponse | None:
+def result_sic_only(result: SurveyAssistResult) -> ResultResponse | None:
     """Classifies the given parameters using the API client.
 
     Args:
