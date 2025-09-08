@@ -329,11 +329,17 @@ def classify_and_handle_followup(
     j_enabled = consent.get("justification_enabled", False)
     j_title = consent.get("justification_title", "Why we ask this question")
     j_text = consent.get("justification_text", "<p>Placeholder text</p>")
+    g_enabled = survey_assist.get("guidance_enabled", False)
+    g_text = survey_assist.get("guidance_text", "Question asked by Survey Assist")
+
+    logger.info(f"Guidance: {g_enabled} Text: {g_text}")
 
     question_dict.update(
         justification_enabled=j_enabled,
         justification_title=j_title,
-        justification_text=j_text
+        justification_text=j_text,
+        guidance_enabled=g_enabled,
+        guidance_text=g_text
     )
 
     return render_template(

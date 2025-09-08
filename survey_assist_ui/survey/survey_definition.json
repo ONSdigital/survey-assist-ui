@@ -28,6 +28,8 @@
           "value": "no"
         }
       ],
+      "guidance_enabled": false,
+      "guidance_text": "",
       "justification_enabled": false,
       "justification_title": "Why we ask this question",
       "justification_text": "Placeholder text",
@@ -44,6 +46,8 @@
       "response_type": "text",
       "response_name": "job-title",
       "response_options": [],
+      "guidance_enabled": false,
+      "guidance_text": "",
       "justification_enabled": false,
       "justification_title": "Why we ask this question",
       "justification_text": "<p>Placeholder text</p>",
@@ -63,6 +67,8 @@
       "response_type": "text",
       "response_name": "job-description",
       "response_options": [],
+      "guidance_enabled": false,
+      "guidance_text": "",
       "justification_enabled": false,
       "justification_title": "Why we ask this question",
       "justification_text": "<p>Placeholder text</p>",
@@ -82,6 +88,8 @@
       "response_type": "text",
       "response_name": "organisation-activity",
       "response_options": [],
+      "guidance_enabled": false,
+      "guidance_text": "",
       "justification_enabled": false,
       "justification_title": "Why we ask this question",
       "justification_text": "<p>Placeholder text</p>",
@@ -165,6 +173,8 @@
           "value": "Some other kind of organisation"
         }
       ],
+      "guidance_enabled": false,
+      "guidance_text": "",
       "justification_enabled": false,
       "justification_title": "Why we ask this question",
       "justification_text": "<p>Placeholder text</p>",
@@ -176,6 +186,8 @@
   "survey_assist": {
     "enabled": true,
     "question_assist_label": "<br><strong>(Asked by Survey Assist)</strong></br>",
+    "guidance_enabled": true,
+    "guidance_text": "Automated follow-up question.", 
     "consent": {
       "required": true,
       "question_id": "c1",
