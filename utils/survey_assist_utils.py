@@ -17,6 +17,7 @@ from models.api_map import (
 from models.classify import GenericClassificationResponse
 from models.question import Question
 from models.result import FollowUpQuestion
+from models.result_sic_only import ResultResponse, SurveyAssistResult
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
     add_classify_interaction,
@@ -43,7 +44,8 @@ def classify(
         org_description (str): The organisation description to classify.
 
     Returns:
-        tuple[dict, datetime] | None: A tuple containing the classification response
+        tuple[GenericClassificationResponse, datetime] | None: A tuple containing the classification
+        response.
         and the classification start time, or None and start_time if classification fails.
     """
     app = cast(SurveyAssistFlask, current_app)
@@ -68,6 +70,31 @@ def classify(
     except ValidationError as e:
         logger.error(f"Validation error in classification response: {e}")
         return None, start_time
+
+
+# This option is added to interwork with the initial API that only supports SIC
+def result_sic_only(result: SurveyAssistResult) -> ResultResponse | None:
+    """Classifies the given parameters using the API client.
+
+    Args:
+        result (GenericSurveyAssistResult): The result body to send to Survey Assist.
+
+    Returns:
+        ResultResponse | None: result response or None if result fails.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    api_client = app.api_client
+    response = api_client.post(
+        "/survey-assist/result",
+        body=result.model_dump(mode="json"),
+    )
+
+    try:
+        validated_response = ResultResponse.model_validate(response)
+        return validated_response
+    except ValidationError as e:
+        logger.error(f"Validation error in result response: {e}")
+        return None
 
 
 def get_next_followup(

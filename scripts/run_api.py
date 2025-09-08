@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -20,9 +21,243 @@ from survey_assist_utils.logging import get_logger
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# Disabling lint error as this is a test script to manually verify endpoints, not used
+# in production.
+# pylint: disable=wrong-import-position
+from models.result_sic_only import (
+    Candidate,
+    ClassificationResponse,
+    FollowUp,
+    FollowUpQuestion,
+    InputField,
+    Response,
+    SurveyAssistInteraction,
+    SurveyAssistResult,
+)
 from utils.api_utils import APIClient  # pylint: disable=wrong-import-position
+from utils.map_results_utils import (
+    translate_session_to_model,
+)
+
+# pylint: disable=line-too-long
 
 logger = get_logger(__name__)
+
+
+def parse_z(ts: str) -> datetime:
+    """Convert an ISO-8601 'Z' timestamp to a UTC-aware datetime.
+
+    Args:
+        ts: Timestamp like '2025-08-19T10:00:00Z'.
+
+    Returns:
+        A timezone-aware datetime normalised to UTC.
+    """
+    return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+# The API currently uses a model that only expects SIC in results
+result_sic_only: SurveyAssistResult = SurveyAssistResult(
+    survey_id="test-survey-123",
+    case_id="test-case-456",
+    user="test.userSA187",
+    time_start=parse_z("2025-08-19T10:00:00Z"),
+    time_end=parse_z("2025-08-19T10:05:00Z"),
+    responses=[
+        Response(
+            person_id="person-1",
+            time_start=parse_z("2025-08-19T10:00:00Z"),
+            time_end=parse_z("2025-08-19T10:05:00Z"),
+            survey_assist_interactions=[
+                # --- classify interaction (SIC) ---
+                SurveyAssistInteraction(
+                    type="classify",
+                    flavour="sic",
+                    time_start=parse_z("2025-08-19T10:00:00Z"),
+                    time_end=parse_z("2025-08-19T10:01:00Z"),
+                    input=[
+                        InputField(field="job_title", value="Electrician"),
+                        InputField(
+                            field="job_description",
+                            value="Installing electrical systems",
+                        ),
+                    ],
+                    response=ClassificationResponse(
+                        classified=True,
+                        code="43210",
+                        description="Electrical installation",
+                        candidates=[
+                            Candidate(
+                                code="43210",
+                                description="Electrical installation",
+                                likelihood=0.9,
+                            ),
+                            Candidate(
+                                code="43220",
+                                description="Plumbing, heat and air-conditioning installation",
+                                likelihood=0.2,
+                            ),
+                        ],
+                        reasoning="Role and duties align with electrical installation (SIC 43210).",
+                        follow_up=FollowUp(
+                            questions=[
+                                FollowUpQuestion(
+                                    id="q1",
+                                    text="What type of premises do you mostly work in?",
+                                    type="select",
+                                    select_options=[
+                                        "Domestic",
+                                        "Commercial",
+                                        "Industrial",
+                                    ],
+                                    response="Commercial",
+                                ),
+                                FollowUpQuestion(
+                                    id="q2",
+                                    text="Do you primarily install or maintain systems?",
+                                    type="text",
+                                    response="Mostly install new systems.",
+                                    select_options=[],
+                                ),
+                            ]
+                        ),
+                    ),
+                ),
+            ],
+        )
+    ],
+)
+
+# The following is mock data used by script, pytests have similar by design
+# pylint: disable=duplicate-code
+example_session_classify_result = {
+    "survey_result": {
+        "case_id": "test-case-xyz",
+        "responses": [
+            {
+                "person_id": "user.respondent-a",
+                "survey_assist_interactions": [
+                    {
+                        "flavour": "sic",
+                        "input": [
+                            {
+                                "field": "org_description",
+                                "value": "Farm providing food for shops and wholesalers",
+                            }
+                        ],
+                        "response": {
+                            "found": False,
+                            "potential_codes": [],
+                            "potential_codes_count": 0,
+                            "potential_divisions": [],
+                        },
+                        "time_end": "2025-09-05T08:12:21.861831Z",
+                        "time_start": "2025-09-05T08:12:18.275881Z",
+                        "type": "lookup",
+                    },
+                    {
+                        "flavour": "sic",
+                        "input": [
+                            {"field": "job_title", "value": "Farm Hand"},
+                            {
+                                "field": "job_description",
+                                "value": "I tend crops on a farm applying fertaliser and harvesting plants",
+                            },
+                            {
+                                "field": "org_description",
+                                "value": "Farm providing food for shops and wholesalers",
+                            },
+                        ],
+                        "response": [
+                            {
+                                "candidates": [
+                                    {
+                                        "code": "46210",
+                                        "descriptive": "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                        "likelihood": 0.6,
+                                    },
+                                    {
+                                        "code": "46390",
+                                        "descriptive": "Non-specialised wholesale of food, beverages and tobacco",
+                                        "likelihood": 0.4,
+                                    },
+                                ],
+                                "classified": False,
+                                "code": "46210",
+                                "description": "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                "follow_up": {
+                                    "questions": [
+                                        {
+                                            "id": "f1.1",
+                                            "response": "sells grain and animal feeds",
+                                            "select_options": [],
+                                            "text": "Does your farm primarily sell grain, seeds, animal feeds, or other types of food products?",
+                                            "type": "text",
+                                        },
+                                        {
+                                            "id": "f1.2",
+                                            "response": "wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                            "select_options": [
+                                                "Wholesale of grain, unmanufactured tobacco, seeds and animal feeds",
+                                                "Non-specialised wholesale of food, beverages and tobacco",
+                                                "None of the above",
+                                            ],
+                                            "text": "Which of these best describes your organisation's activities?",
+                                            "type": "select",
+                                        },
+                                    ]
+                                },
+                                "reasoning": "Follow-up needed to determine most appropriate SIC code.",
+                                "type": "sic",
+                            }
+                        ],
+                        "time_end": "2025-09-05T08:12:26.599931Z",
+                        "time_start": "2025-09-05T08:12:26.599931Z",
+                        "type": "classify",
+                    },
+                ],
+                "time_end": "2025-09-05T08:12:26.599931Z",
+                "time_start": "2025-09-05T08:12:06.412975Z",
+            }
+        ],
+        "survey_id": "tlfs_shape_tomorrow_prototype",
+        "time_end": "2025-09-05T08:12:26.599931Z",
+        "time_start": "2025-09-05T08:12:06.412975Z",
+        "user": "user.respondent-a",
+    }
+}
+
+example_session_lookup_result = {
+    "survey_result": {
+        "case_id": "test-case-xyz",
+        "responses": [
+            {
+                "person_id": "user.respondent-a",
+                "survey_assist_interactions": [
+                    {
+                        "flavour": "sic",
+                        "input": [{"field": "org_description", "value": "pubs"}],
+                        "response": {
+                            "found": True,
+                            "potential_codes": [],
+                            "potential_codes_count": 0,
+                            "potential_divisions": [],
+                        },
+                        "time_end": "2025-09-05T09:00:46.000783Z",
+                        "time_start": "2025-09-05T09:00:45.864491Z",
+                        "type": "lookup",
+                    }
+                ],
+                "time_end": "2025-09-05T09:00:46.000783Z",
+                "time_start": "2025-09-05T09:00:28.493081Z",
+            }
+        ],
+        "survey_id": "shape_tomorrow_prototype",
+        "time_end": "2025-09-05T09:00:46.000783Z",
+        "time_start": "2025-09-05T09:00:28.493081Z",
+        "user": "user.respondent-a",
+    }
+}
 
 
 def get_env_var(name: str) -> str:
@@ -151,6 +386,33 @@ def post_classify(
     return None
 
 
+def post_result_sic_only(
+    client: APIClient, result: SurveyAssistResult
+) -> Optional[dict]:
+    """Sends a result to the Survey Assist API.
+
+    Args:
+        client (APIClient): The API client instance.
+        result (SurveyAssistResult): Pydantic model of result to send.
+
+    Returns:
+        Optional[dict]: The result response dictionary if successful, else None.
+    """
+    # result = translate_session_to_model(example_session_lookup_result)
+    result = translate_session_to_model(example_session_classify_result)
+
+    response = client.post(
+        "/survey-assist/result",
+        body=result.model_dump(mode="json"),  # required for datetime
+    )
+
+    if isinstance(response, dict):
+        logger.info(f"Successfully saved response {response.get("result_id")}")
+        return response
+    logger.error("Failed to save result")
+    return None
+
+
 def prompt_input(prompt_text: str, default: str) -> str:
     """Prompts the user for input, returning the default if no input is given.
 
@@ -180,7 +442,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--action",
-        choices=["config", "lookup", "classify", "both"],
+        choices=["config", "lookup", "classify", "both", "result"],
         help="Action to perform",
     )
     args = parser.parse_args()
@@ -190,6 +452,13 @@ def main() -> None:
         config = get_config(api_client)
         if config:
             logger.debug(json.dumps(config))
+        return
+
+    if args.action == "result":
+        api_client = init_api_client()
+        result_resp = post_result_sic_only(api_client, result_sic_only)
+        if result_resp:
+            logger.debug(json.dumps(result_resp))
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
