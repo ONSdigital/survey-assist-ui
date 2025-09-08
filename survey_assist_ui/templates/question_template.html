@@ -34,36 +34,67 @@
     <form method="POST" action="{{ url_for('survey.save_response') }}">
         <input type="hidden" name="question_name" value="{{ question_name }}">
 
-        {%
-            call onsQuestion({
-                "title": question_text,
-                "description": question_description,
-                "classes": "ons-u-mt-no",
-                "legendIsQuestionTitle": true,
-                "justification": {
-                    "title": "Why we ask this question",
-                    "content": justification_text
-                }
-            })
-        %}
+        {% if justification_enabled %}
+            {%
+                call onsQuestion({
+                    "title": question_text,
+                    "description": question_description,
+                    "classes": "ons-u-mt-no",
+                    "legendIsQuestionTitle": true,
+                    "justification": {
+                        "title": justification_title,
+                        "content": justification_text
+                    }
+                })
+            %}
 
-        {% if response_type == "radio" %}
-            {{ onsRadios({
-                "name": response_name,
-                "dontWrap": true,
-                "radios": response_options
-            })}}
-        {% elif response_type == "text" %}
-            {{ 
-                onsInput({
-                "id": response_name,
-                "name": response_name,
-                "type": "text",
-                "searchButton": false,
-            })
-        }}
+            {% if response_type == "radio" %}
+                {{ onsRadios({
+                    "name": response_name,
+                    "dontWrap": true,
+                    "radios": response_options
+                })}}
+            {% elif response_type == "text" %}
+                {{ 
+                    onsInput({
+                    "id": response_name,
+                    "name": response_name,
+                    "type": "text",
+                    "searchButton": false,
+                })
+            }}
+            {% endif %}
+            {% endcall %}
+
+        {% else %}
+            {%
+                call onsQuestion({
+                    "title": question_text,
+                    "description": question_description,
+                    "classes": "ons-u-mt-no",
+                    "legendIsQuestionTitle": true
+                })
+            %}
+
+            {% if response_type == "radio" %}
+                {{ onsRadios({
+                    "name": response_name,
+                    "dontWrap": true,
+                    "radios": response_options
+                })}}
+            {% elif response_type == "text" %}
+                {{ 
+                    onsInput({
+                    "id": response_name,
+                    "name": response_name,
+                    "type": "text",
+                    "searchButton": false,
+                })
+            }}
+            {% endif %}
+            {% endcall %}
         {% endif %}
-        {% endcall %}
+        
         {{ onsButton({
             "id": "save-values-button",
             "text": button_text,

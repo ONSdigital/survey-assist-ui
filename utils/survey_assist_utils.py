@@ -318,7 +318,25 @@ def classify_and_handle_followup(
         user_response=None,  # User response is saved later
     )
 
+    # Add the display options for justification.
+    # Note: Justification values are not added to session as
+    # they are not required in results.
+    app = cast(SurveyAssistFlask, current_app)
+    survey_assist = app.survey_assist
+
+    consent = survey_assist.get("consent", {})
+
+    j_enabled = consent.get("justification_enabled", False)
+    j_title = consent.get("justification_title", "Why we ask this question")
+    j_text = consent.get("justification_text", "<p>Placeholder text</p>")
+
+    question_dict.update(
+        justification_enabled=j_enabled,
+        justification_title=j_title,
+        justification_text=j_text
+    )
+
     return render_template(
         "question_template.html",
-        **formatted_question.to_dict(),
+        **question_dict,
     )
