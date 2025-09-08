@@ -44,6 +44,12 @@ survey_blueprint = Blueprint("survey", __name__)
 logger = get_logger(__name__, level="DEBUG")
 
 
+@survey_blueprint.route("/intro", methods=["GET"])
+def intro():
+    """Handles displaying an intro page prior to the survey."""
+    return render_template("ons_shape_tomorrow.html")
+
+
 # Generic route to handle survey questions
 @survey_blueprint.route("/survey", methods=["GET", "POST"])
 @session_debug

@@ -38,7 +38,6 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     """
     flask_app = SurveyAssistFlask(__name__)
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
-    flask_app.jwt_secret_path = os.getenv("JWT_SECRET", "SECRET_PATH_NOT_SET")
     flask_app.sa_email = os.getenv("SA_EMAIL", "SA_EMAIL_NOT_SET")
     flask_app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
     flask_app.api_ver = os.getenv("BACKEND_API_VERSION", "/v1")
@@ -68,6 +67,13 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
         flask_app.survey_title = survey_definition.get(
             "survey_title", "Survey Assist Example"
         )
+
+        survey_intro = survey_definition.get("survey_intro", {})
+        if isinstance(survey_intro, dict):
+            flask_app.survey_intro = survey_intro.get("enabled", False)
+        else:
+            flask_app.survey_intro = False
+
         flask_app.questions = survey_definition["questions"]
         flask_app.survey_assist = survey_definition["survey_assist"]
 
