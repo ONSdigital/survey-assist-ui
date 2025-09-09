@@ -31,6 +31,23 @@ def test_index_route(client) -> None:
 
 
 @pytest.mark.route
+def test_intro_route(client) -> None:
+    """Tests that the survey intro route contains survey title and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    response = client.get("/intro")
+    expected_text = app.survey_title
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Intro page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Intro route should return 200 OK"
+
+
+@pytest.mark.route
 def test_error_route(client) -> None:
     """Tests that the error route contains correct text and returns a 200 OK response.
 
@@ -160,3 +177,20 @@ def test_survey_summary(client, mock_survey_iteration) -> None:
     assert (
         b"Summary" in response.data
     ), "{route_text} page should contain 'Summary' text"
+
+
+@pytest.mark.route
+def test_thank_you_route(client) -> None:
+    """Tests that the survey thank you route contains survey title and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    response = client.get("/thank_you")
+    expected_text = app.survey_title
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Thank you page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Thank you route should return 200 OK"

@@ -1,5 +1,8 @@
 {
   "survey_title": "Shape Tomorrow Prototype",
+  "survey_intro": {
+    "enabled": true 
+  },
   "questions": [
     {
       "question_id": "q1",

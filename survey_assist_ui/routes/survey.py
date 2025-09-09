@@ -44,6 +44,13 @@ survey_blueprint = Blueprint("survey", __name__)
 logger = get_logger(__name__, level="DEBUG")
 
 
+@survey_blueprint.route("/intro", methods=["GET"])
+def intro():
+    """Handles displaying an intro page prior to the survey."""
+    app = cast(SurveyAssistFlask, current_app)
+    return render_template("ons_shape_tomorrow.html", survey_title=app.survey_title)
+
+
 # Generic route to handle survey questions
 @survey_blueprint.route("/survey", methods=["GET", "POST"])
 @session_debug
@@ -287,9 +294,6 @@ def summary():
     return render_template("summary_template.html", questions=survey_questions)
 
 
-SURVEY_NAME = "Shape Tomorrow Prototype"
-
-
 # The survey_result route handles sending the result to the
 # survey assist API.
 @survey_blueprint.route("/survey_result")
@@ -316,5 +320,6 @@ def survey_result():
 
 @survey_blueprint.route("/thank_you")
 def thank_you():
-    """Render a thnk you page to show results were submitted."""
-    return render_template("thank_you.html", survey=SURVEY_NAME)
+    """Render a thank you page to show results were submitted."""
+    app = cast(SurveyAssistFlask, current_app)
+    return render_template("thank_you.html", survey=app.survey_title)

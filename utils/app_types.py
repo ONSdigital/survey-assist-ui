@@ -22,9 +22,9 @@ class SurveyAssistFlask(Flask):
         api_base (str): The base URL for the API.
         api_ver (str): The version of the API (defaults to v1).
         api_token (str): The API authentication token.
-        jwt_secret_path (str): Path to the JWT secret file.
         sa_email (str): Survey Assist service account.
         survey_title (str): Title of the survey.
+        survey_intro (bool): Is survey intro enabled or not.
         survey_assist (dict[str, Any]): Survey Assist configuration dictionary.
         token_start_time (int): Start time for the authentication token.
         questions (list[dict[str, Any]]): List of survey question dictionaries.
@@ -34,9 +34,9 @@ class SurveyAssistFlask(Flask):
     api_base: str
     api_ver: str
     api_token: str
-    jwt_secret_path: str
     sa_email: str
     survey_title: str
+    survey_intro: bool
     survey_assist: dict[str, Any]
     token_start_time: int
     questions: list[dict[str, Any]]

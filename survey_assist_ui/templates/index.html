@@ -36,6 +36,13 @@
 {% endblock %}
 
 {% block pageContent %}
+
+{% if show_intro %}
+  {% set button_url = url_for('survey.intro') %}
+{% else %}
+  {% set button_url = url_for('survey.survey') %}
+{% endif %}
+
 <main id="main-content">        
     {% set hero_title = survey_title %}
     {% set hero_button = "Start survey" %}
@@ -46,7 +53,7 @@
                 "title": hero_title,
                 "button": {
                     "id": 'find-methods-button', 
-                    "url": url_for("survey.survey"),
+                    "url": button_url,
                     "text": hero_button
                 },
                 wide:true
