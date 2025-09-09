@@ -31,6 +31,7 @@ from utils.session_utils import (
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
     SHOW_CONSENT,
+    add_question_justifcation_guidance,
     format_followup,
     perform_sic_lookup,
 )
@@ -359,9 +360,14 @@ def followup_redirect() -> ResponseType | str:
                         None,  # Response will be filled in later
                     )
 
-                    return render_template(
-                        "question_template.html", **formatted_question.to_dict()
+                    # Add the display options for justification.
+                    # Note: Justification values are not added to session as
+                    # they are not required in results.
+                    question_dict = add_question_justifcation_guidance(
+                        question_dict=question_dict
                     )
+
+                    return render_template("question_template.html", **question_dict)
                 else:
                     logger.error(
                         f"Interaction {interactions[0].get("param")} is yet to be supported"
