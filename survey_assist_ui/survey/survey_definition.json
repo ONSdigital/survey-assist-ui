@@ -41,7 +41,7 @@
       "question_id": "q2",
       "question_name": "job_title_question",
       "title": "Job Title",
-      "question_text": "What is your exact job title for your main job or business?",
+      "question_text": "What is the exact job title for your main job or business?",
       "question_description": "",
       "response_type": "text",
       "response_name": "job-title",

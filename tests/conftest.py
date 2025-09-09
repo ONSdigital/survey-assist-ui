@@ -75,7 +75,7 @@ def mock_questions() -> list[dict]:
             "question_id": "q2",
             "question_name": "job_title_question",
             "title": "Job Title",
-            "question_text": "What is your exact job title for your main job or business?",
+            "question_text": "What is the exact job title for your main job or business?",
             "question_description": "",
             "response_type": "text",
             "response_name": "job-title",
@@ -161,7 +161,7 @@ def mock_survey_iteration() -> dict:
             },
             {
                 "question_id": "q2",
-                "question_text": "What is your exact job title for your main job or business?",
+                "question_text": "What is the exact job title for your main job or business?",
                 "response": "teacher",
                 "response_name": "job-title",
                 "response_options": [],
@@ -292,7 +292,7 @@ def valid_question() -> dict[str, Any]:
     """Fixture to provide a valid question dictionary."""
     return {
         "question_id": "q1",
-        "question_text": "What is your exact job title for your main job or business?",  # pylint: disable=line-too-long
+        "question_text": "What is the exact job title for your main job or business?",  # pylint: disable=line-too-long
         "response": "Farm Hand",
         "response_name": "job-title",
         "response_options": [],
