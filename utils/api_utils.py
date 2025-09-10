@@ -211,7 +211,7 @@ class APIClient:
         Returns:
             Response: A Flask redirect or JSON error response.
         """
-        self.logger_handle(message)
+        self.logger_handle.error(message)
         if self.redirect_on_error:
             return redirect(url_for("error_page"))
         return jsonify({"error": message}), status_code

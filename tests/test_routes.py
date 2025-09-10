@@ -102,6 +102,124 @@ def test_first_survey_question(client, mock_questions) -> None:
             assert "time_start" in sess["survey_iteration"]
 
 
+@pytest.mark.route
+def test_survey_question_justification_disabled(client, mock_questions) -> None:
+    """Tests that the survey route does not contain a justification,
+     the justification_enabled is false and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+        mock_questions: Mocked questions to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "questions", mock_questions):
+        with client.session_transaction() as sess:
+            # Ensure a clean state to trigger init logic
+            sess.pop("current_question_index", None)
+            sess.pop("survey_iteration", None)
+
+        response = client.get("/survey")
+
+        # The first mock question has justification_enabled False
+        justification_text = "Why we ask this question"
+        assert (
+            justification_text.encode() not in response.data
+        ), "Survey page should not contain the default justification text"
+        assert response.status_code == HTTPStatus.OK, "/survey should return 200 OK"
+
+
+@pytest.mark.route
+def test_survey_question_guidance_disabled(client, mock_questions) -> None:
+    """Tests that the survey route does not contain guidance,
+     the guidance_enabled is false and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+        mock_questions: Mocked questions to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "questions", mock_questions):
+        with client.session_transaction() as sess:
+            # Ensure a clean state to trigger init logic
+            sess.pop("current_question_index", None)
+            sess.pop("survey_iteration", None)
+
+        response = client.get("/survey")
+
+        # The first mock question has guidance_enabled False
+        guidance_text = "Guidance Text"
+        assert (
+            guidance_text.encode() not in response.data
+        ), "Survey page should not contain the default guidance text"
+        assert response.status_code == HTTPStatus.OK, "/survey should return 200 OK"
+
+
+QUESTION_TWO_INDEX = 1
+
+
+@pytest.mark.route
+def test_survey_question_justification_enabled(client, mock_questions) -> None:
+    """Tests that the survey route does not contain a justification,
+     the justification_enabled is false and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+        mock_questions: Mocked questions to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "questions", mock_questions):
+        with client.session_transaction() as sess:
+            # Ensure a clean state to trigger init logic
+            # Question two has functionality enabled
+            sess["current_question_index"] = QUESTION_TWO_INDEX
+            sess.modified = True
+
+        response = client.get("/survey")
+
+        # The second mock question has justification_enabled True
+        justification_title = "Why we ask this question"
+        assert (
+            justification_title.encode() in response.data
+        ), "Survey page should contain the justification title"
+
+        justification_text = "Placeholder text"
+        assert (
+            justification_text.encode() in response.data
+        ), "Survey page should contain the justification text"
+        assert response.status_code == HTTPStatus.OK, "/survey should return 200 OK"
+
+
+@pytest.mark.route
+def test_survey_question_guidance_enabled(client, mock_questions) -> None:
+    """Tests that the survey route does not contain guidance,
+     the guidance_enabled is false and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+        mock_questions: Mocked questions to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "questions", mock_questions):
+        with client.session_transaction() as sess:
+            # Ensure a clean state to trigger init logic
+            # Question two has functionality enabled
+            sess["current_question_index"] = QUESTION_TWO_INDEX
+            sess.modified = True
+
+        response = client.get("/survey")
+
+        # The second mock question has guidance_enabled True
+        guidance_text = "Guidance Text"
+        assert (
+            guidance_text.encode() in response.data
+        ), "Survey page should contain the default guidance text"
+        assert response.status_code == HTTPStatus.OK, "/survey should return 200 OK"
+
+
 QUESTION_THREE_INDEX = 2
 
 

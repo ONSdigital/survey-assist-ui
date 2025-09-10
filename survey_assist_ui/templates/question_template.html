@@ -34,36 +34,48 @@
     <form method="POST" action="{{ url_for('survey.save_response') }}">
         <input type="hidden" name="question_name" value="{{ question_name }}">
 
-        {%
-            call onsQuestion({
-                "title": question_text,
-                "description": question_description,
-                "classes": "ons-u-mt-no",
-                "legendIsQuestionTitle": true,
-                "justification": {
-                    "title": "Why we ask this question",
-                    "content": justification_text
-                }
-            })
-        %}
+        {# Build the base options object #}
+        {% set question_opts = {
+        "title": question_text,
+        "description": question_description,
+        "classes": "ons-u-mt-no",
+        "legendIsQuestionTitle": true
+        } %}
 
+        {# Add optional sections only when enabled #}
+        {% if guidance_enabled %}
+        {% set _ = question_opts.update({
+            "guidance": { "content": guidance_text }
+        }) %}
+        {% endif %}
+
+        {% if justification_enabled %}
+        {% set _ = question_opts.update({
+            "justification": {
+            "title": justification_title,
+            "content": justification_text
+            }
+        }) %}
+        {% endif %}
+
+        {# Single render, inner control just for the response widget #}
+        {% call onsQuestion(question_opts) %}
         {% if response_type == "radio" %}
             {{ onsRadios({
-                "name": response_name,
-                "dontWrap": true,
-                "radios": response_options
-            })}}
+            "name": response_name,
+            "dontWrap": true,
+            "radios": response_options
+            }) }}
         {% elif response_type == "text" %}
-            {{ 
-                onsInput({
-                "id": response_name,
-                "name": response_name,
-                "type": "text",
-                "searchButton": false,
-            })
-        }}
+            {{ onsInput({
+            "id": response_name,
+            "name": response_name,
+            "type": "text",
+            "searchButton": false
+            }) }}
         {% endif %}
         {% endcall %}
+        
         {{ onsButton({
             "id": "save-values-button",
             "text": button_text,

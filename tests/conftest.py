@@ -62,6 +62,10 @@ def mock_questions() -> list[dict]:
                 {"id": "paid-job-yes", "label": {"text": "Yes"}, "value": "yes"},
                 {"id": "paid-job-no", "label": {"text": "No"}, "value": "no"},
             ],
+            "guidance_enabled": False,
+            "guidance_text": "Guidance Text",
+            "justification_enabled": False,
+            "justification_title": "Why we ask this question",
             "justification_text": "Placeholder text",
             "placeholder_field": "",
             "button_text": "Save and continue",
@@ -71,12 +75,16 @@ def mock_questions() -> list[dict]:
             "question_id": "q2",
             "question_name": "job_title_question",
             "title": "Job Title",
-            "question_text": "What is your exact job title for your main job or business?",
+            "question_text": "What is the exact job title for your main job or business?",
             "question_description": "",
             "response_type": "text",
             "response_name": "job-title",
             "response_options": [],
-            "justification_text": "<p>Placeholder text</p>",
+            "guidance_enabled": True,
+            "guidance_text": "Guidance Text",
+            "justification_enabled": True,
+            "justification_title": "Why we ask this question",
+            "justification_text": "Placeholder text",
             "placeholder_field": "",
             "button_text": "Save and continue",
             "used_for_classifications": ["sic", "soc"],
@@ -153,7 +161,7 @@ def mock_survey_iteration() -> dict:
             },
             {
                 "question_id": "q2",
-                "question_text": "What is your exact job title for your main job or business?",
+                "question_text": "What is the exact job title for your main job or business?",
                 "response": "teacher",
                 "response_name": "job-title",
                 "response_options": [],
@@ -284,7 +292,7 @@ def valid_question() -> dict[str, Any]:
     """Fixture to provide a valid question dictionary."""
     return {
         "question_id": "q1",
-        "question_text": "What is your exact job title for your main job or business?",  # pylint: disable=line-too-long
+        "question_text": "What is the exact job title for your main job or business?",  # pylint: disable=line-too-long
         "response": "Farm Hand",
         "response_name": "job-title",
         "response_options": [],
