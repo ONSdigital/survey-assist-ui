@@ -189,7 +189,7 @@
     "guidance_enabled": true,
     "guidance_text": "Automated follow-up question.", 
     "consent": {
-      "required": true,
+      "required": false,
       "question_id": "c1",
       "title": "Survey Assist Consent",
       "question_name": "survey_assist_consent",

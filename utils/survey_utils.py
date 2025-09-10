@@ -30,7 +30,6 @@ from utils.session_utils import (
 )
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
-    SHOW_CONSENT,
     add_question_justifcation_guidance,
     format_followup,
     perform_sic_lookup,
@@ -188,11 +187,12 @@ def update_session_and_redirect(
                     perform_classification = False
 
             if perform_classification:
-                if SHOW_CONSENT:
+                app = cast(SurveyAssistFlask, current_app)
+                if app.show_consent:
                     return redirect(url_for("survey.survey_assist_consent"))
                 else:
                     # skip consent screen
-                    logger.debug("Skipping consent screen for Survey Assist")
+                    logger.debug(f"Skipping consent screen - app.show_consent{app.show_consent}")
 
                     survey_iteration["survey_assist_time_start"] = datetime.now(
                         timezone.utc

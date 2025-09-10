@@ -25,6 +25,7 @@ class SurveyAssistFlask(Flask):
         sa_email (str): Survey Assist service account.
         survey_title (str): Title of the survey.
         survey_intro (bool): Is survey intro enabled or not.
+        show_consent (bool): Should the consent be shown before Survey Assist questions.
         survey_assist (dict[str, Any]): Survey Assist configuration dictionary.
         token_start_time (int): Start time for the authentication token.
         questions (list[dict[str, Any]]): List of survey question dictionaries.
@@ -37,6 +38,7 @@ class SurveyAssistFlask(Flask):
     sa_email: str
     survey_title: str
     survey_intro: bool
+    show_consent: bool
     survey_assist: dict[str, Any]
     token_start_time: int
     questions: list[dict[str, Any]]

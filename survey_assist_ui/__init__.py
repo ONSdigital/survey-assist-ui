@@ -10,7 +10,7 @@ Attributes:
 import os
 from urllib.parse import urlparse
 
-from flask import json, request
+from flask import request
 from flask_misaka import Misaka
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
@@ -18,6 +18,7 @@ from survey_assist_utils.logging import get_logger
 from survey_assist_ui.routes import register_blueprints
 from utils.api_utils import APIClient
 from utils.app_types import SurveyAssistFlask
+from utils.app_utils import load_survey_definition
 
 from .versioning import get_app_version
 
@@ -59,23 +60,7 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     )
     flask_app.config["JSON_DEBUG"] = os.getenv("JSON_DEBUG", "false").lower() == "true"
 
-    # Load the survey definition
-    with open(
-        "survey_assist_ui/survey/survey_definition.json", encoding="utf-8"
-    ) as file:
-        survey_definition = json.load(file)
-        flask_app.survey_title = survey_definition.get(
-            "survey_title", "Survey Assist Example"
-        )
-
-        survey_intro = survey_definition.get("survey_intro", {})
-        if isinstance(survey_intro, dict):
-            flask_app.survey_intro = survey_intro.get("enabled", False)
-        else:
-            flask_app.survey_intro = False
-
-        flask_app.questions = survey_definition["questions"]
-        flask_app.survey_assist = survey_definition["survey_assist"]
+    load_survey_definition(flask_app, "survey_assist_ui/survey/survey_definition.json")
 
     register_blueprints(flask_app)
 

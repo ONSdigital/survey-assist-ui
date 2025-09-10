@@ -4,7 +4,7 @@ This module provides helper functions for debugging and inspecting the Flask ses
 """
 
 from collections.abc import Callable, Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Optional, TypeVar, Union
 
@@ -484,6 +484,8 @@ def _iter_classify_results(
 
     Skips non-classify interactions and non-list responses (e.g., lookups).
 
+    Updates end_time associated with classify interaction.
+
     Args:
         person_response (GenericResponse): The person's response object.
 
@@ -495,6 +497,11 @@ def _iter_classify_results(
             continue
         if not isinstance(interaction.response, list):
             continue
+
+        # Update the end_time associated with the classification
+        # now that the user has answered questions.  The last time
+        # this is accessed will be the time of the final response.
+        interaction.time_end = datetime.now(timezone.utc)
         yield from interaction.response
 
 
