@@ -130,12 +130,16 @@ class LookupResponse(BaseModel):
 
     Attributes:
         found (bool): Whether matches were found.
+        code (str): The matched code.
+        code_division (str): The matched code division.
         potential_codes_count (int): Number of potential codes found.
         potential_divisions (list[PotentialDivision]): List of potential divisions.
         potential_codes (list[PotentialCode]): List of potential codes.
     """
 
     found: bool = Field(..., description="Whether matches were found")
+    code: Optional[str] = Field(None, description="The matched code")
+    code_division: Optional[str] = Field(None, description="The code division")
     potential_codes_count: int = Field(
         ..., description="Number of potential codes found"
     )
