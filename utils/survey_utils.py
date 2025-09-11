@@ -193,7 +193,7 @@ def update_session_and_redirect(
                 else:
                     # skip consent screen
                     logger.debug(
-                        f"Skipping consent screen - app.show_consent{app.show_consent}"
+                        f"Skipping consent screen - app.show_consent {app.show_consent}"
                     )
 
                     survey_iteration["survey_assist_time_start"] = datetime.now(

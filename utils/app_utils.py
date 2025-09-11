@@ -16,7 +16,8 @@ def load_survey_definition(flask_app: Any, file_path: str | Path) -> None:
         file_path: Path to the survey definition JSON file.
 
     Raises:
-        FileNotFoundError
+        FileNotFoundError - if the JSON file cannot be found.
+        ValueError - if the file contains invalid JSON.
     """
     file_path = Path(file_path)
 
@@ -24,8 +25,11 @@ def load_survey_definition(flask_app: Any, file_path: str | Path) -> None:
         raise FileNotFoundError(f"Survey definition file not found: {file_path}")
 
     # Load the survey definition
-    with file_path.open(encoding="utf-8") as file:
-        survey_definition = json.load(file)
+    try:
+        with file_path.open(encoding="utf-8") as file:
+            survey_definition = json.load(file)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in {file_path}") from e
 
     flask_app.survey_title = survey_definition.get(
         "survey_title", "Survey Assist Example"

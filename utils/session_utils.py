@@ -500,7 +500,8 @@ def _iter_classify_results(
 
         # Update the end_time associated with the classification
         # now that the user has answered questions.  The last time
-        # this is accessed will be the time of the final response.
+        # this is accessed will be the time that the final
+        # classification related question is answered.
         interaction.time_end = datetime.now(timezone.utc)
         yield from interaction.response
 
