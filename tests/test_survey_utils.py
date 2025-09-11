@@ -78,46 +78,48 @@ def test_update_session_and_redirect_to_next_question(
 @pytest.mark.utils
 def test_update_session_and_redirect_to_survey_assist_consent(app):
     """Tests redirection to the survey_assist_consent page when interaction conditions match."""
-    test_question = {
-        "question_id": "job_role_q",
-        "question_name": "job_role",
-        "question_text": "What is your job role?",
-        "response_type": "text",
-        "response_options": [],
-        "response_name": "job-role",
-        "used_for_classifications": True,
-        "placeholder_field": "job_title",
-    }
-
-    with app.test_request_context(method="POST", data={"job-role": "Engineer"}):
-        interactions = [{"after_question_id": "job_role_q"}]
-        survey_assist = {"enabled": True, "interactions": interactions}
-        # Prepare the session for the correct branching
-        session["current_question_index"] = 0
-        session["response"] = {"job_title": "Engineer"}
-
-        # Disable duplicate code check as the test needs to match the intent
-        # pylint: disable=R0801
-        session["survey_iteration"] = {
-            "user": "",
-            "questions": [],
-            "time_start": None,
-            "time_end": None,
-            "survey_assist_time_start": None,
-            "survey_assist_time_end": None,
+    with app.app_context():
+        app.show_consent = True
+        test_question = {
+            "question_id": "job_role_q",
+            "question_name": "job_role",
+            "question_text": "What is your job role?",
+            "response_type": "text",
+            "response_options": [],
+            "response_name": "job-role",
+            "used_for_classifications": True,
+            "placeholder_field": "job_title",
         }
-        session.modified = True
 
-        response = update_session_and_redirect(
-            req=Request.from_values(data={"job-role": "Engineer"}),
-            questions=[test_question],
-            survey_assist=survey_assist,
-            value="job-role",
-            route="survey.survey",
-        )
+        with app.test_request_context(method="POST", data={"job-role": "Engineer"}):
+            interactions = [{"after_question_id": "job_role_q"}]
+            survey_assist = {"enabled": True, "interactions": interactions}
+            # Prepare the session for the correct branching
+            session["current_question_index"] = 0
+            session["response"] = {"job_title": "Engineer"}
 
-        assert response.status_code == HTTPStatus.FOUND
-        assert response.location.endswith(url_for("survey.survey_assist_consent"))
+            # Disable duplicate code check as the test needs to match the intent
+            # pylint: disable=R0801
+            session["survey_iteration"] = {
+                "user": "",
+                "questions": [],
+                "time_start": None,
+                "time_end": None,
+                "survey_assist_time_start": None,
+                "survey_assist_time_end": None,
+            }
+            session.modified = True
+
+            response = update_session_and_redirect(
+                req=Request.from_values(data={"job-role": "Engineer"}),
+                questions=[test_question],
+                survey_assist=survey_assist,
+                value="job-role",
+                route="survey.survey",
+            )
+
+            assert response.status_code == HTTPStatus.FOUND
+            assert response.location.endswith(url_for("survey.survey_assist_consent"))
 
 
 @pytest.mark.utils
