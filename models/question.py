@@ -66,6 +66,12 @@ class Question:  # pylint: disable=too-many-instance-attributes
                     "value": option["value"].lower(),
                 }
             )
+
+        # Ensure respondents must provide an answer for closed questions
+        # from Survey Assist.
+        if formatted_options:
+            formatted_options[0]["attributes"] = {"required": True}
+
         return formatted_options
 
     def to_dict(self):
