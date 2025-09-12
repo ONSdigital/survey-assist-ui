@@ -14,7 +14,7 @@
       "response_name": "age-range",
       "response_options": [
         {
-          "id": "age-rage-18-24",
+          "id": "age-range-18-24",
           "label": {
             "text": "18-24"
           },
@@ -22,28 +22,28 @@
           "attributes": { "required": true }
         },
         {
-          "id": "age-rage-25-34",
+          "id": "age-range-25-34",
           "label": {
             "text": "25-34"
           },
           "value": "25-34"
         },
         {
-          "id": "age-rage-35-49",
+          "id": "age-range-35-49",
           "label": {
             "text": "35-49"
           },
           "value": "35-49"
         },
         {
-          "id": "age-rage-50-64",
+          "id": "age-range-50-64",
           "label": {
             "text": "50-64"
           },
           "value": "50-64"
         },
         {
-          "id": "age-rage-65",
+          "id": "age-range-65",
           "label": {
             "text": "65 plus"
           },
