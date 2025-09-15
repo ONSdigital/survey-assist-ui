@@ -1,0 +1,51 @@
+steps:
+  - name: gcr.io/ons-cicd-surveyassist/testrunner
+    args:
+      - '-c'
+      - |
+        gcloud --version
+        make --version
+        pip --version
+        python --version
+        pytest --version
+        poetry --version
+    id: Verfiy Base Tooling Versions
+    entrypoint: bash
+  - name: gcr.io/ons-cicd-surveyassist/testrunner
+    args:
+      - '-c'
+      - >
+        export BACKEND_API_URL=$_BACKEND_API_URL export BACKEND_API_VERSION=v1
+        export SA_EMAIL=$_SA_EMAIL
+
+        poetry install
+
+        make load-design-system-templates
+
+        make all-tests
+
+        poetry version -s > /workspace/version.txt
+    id: Run All UI Tests
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - '-c'
+      - >-
+        docker build -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t
+        $_GAR_IMAGE:$SHORT_SHA .
+    id: Build And Push UI Image
+    entrypoint: sh
+  - name: gcr.io/ons-cicd-surveyassist/testrunner
+    args:
+      - '-c'
+      - >
+        gcloud run deploy survey-assist-ui --image=$_GAR_IMAGE:$SHORT_SHA
+        --region europe-west2 --project survey-assist-sandbox
+    id: Deploy Survey Assist UI Image
+    entrypoint: bash
+timeout: 600s
+images:
+  - '$_GAR_IMAGE:$_VERSION'
+  - '$_GAR_IMAGE:$SHORT_SHA'
+options:
+  logging: CLOUD_LOGGING_ONLY
