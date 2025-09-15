@@ -108,8 +108,8 @@ def _map_lookup_response(resp: dict[str, Any]) -> LookupResponse:
     """
     return LookupResponse(
         found=bool(resp["found"]),
-        code=resp.get("code", ""),
-        code_division=resp.get("code_division", ""),
+        code=resp.get("code"),
+        code_division=resp.get("code_division"),
         potential_codes_count=int(resp.get("potential_codes_count", 0)),
         potential_divisions=[
             PotentialDivision(

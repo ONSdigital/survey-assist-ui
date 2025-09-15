@@ -322,7 +322,7 @@ def nested_survey_result_model() -> GenericSurveyAssistResult:
                         response=LookupResponse(
                             found=False,
                             code="",
-                            code_division="",
+                            code_division=None,
                             potential_codes_count=0,
                             potential_divisions=[],
                             potential_codes=[],
