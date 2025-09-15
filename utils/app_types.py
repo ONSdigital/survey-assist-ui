@@ -29,6 +29,8 @@ class SurveyAssistFlask(Flask):
         survey_assist (dict[str, Any]): Survey Assist configuration dictionary.
         token_start_time (int): Start time for the authentication token.
         questions (list[dict[str, Any]]): List of survey question dictionaries.
+        show_feedback (bool): Display feedback questions.
+        feedback: (list[dict[str, Any]]): Feedback config and list of feedback questions
     """
 
     api_client: Any
@@ -42,3 +44,5 @@ class SurveyAssistFlask(Flask):
     survey_assist: dict[str, Any]
     token_start_time: int
     questions: list[dict[str, Any]]
+    show_feedback: bool
+    feedback: dict[str, Any]

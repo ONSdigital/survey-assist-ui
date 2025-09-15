@@ -10,7 +10,7 @@
             "description": "/",
         },
         "header": {
-            "title": 'Response Submitted',
+            "title": 'Feedback Intro',
             "orgLogoHref": 'https://www.ons.gov.uk',
             "titleLogoHref": "/",
             "mastheadLogo": {
@@ -30,33 +30,16 @@
         }
     }
 %}
-
 {% block main %}
-{% if show_feedback %}
-  {% set button_url = url_for('feedback.intro') %}
-{% else %}
-  {% set button_url = url_for('main.index') %}
-{% endif %}
-
-
-{{
-    onsPanel({
-        "variant": 'success',
-        "id": 'success-id',
-        "iconType": 'check',
-        "body": 'Information has been successfully submitted',
-        "spacious": true
-    })
-}}
 <br></br>
 {{ onsLabel({
-    "text": 'Thank you for your response to the '+survey+' survey!',
+    "text": 'Please provide your feedback on the '+survey+' survey!',
     "classes": 'ons-u-mb-l'
 }) }}
 <p></p>
 {{ onsButton({
     "id": "submit-button",
-    "text": "Finish",
-    "url": button_url,
+    "text": "Feedback",
+    "url": url_for('main.index'),
 }) }}
 {% endblock %}

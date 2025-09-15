@@ -49,3 +49,9 @@ def load_survey_definition(flask_app: Any, file_path: str | Path) -> None:
         flask_app.show_consent = sa_consent.get("required", False)
     else:
         flask_app.show_consent = False
+
+    flask_app.feedback = survey_definition.get("feedback", {})
+    if isinstance(flask_app.feedback, dict):
+        flask_app.show_feedback = flask_app.feedback.get("enabled", False)
+    else:
+        flask_app.show_feedback = False
