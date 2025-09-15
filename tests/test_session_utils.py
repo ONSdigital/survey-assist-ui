@@ -321,6 +321,8 @@ def nested_survey_result_model() -> GenericSurveyAssistResult:
                         ],
                         response=LookupResponse(
                             found=False,
+                            code="",
+                            code_division=None,
                             potential_codes_count=0,
                             potential_divisions=[],
                             potential_codes=[],
@@ -491,6 +493,8 @@ def example_interaction() -> GenericSurveyAssistInteraction:
         input=[],
         response=LookupResponse(
             found=True,
+            code="54321",
+            code_division="54",
             potential_codes_count=0,
             potential_codes=[],
             potential_divisions=[],
@@ -873,7 +877,12 @@ def test_add_follow_up_wrong_type_response(
     base_result_with_classify_model.responses[0].survey_assist_interactions[
         0
     ].response = LookupResponse(
-        found=True, potential_codes_count=0, potential_codes=[], potential_divisions=[]
+        found=True,
+        code="54321",
+        code_division="54",
+        potential_codes_count=0,
+        potential_codes=[],
+        potential_divisions=[],
     )
 
     with app.test_request_context():

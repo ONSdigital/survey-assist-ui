@@ -234,6 +234,9 @@ def map_to_lookup_response(
     """
     found = data.get("code") is not None
 
+    code = data.get("code")
+    code_division = data.get("code_division")
+
     codes = data.get("potential_matches", {}).get("codes") or []
     codes_count = data.get("potential_matches", {}).get("codes_count") or 0
     divisions = data.get("potential_matches", {}).get("divisions") or []
@@ -265,6 +268,8 @@ def map_to_lookup_response(
 
     return LookupResponse(
         found=found,
+        code=code,
+        code_division=code_division,
         potential_codes_count=len(potential_codes),
         potential_codes=potential_codes,
         potential_divisions=potential_divisions,
