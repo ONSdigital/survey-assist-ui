@@ -459,6 +459,8 @@
         "button_text": "Save and continue",
         "used_for_classifications": []
       }              
-    ]
+    ],
+    "include_survey_resp": true,
+    "survey_responses": ["q0"]
   }
 }
