@@ -23,8 +23,8 @@ from models.classify import (
 from survey_assist_ui import create_app
 from utils.feedback_utils import _make_feedback_session
 
-# Disable line too long warnings for this file
-# pylint: disable=line-too-long
+# Disable line too many / too long warnings for this file
+# pylint: disable=line-too-long, disable=too-many-lines
 
 # pylint cannot differentiate the use of fixtures in the test functions
 # pylint: disable=unused-argument, disable=redefined-outer-name
@@ -256,12 +256,13 @@ def mock_survey_iteration() -> dict:
         "user": "",
     }
 
+
 @pytest.fixture
-def mock_feedback() -> list[dict]:
+def mock_feedback() -> dict:
     """Provides a mock feedback question set for testing the /survey route."""
     return {
-            "enabled": True,
-            "questions": [
+        "enabled": True,
+        "questions": [
             {
                 "question_id": "fq1",
                 "question_name": "survey_ease_question",
@@ -271,42 +272,32 @@ def mock_feedback() -> list[dict]:
                 "response_type": "radio",
                 "response_name": "survey-ease",
                 "response_options": [
-                {
-                    "id": "survey-ease-very-easy",
-                    "label": {
-                    "text": "Very easy"
+                    {
+                        "id": "survey-ease-very-easy",
+                        "label": {"text": "Very easy"},
+                        "value": "very easy",
+                        "attributes": {"required": True},
                     },
-                    "value": "very easy",
-                    "attributes": { "required": True }
-                },
-                {
-                    "id": "survey-ease-easy",
-                    "label": {
-                    "text": "Easy"
+                    {
+                        "id": "survey-ease-easy",
+                        "label": {"text": "Easy"},
+                        "value": "easy",
                     },
-                    "value": "easy"
-                },
-                {
-                    "id": "survey-ease-neither",
-                    "label": {
-                    "text": "Neither easy or difficult"
+                    {
+                        "id": "survey-ease-neither",
+                        "label": {"text": "Neither easy or difficult"},
+                        "value": "neither easy or difficult",
                     },
-                    "value": "neither easy or difficult"
-                },
-                {
-                    "id": "survey-ease-difficult",
-                    "label": {
-                    "text": "Difficult"
+                    {
+                        "id": "survey-ease-difficult",
+                        "label": {"text": "Difficult"},
+                        "value": "difficult",
                     },
-                    "value": "difficult"
-                },
-                {
-                    "id": "survey-ease-very-difficult",
-                    "label": {
-                    "text": "Very difficult"
+                    {
+                        "id": "survey-ease-very-difficult",
+                        "label": {"text": "Very difficult"},
+                        "value": "very difficult",
                     },
-                    "value": "very difficult"
-                }
                 ],
                 "guidance_enabled": False,
                 "guidance_text": "",
@@ -315,7 +306,7 @@ def mock_feedback() -> list[dict]:
                 "justification_text": "Placeholder text",
                 "placeholder_field": "",
                 "button_text": "Save and continue",
-                "used_for_classifications": []
+                "used_for_classifications": [],
             },
             {
                 "question_id": "fq2",
@@ -326,42 +317,32 @@ def mock_feedback() -> list[dict]:
                 "response_type": "radio",
                 "response_name": "survey-relevance",
                 "response_options": [
-                {
-                    "id": "survey-relevance-very-relevant",
-                    "label": {
-                    "text": "Very relevant"
+                    {
+                        "id": "survey-relevance-very-relevant",
+                        "label": {"text": "Very relevant"},
+                        "value": "very relevant",
+                        "attributes": {"required": True},
                     },
-                    "value": "very relevant",
-                    "attributes": { "required": True }
-                },
-                {
-                    "id": "survey-relevance-relevant",
-                    "label": {
-                    "text": "Relevant"
+                    {
+                        "id": "survey-relevance-relevant",
+                        "label": {"text": "Relevant"},
+                        "value": "relevant",
                     },
-                    "value": "relevant"
-                },
-                {
-                    "id": "survey-relevance-neither",
-                    "label": {
-                    "text": "Neither relevant or irrelevant"
+                    {
+                        "id": "survey-relevance-neither",
+                        "label": {"text": "Neither relevant or irrelevant"},
+                        "value": "neither relevant or irrelevant",
                     },
-                    "value": "neither relevant or irrelevant"
-                },
-                {
-                    "id": "survey-relevance-irrelevant",
-                    "label": {
-                    "text": "Irrelevant"
+                    {
+                        "id": "survey-relevance-irrelevant",
+                        "label": {"text": "Irrelevant"},
+                        "value": "irrelevant",
                     },
-                    "value": "irrelevant"
-                },
-                {
-                    "id": "survey-relevance-very-irrelevant",
-                    "label": {
-                    "text": "Very irrelevant"
+                    {
+                        "id": "survey-relevance-very-irrelevant",
+                        "label": {"text": "Very irrelevant"},
+                        "value": "very irrelevant",
                     },
-                    "value": "very irrelevant"
-                }
                 ],
                 "guidance_enabled": False,
                 "guidance_text": "",
@@ -370,7 +351,7 @@ def mock_feedback() -> list[dict]:
                 "justification_text": "Placeholder text",
                 "placeholder_field": "",
                 "button_text": "Save and continue",
-                "used_for_classifications": []
+                "used_for_classifications": [],
             },
             {
                 "question_id": "fq3",
@@ -381,42 +362,32 @@ def mock_feedback() -> list[dict]:
                 "response_type": "radio",
                 "response_name": "survey-comfort",
                 "response_options": [
-                {
-                    "id": "survey-comfort-very-comfortable",
-                    "label": {
-                    "text": "Very comfortable"
+                    {
+                        "id": "survey-comfort-very-comfortable",
+                        "label": {"text": "Very comfortable"},
+                        "value": "very comfortable",
+                        "attributes": {"required": True},
                     },
-                    "value": "very comfortable",
-                    "attributes": { "required": True }
-                },
-                {
-                    "id": "survey-comfort-comfortable",
-                    "label": {
-                    "text": "Comfortable"
+                    {
+                        "id": "survey-comfort-comfortable",
+                        "label": {"text": "Comfortable"},
+                        "value": "comfortable",
                     },
-                    "value": "comfortable"
-                },
-                {
-                    "id": "survey-comfort-neither",
-                    "label": {
-                    "text": "Neither comfortable or uncomfortable"
+                    {
+                        "id": "survey-comfort-neither",
+                        "label": {"text": "Neither comfortable or uncomfortable"},
+                        "value": "neither comfortable or uncomfortable",
                     },
-                    "value": "neither comfortable or uncomfortable"
-                },
-                {
-                    "id": "survey-comfort-uncomfortable",
-                    "label": {
-                    "text": "Uncomfortable"
+                    {
+                        "id": "survey-comfort-uncomfortable",
+                        "label": {"text": "Uncomfortable"},
+                        "value": "uncomfortable",
                     },
-                    "value": "uncomfortable"
-                },
-                {
-                    "id": "survey-comfort-very-uncomfortable",
-                    "label": {
-                    "text": "Very uncomfortabe"
+                    {
+                        "id": "survey-comfort-very-uncomfortable",
+                        "label": {"text": "Very uncomfortabe"},
+                        "value": "very uncomfortable",
                     },
-                    "value": "very uncomfortable"
-                }
                 ],
                 "guidance_enabled": False,
                 "guidance_text": "",
@@ -425,12 +396,13 @@ def mock_feedback() -> list[dict]:
                 "justification_text": "Placeholder text",
                 "placeholder_field": "",
                 "button_text": "Save and continue",
-                "used_for_classifications": []
-            }
+                "used_for_classifications": [],
+            },
         ],
         "include_survey_resp": False,
-        "survey_responses": [""]
-        }
+        "survey_responses": [""],
+    }
+
 
 @pytest.fixture
 def mock_api_client() -> MagicMock:

@@ -327,8 +327,11 @@ def test_feedback_intro_route(client) -> None:
 
     assert (
         expected_text.encode() in response.data
-    ), f"Feednback intro page should contain '{expected_text}'"
-    assert response.status_code == HTTPStatus.OK, "Feedback intro route should return 200 OK"
+    ), f"Feedback intro page should contain '{expected_text}'"
+    assert (
+        response.status_code == HTTPStatus.OK
+    ), "Feedback intro route should return 200 OK"
+
 
 @pytest.mark.route
 def test_first_feedback_question(client, mock_feedback) -> None:
@@ -364,6 +367,7 @@ def test_first_feedback_question(client, mock_feedback) -> None:
             assert "current_feedback_index" in sess
             assert sess["current_feedback_index"] == 0
 
+
 @pytest.mark.route
 def test_feedback_thank_you_route(client) -> None:
     """Tests that the feedback thank you route contains survey title and returns a 200 OK response.
@@ -378,4 +382,3 @@ def test_feedback_thank_you_route(client) -> None:
         expected_text.encode() in response.data
     ), f"Feedback thank you page should contain '{expected_text}'"
     assert response.status_code == HTTPStatus.OK, "Thank you route should return 200 OK"
-

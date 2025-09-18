@@ -237,6 +237,4 @@ def feedback_thank_you():
     if "current_feedback_index" in session:
         session["current_feedback_index"] = 0
 
-    return render_template(
-        "feedback_thank_you.html"
-    )
+    return render_template("feedback_thank_you.html")
