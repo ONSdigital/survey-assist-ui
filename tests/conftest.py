@@ -256,6 +256,181 @@ def mock_survey_iteration() -> dict:
         "user": "",
     }
 
+@pytest.fixture
+def mock_feedback() -> list[dict]:
+    """Provides a mock feedback question set for testing the /survey route."""
+    return {
+            "enabled": True,
+            "questions": [
+            {
+                "question_id": "fq1",
+                "question_name": "survey_ease_question",
+                "title": "Survey Ease",
+                "question_text": "In general, how easy or difficult did you find this survey?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-ease",
+                "response_options": [
+                {
+                    "id": "survey-ease-very-easy",
+                    "label": {
+                    "text": "Very easy"
+                    },
+                    "value": "very easy",
+                    "attributes": { "required": True }
+                },
+                {
+                    "id": "survey-ease-easy",
+                    "label": {
+                    "text": "Easy"
+                    },
+                    "value": "easy"
+                },
+                {
+                    "id": "survey-ease-neither",
+                    "label": {
+                    "text": "Neither easy or difficult"
+                    },
+                    "value": "neither easy or difficult"
+                },
+                {
+                    "id": "survey-ease-difficult",
+                    "label": {
+                    "text": "Difficult"
+                    },
+                    "value": "difficult"
+                },
+                {
+                    "id": "survey-ease-very-difficult",
+                    "label": {
+                    "text": "Very difficult"
+                    },
+                    "value": "very difficult"
+                }
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": []
+            },
+            {
+                "question_id": "fq2",
+                "question_name": "survey_relevance_question",
+                "title": "Survey Relevance",
+                "question_text": "How relevant or irrelevant did you find the questions to your situation?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-relevance",
+                "response_options": [
+                {
+                    "id": "survey-relevance-very-relevant",
+                    "label": {
+                    "text": "Very relevant"
+                    },
+                    "value": "very relevant",
+                    "attributes": { "required": True }
+                },
+                {
+                    "id": "survey-relevance-relevant",
+                    "label": {
+                    "text": "Relevant"
+                    },
+                    "value": "relevant"
+                },
+                {
+                    "id": "survey-relevance-neither",
+                    "label": {
+                    "text": "Neither relevant or irrelevant"
+                    },
+                    "value": "neither relevant or irrelevant"
+                },
+                {
+                    "id": "survey-relevance-irrelevant",
+                    "label": {
+                    "text": "Irrelevant"
+                    },
+                    "value": "irrelevant"
+                },
+                {
+                    "id": "survey-relevance-very-irrelevant",
+                    "label": {
+                    "text": "Very irrelevant"
+                    },
+                    "value": "very irrelevant"
+                }
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": []
+            },
+            {
+                "question_id": "fq3",
+                "question_name": "survey_comfort_question",
+                "title": "Survey Comfort",
+                "question_text": "How comfortable or uncomfortable were you in providing this information?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-comfort",
+                "response_options": [
+                {
+                    "id": "survey-comfort-very-comfortable",
+                    "label": {
+                    "text": "Very comfortable"
+                    },
+                    "value": "very comfortable",
+                    "attributes": { "required": True }
+                },
+                {
+                    "id": "survey-comfort-comfortable",
+                    "label": {
+                    "text": "Comfortable"
+                    },
+                    "value": "comfortable"
+                },
+                {
+                    "id": "survey-comfort-neither",
+                    "label": {
+                    "text": "Neither comfortable or uncomfortable"
+                    },
+                    "value": "neither comfortable or uncomfortable"
+                },
+                {
+                    "id": "survey-comfort-uncomfortable",
+                    "label": {
+                    "text": "Uncomfortable"
+                    },
+                    "value": "uncomfortable"
+                },
+                {
+                    "id": "survey-comfort-very-uncomfortable",
+                    "label": {
+                    "text": "Very uncomfortabe"
+                    },
+                    "value": "very uncomfortable"
+                }
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": []
+            }
+        ],
+        "include_survey_resp": False,
+        "survey_responses": [""]
+        }
 
 @pytest.fixture
 def mock_api_client() -> MagicMock:

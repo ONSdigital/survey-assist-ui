@@ -238,5 +238,5 @@ def feedback_thank_you():
         session["current_feedback_index"] = 0
 
     return render_template(
-        "feedback_thank_you.html", survey="Feedback Feedback", show_feedback=False
+        "feedback_thank_you.html"
     )
