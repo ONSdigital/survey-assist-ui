@@ -224,7 +224,7 @@ def get_current_feedback_index(
         IndexError: If the index is out of range of the questions list.
     """
     index_any = session_data.get("current_feedback_index")
-    if not isinstance(index_any, int):
+    if not isinstance(index_any, int) or isinstance(index_any, bool):
         raise RuntimeError("session['current_feedback_index'] must be an int.")
     if index_any < 0 or index_any >= len(questions):
         raise IndexError("current_feedback_index is out of range.")
