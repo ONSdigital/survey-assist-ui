@@ -321,9 +321,8 @@ def test_feedback_intro_route(client) -> None:
     Args:
         client: Flask test client fixture.
     """
-    app = cast(SurveyAssistFlask, current_app)
     response = client.get("/feedback_intro")
-    expected_text = app.survey_title
+    expected_text = "feedback on your experience today"
 
     assert (
         expected_text.encode() in response.data

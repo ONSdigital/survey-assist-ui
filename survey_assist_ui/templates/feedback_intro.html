@@ -31,15 +31,16 @@
     }
 %}
 {% block main %}
-<br></br>
-{{ onsLabel({
-    "text": 'Please provide your feedback on the '+survey+' survey!',
-    "classes": 'ons-u-mb-l'
-}) }}
+{{
+    onsPanel({
+        "spacious": true,
+        "body": '<p>Please answer <strong>three quick questions</strong> to feedback on your experience today.</p>'
+    })
+}}
 <p></p>
 {{ onsButton({
     "id": "submit-button",
-    "text": "Feedback",
+    "text": "Continue",
     "url": url_for('feedback.feedback'),
 }) }}
 {% endblock %}

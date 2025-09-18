@@ -34,8 +34,10 @@
 {% block main %}
 {% if show_feedback %}
   {% set button_url = url_for('feedback.intro') %}
+  {% set button_text = "Feedback" %}
 {% else %}
   {% set button_url = url_for('main.index') %}
+  {% set button_text = "Finish" %}
 {% endif %}
 
 
@@ -56,7 +58,7 @@
 <p></p>
 {{ onsButton({
     "id": "submit-button",
-    "text": "Finish",
+    "text": button_text,
     "url": button_url,
 }) }}
 {% endblock %}
