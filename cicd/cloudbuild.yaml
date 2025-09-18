@@ -1,0 +1,61 @@
+steps:
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - |
+        gcloud --version
+        make --version
+        pip --version
+        python --version
+        pytest --version
+        poetry --version
+    id: Verfiy Base Tooling Versions
+    entrypoint: bash
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - >
+        export BACKEND_API_URL=$_BACKEND_API_URL export BACKEND_API_VERSION=v1
+        export SA_EMAIL=$_SA_EMAIL
+
+        poetry install
+
+        make load-design-system-templates
+
+        make all-tests
+
+        poetry version -s > /workspace/version.txt
+    id: Run All UI Tests
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - '-c'
+      - >-
+        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat
+        /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t
+        $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA .
+    id: Build UI Image
+    entrypoint: sh
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - '-c'
+      - 'docker push $_GAR_IMAGE:$(cat /workspace/version.txt)'
+    id: Push UI Image Tag Version
+    entrypoint: sh
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - '-c'
+      - 'docker push $_GAR_IMAGE:$SHORT_SHA'
+    id: Push UI Image Tag Short SHA
+    entrypoint: sh
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - >
+        gcloud run deploy survey-assist-ui --image=$_GAR_IMAGE:$SHORT_SHA
+        --region $LOCATION --project $_SANDBOX_PROJECT_ID
+    id: Deploy Survey Assist UI Image
+    entrypoint: bash
+timeout: 600s
+options:
+  logging: CLOUD_LOGGING_ONLY
