@@ -29,10 +29,8 @@ from utils.feedback_utils import (
     init_feedback_session,
     send_feedback,
 )
-from utils.session_utils import (
-    remove_model_from_session,
-    session_debug,
-)
+from utils.session_utils import FIRST_QUESTION, remove_model_from_session, session_debug
+from utils.survey_utils import number_to_word
 
 feedback_blueprint = Blueprint("feedback", __name__)
 
@@ -43,7 +41,12 @@ logger = get_logger(__name__, level="DEBUG")
 def intro():
     """Handles displaying an intro page prior to the feedback."""
     app = cast(SurveyAssistFlask, current_app)
-    return render_template("feedback_intro.html", survey=app.survey_title)
+    # Get the lenth of the feedback questions
+    feedback_questions = get_feedback_questions(app.feedback)
+    feedback_word = number_to_word.get(len(feedback_questions), "unknown")
+    return render_template(
+        "feedback_intro.html", survey=app.survey_title, feedback_count=feedback_word
+    )
 
 
 # Generic route to handle feedback questions
@@ -59,7 +62,7 @@ def feedback() -> str:
     feedback_data = app.feedback
 
     if "current_feedback_index" not in session:
-        session["current_feedback_index"] = 0
+        session["current_feedback_index"] = FIRST_QUESTION
 
     # If this is the first question, determine if responses from the survey
     # are to be included in the feedback.

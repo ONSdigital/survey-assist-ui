@@ -25,6 +25,7 @@ from models.result import (
 from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.map_results_utils import translate_session_to_model
 from utils.session_utils import (
+    FIRST_QUESTION,
     add_follow_up_response_to_classify,
     save_model_to_session,
     session_debug,
@@ -66,12 +67,12 @@ def survey() -> str:
 
     # Initialise the current question index in the session if it doesn't exist
     if "current_question_index" not in session:
-        session["current_question_index"] = 0
+        session["current_question_index"] = FIRST_QUESTION
         session.modified = True
 
     # If this is the first question, initialise the iteration data
     # and set the time_start
-    if session["current_question_index"] == 0:
+    if session["current_question_index"] == FIRST_QUESTION:
         # Initialise the survey iteration data in the session
         session["survey_iteration"] = init_survey_iteration()
 
