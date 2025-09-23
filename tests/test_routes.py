@@ -312,3 +312,72 @@ def test_thank_you_route(client) -> None:
         expected_text.encode() in response.data
     ), f"Thank you page should contain '{expected_text}'"
     assert response.status_code == HTTPStatus.OK, "Thank you route should return 200 OK"
+
+
+@pytest.mark.route
+def test_feedback_intro_route(client) -> None:
+    """Tests that the feedback intro route contains survey title and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+    """
+    response = client.get("/feedback_intro")
+    expected_text = "feedback on your experience today"
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Feedback intro page should contain '{expected_text}'"
+    assert (
+        response.status_code == HTTPStatus.OK
+    ), "Feedback intro route should return 200 OK"
+
+
+@pytest.mark.route
+def test_first_feedback_question(client, mock_feedback) -> None:
+    """Tests that the feedback route contains correct text
+    for the first feedback question and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+        mock_feedback: Mocked feedback to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "feedback", mock_feedback):
+        with client.session_transaction() as sess:
+            # Ensure a clean state to trigger init logic
+            sess.pop("current_feedback_index", None)
+
+        response = client.get("/feedback")
+
+        mock_feedback_questions = mock_feedback.get("questions")
+
+        expected_text = mock_feedback_questions[0]["question_text"]
+        assert (
+            expected_text.encode() in response.data
+        ), "Feedback page should contain the first question text"
+        assert response.status_code == HTTPStatus.OK, "/feedback should return 200 OK"
+        assert (
+            b"Save and continue" in response.data
+        ), "Expected 'Save and continue' in response"
+
+        # Validate session was initialised correctly
+        with client.session_transaction() as sess:
+            assert "current_feedback_index" in sess
+            assert sess["current_feedback_index"] == 0
+
+
+@pytest.mark.route
+def test_feedback_thank_you_route(client) -> None:
+    """Tests that the feedback thank you route contains survey title and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+    """
+    response = client.get("/feedback_thank_you")
+    expected_text = "Feedback has been successfully submitted"
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Feedback thank you page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Thank you route should return 200 OK"

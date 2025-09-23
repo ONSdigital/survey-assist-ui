@@ -5,7 +5,7 @@ instance for use in unit and integration tests.
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable, TypedDict
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,9 +21,10 @@ from models.classify import (
     ResponseMeta,
 )
 from survey_assist_ui import create_app
+from utils.feedback_utils import _make_feedback_session
 
-# Disable line too long warnings for this file
-# pylint: disable=line-too-long
+# Disable line too many / too long warnings for this file
+# pylint: disable=line-too-long, disable=too-many-lines
 
 # pylint cannot differentiate the use of fixtures in the test functions
 # pylint: disable=unused-argument, disable=redefined-outer-name
@@ -253,6 +254,153 @@ def mock_survey_iteration() -> dict:
         "time_end": None,
         "time_start": datetime(2025, 7, 15, 12, 38, 22, tzinfo=timezone.utc),
         "user": "",
+    }
+
+
+@pytest.fixture
+def mock_feedback() -> dict:
+    """Provides a mock feedback question set for testing the /survey route."""
+    return {
+        "enabled": True,
+        "questions": [
+            {
+                "question_id": "fq1",
+                "question_name": "survey_ease_question",
+                "title": "Survey Ease",
+                "question_text": "In general, how easy or difficult did you find this survey?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-ease",
+                "response_options": [
+                    {
+                        "id": "survey-ease-very-easy",
+                        "label": {"text": "Very easy"},
+                        "value": "very easy",
+                        "attributes": {"required": True},
+                    },
+                    {
+                        "id": "survey-ease-easy",
+                        "label": {"text": "Easy"},
+                        "value": "easy",
+                    },
+                    {
+                        "id": "survey-ease-neither",
+                        "label": {"text": "Neither easy or difficult"},
+                        "value": "neither easy or difficult",
+                    },
+                    {
+                        "id": "survey-ease-difficult",
+                        "label": {"text": "Difficult"},
+                        "value": "difficult",
+                    },
+                    {
+                        "id": "survey-ease-very-difficult",
+                        "label": {"text": "Very difficult"},
+                        "value": "very difficult",
+                    },
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": [],
+            },
+            {
+                "question_id": "fq2",
+                "question_name": "survey_relevance_question",
+                "title": "Survey Relevance",
+                "question_text": "How relevant or irrelevant did you find the questions to your situation?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-relevance",
+                "response_options": [
+                    {
+                        "id": "survey-relevance-very-relevant",
+                        "label": {"text": "Very relevant"},
+                        "value": "very relevant",
+                        "attributes": {"required": True},
+                    },
+                    {
+                        "id": "survey-relevance-relevant",
+                        "label": {"text": "Relevant"},
+                        "value": "relevant",
+                    },
+                    {
+                        "id": "survey-relevance-neither",
+                        "label": {"text": "Neither relevant or irrelevant"},
+                        "value": "neither relevant or irrelevant",
+                    },
+                    {
+                        "id": "survey-relevance-irrelevant",
+                        "label": {"text": "Irrelevant"},
+                        "value": "irrelevant",
+                    },
+                    {
+                        "id": "survey-relevance-very-irrelevant",
+                        "label": {"text": "Very irrelevant"},
+                        "value": "very irrelevant",
+                    },
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": [],
+            },
+            {
+                "question_id": "fq3",
+                "question_name": "survey_comfort_question",
+                "title": "Survey Comfort",
+                "question_text": "How comfortable or uncomfortable were you in providing this information?",
+                "question_description": "",
+                "response_type": "radio",
+                "response_name": "survey-comfort",
+                "response_options": [
+                    {
+                        "id": "survey-comfort-very-comfortable",
+                        "label": {"text": "Very comfortable"},
+                        "value": "very comfortable",
+                        "attributes": {"required": True},
+                    },
+                    {
+                        "id": "survey-comfort-comfortable",
+                        "label": {"text": "Comfortable"},
+                        "value": "comfortable",
+                    },
+                    {
+                        "id": "survey-comfort-neither",
+                        "label": {"text": "Neither comfortable or uncomfortable"},
+                        "value": "neither comfortable or uncomfortable",
+                    },
+                    {
+                        "id": "survey-comfort-uncomfortable",
+                        "label": {"text": "Uncomfortable"},
+                        "value": "uncomfortable",
+                    },
+                    {
+                        "id": "survey-comfort-very-uncomfortable",
+                        "label": {"text": "Very uncomfortabe"},
+                        "value": "very uncomfortable",
+                    },
+                ],
+                "guidance_enabled": False,
+                "guidance_text": "",
+                "justification_enabled": False,
+                "justification_title": "Why we ask this question",
+                "justification_text": "Placeholder text",
+                "placeholder_field": "",
+                "button_text": "Save and continue",
+                "used_for_classifications": [],
+            },
+        ],
+        "include_survey_resp": False,
+        "survey_responses": [""],
     }
 
 
@@ -569,3 +717,294 @@ def survey_result_session_lookup_found() -> dict[str, Any]:
             "user": "user.respondent-a",
         }
     }
+
+
+@pytest.fixture(name="sample_questions")
+def fixture_sample_questions() -> list[dict[str, Any]]:
+    """Provide a minimal set of question dicts with stable IDs for tests.
+
+    Returns:
+        list[dict[str, Any]]: A list of question dictionaries,
+        each with a ``question_id`` key.
+    """
+    return [
+        {"question_id": "q1", "text": "First?"},
+        {"question_id": "q2", "text": "Second?"},
+        {"question_id": "q3", "text": "Third?"},
+    ]
+
+
+@pytest.fixture(name="questions_with_missing_id")
+def fixture_questions_with_missing_id() -> list[dict[str, Any]]:
+    """Provide questions including one without a ``question_id`` key.
+
+    This exercises the default value path (empty string) in the selector.
+
+    Returns:
+        list[dict[str, Any]]: Question dictionaries where one item
+        lacks the ``question_id`` key.
+    """
+    return [
+        {"question_id": "q1", "text": "First?"},
+        {"text": "No id here"},  # will contribute '' to all_ids
+    ]
+
+
+@pytest.fixture(name="age_range_response_options")
+def fixture_age_range_response_options() -> list[dict[str, Any]]:
+    """Provide the sample `response_options` list from the age-range question.
+
+    Returns:
+        list[dict[str, Any]]: A list of option dictionaries containing
+        label->text entries in the same order as provided by the UI.
+    """
+    return [
+        {
+            "attributes": {"required": True},
+            "id": "age-range-18-24",
+            "label": {"text": "18-24"},
+            "value": "18-24",
+        },
+        {
+            "id": "age-range-25-34",
+            "label": {"text": "25-34"},
+            "value": "25-34",
+        },
+        {
+            "id": "age-range-35-49",
+            "label": {"text": "35-49"},
+            "value": "35-49",
+        },
+        {
+            "id": "age-range-50-64",
+            "label": {"text": "50-64"},
+            "value": "50-64",
+        },
+        {
+            "id": "age-range-65",
+            "label": {"text": "65 plus"},
+            "value": "65-plus",
+        },
+    ]
+
+
+class SessionDict(dict):
+    """A minimal Flask-like session mapping with a `modified` flag.
+
+    Notes:
+        Flask's session sets ``modified = True`` after mutation.
+        The function under test checks for the attribute via ``hasattr``.
+    """
+
+    modified: bool = False
+
+
+class FeedbackQuestion(TypedDict, total=False):
+    """TypedDict mirroring the FeedbackQuestion for clarity in tests."""
+
+    response: Any
+    response_name: str
+    response_options: list[str]
+
+
+class FeedbackSession(TypedDict):  # pylint: disable=duplicate-code
+    """TypedDict mirroring the FeedbackSession for clarity in tests."""
+
+    case_id: str
+    person_id: str
+    survey_id: str
+    questions: list[FeedbackQuestion]
+
+
+@pytest.fixture(name="survey_iteration_questions")
+def fixture_survey_iteration_questions() -> list[dict[str, Any]]:
+    """Example `survey_iteration["questions"]` data."""
+    return [
+        {
+            "question_id": "q0",
+            "question_text": "Select your age range from the options below",
+            "response": "35-49",
+            "response_name": "age-range",
+            "response_options": [
+                {
+                    "attributes": {"required": True},
+                    "id": "age-range-18-24",
+                    "label": {"text": "18-24"},
+                    "value": "18-24",
+                },
+                {"id": "age-range-25-34", "label": {"text": "25-34"}, "value": "25-34"},
+                {"id": "age-range-35-49", "label": {"text": "35-49"}, "value": "35-49"},
+                {"id": "age-range-50-64", "label": {"text": "50-64"}, "value": "50-64"},
+                {
+                    "id": "age-range-65",
+                    "label": {"text": "65 plus"},
+                    "value": "65-plus",
+                },
+            ],
+            "response_type": "radio",
+            "used_for_classifications": [],
+        },
+        {
+            "question_id": "q1",
+            "question_text": "Did you have a paid job...?",
+            "response": "yes",
+            "response_name": "paid-job",
+            "response_options": [
+                {
+                    "attributes": {"required": True},
+                    "id": "paid-job-yes",
+                    "label": {"text": "Yes"},
+                    "value": "yes",
+                },
+                {"id": "paid-job-no", "label": {"text": "No"}, "value": "no"},
+            ],
+            "response_type": "radio",
+            "used_for_classifications": [],
+        },
+        {
+            "question_id": "q2",
+            "question_text": "What is the exact job title for your main job or business?",
+            "response": "teacher",
+            "response_name": "job-title",
+            "response_options": [],
+            "response_type": "text",
+            "used_for_classifications": ["sic", "soc"],
+        },
+        {
+            "question_id": "q3",
+            "question_text": "Describe what you do in that job or business as a teacher",
+            "response": "teach maths",
+            "response_name": "job-description",
+            "response_options": [],
+            "response_type": "text",
+            "used_for_classifications": ["sic", "soc"],
+        },
+        {
+            "question_id": "f1.2",
+            "question_text": "Which of these best describes your organisation's activities?",
+            "response": "none of the above",
+            "response_name": "resp-survey-assist-followup",
+            "response_options": [
+                {
+                    "attributes": {"required": True},
+                    "id": "other-education-nec-id",
+                    "label": {"text": "Other education nec"},
+                    "value": "other education nec",
+                },
+                {
+                    "id": "educational-support-activities-id",
+                    "label": {"text": "Educational support activities"},
+                    "value": "educational support activities",
+                },
+                {
+                    "id": "primary-education-id",
+                    "label": {"text": "Primary education"},
+                    "value": "primary education",
+                },
+                {
+                    "id": "cultural-education-id",
+                    "label": {"text": "Cultural education"},
+                    "value": "cultural education",
+                },
+                {
+                    "id": "none-of-the-above-id",
+                    "label": {"text": "None of the above"},
+                    "value": "none of the above",
+                },
+            ],
+            "response_type": "radio",
+            "used_for_classifications": [],
+        },
+    ]
+
+
+@pytest.fixture(name="empty_feedback_session")
+def fixture_empty_feedback_session() -> FeedbackSession:
+    """Provide an initialised, empty feedback session structure."""
+    return {
+        "case_id": "case-123",
+        "person_id": "person-456",
+        "survey_id": "survey-xyz",
+        "questions": [],
+    }
+
+
+@pytest.fixture(name="session_ready")
+def fixture_session_ready(
+    survey_iteration_questions: list[dict[str, Any]],
+    empty_feedback_session: FeedbackSession,
+) -> SessionDict:
+    """Provide a session mapping with src and dest keys initialised."""
+    sess: SessionDict = SessionDict()
+    sess["survey_iteration"] = {"questions": survey_iteration_questions}
+    sess["feedback_response"] = empty_feedback_session.copy()
+    return sess
+
+
+@pytest.fixture(name="example_feedback")
+def _example_feedback() -> dict[str, Any]:
+    """Build a representative feedback payload containing three radio questions.
+
+    Returns:
+        dict[str, Any]: A feedback dictionary with a 'questions' list.
+    """
+    return {
+        "enabled": True,
+        "questions": [
+            {
+                "question_id": "fq1",
+                "response_type": "radio",
+                "response_name": "survey-ease",
+                "response_options": [
+                    {
+                        "id": "survey-ease-very-easy",
+                        "label": {"text": "Very easy"},
+                        "value": "very easy",
+                    },
+                    {
+                        "id": "survey-ease-easy",
+                        "label": {"text": "Easy"},
+                        "value": "easy",
+                    },
+                ],
+            },
+            {
+                "question_id": "fq2",
+                "response_type": "radio",
+                "response_name": "survey-relevance",
+                "response_options": [
+                    {
+                        "id": "survey-relevance-very-relevant",
+                        "label": {"text": "Very relevant"},
+                        "value": "very relevant",
+                    },
+                ],
+            },
+            {
+                "question_id": "fq3",
+                "response_type": "radio",
+                "response_name": "survey-comfort",
+                "response_options": [
+                    {
+                        "id": "survey-comfort-very-comfortable",
+                        "label": {"text": "Very comfortable"},
+                        "value": "very comfortable",
+                    },
+                ],
+            },
+        ],
+        "include_survey_resp": True,
+        "survey_responses": ["q0"],
+    }
+
+
+@pytest.fixture()
+def feedback_session_factory() -> Callable:
+    """Return a factory for creating new FeedbackSession dicts."""
+
+    def _factory(
+        case_id: str = "case", person_id: str = "person", survey_id: str = "survey"
+    ) -> FeedbackSession:
+        return _make_feedback_session(case_id, person_id, survey_id)
+
+    return _factory

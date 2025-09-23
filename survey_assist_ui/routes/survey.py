@@ -322,4 +322,6 @@ def survey_result():
 def thank_you():
     """Render a thank you page to show results were submitted."""
     app = cast(SurveyAssistFlask, current_app)
-    return render_template("thank_you.html", survey=app.survey_title)
+    return render_template(
+        "thank_you.html", survey=app.survey_title, show_feedback=app.show_feedback
+    )
