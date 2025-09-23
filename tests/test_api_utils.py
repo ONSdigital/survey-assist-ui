@@ -9,13 +9,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from flask import Flask, current_app
+from flask import Flask, current_app, session
+from pydantic import ValidationError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError, Timeout
 
 from models.result import LookupResponse
 from utils.api_utils import APIClient, map_to_lookup_response
 from utils.app_types import SurveyAssistFlask
+from utils.feedback_utils import (
+    feedback_session_to_model,
+    map_feedback_result_from_session,
+    send_feedback,
+    send_feedback_result,
+)
 
 BASE_URL = "https://api.example.com"
 TOKEN = "test-token"  # noqa:S105
@@ -24,6 +31,7 @@ TOKEN = "test-token"  # noqa:S105
 # Disable unused agument for this file
 # pylint cannot differentiate the use of fixtures in the test functions
 # pylint: disable=unused-argument, disable=redefined-outer-name
+# pylint: disable=line-too-long
 @pytest.fixture
 def mock_api_logger():
     """Provides a mock logger for API client tests."""
@@ -219,3 +227,167 @@ def test_map_to_lookup_response_empty_data() -> None:
     assert result.potential_codes == []
     assert result.potential_divisions == []
     assert result.potential_codes_count == 0
+
+
+def _make_validation_error(title: str = "FeedbackResult") -> ValidationError:
+    """Build a Pydantic v2 ValidationError for use as a side_effect.
+
+    Args:
+        title: A short title for the error, typically the model name.
+
+    Returns:
+        A ValidationError instance that can be used as a side_effect to raise.
+    """
+    line_errors = [
+        {
+            "type": "string_type",
+            "loc": ("field",),
+            "msg": "Input should be a valid string",
+            "input": None,
+        }
+    ]
+    return ValidationError.from_exception_data(title, line_errors=line_errors)  # type: ignore[arg-type]
+
+
+@pytest.fixture()
+def fake_feedback_model() -> MagicMock:
+    """Provides a MagicMock that behaves like a Pydantic model with model_dump(mode='json')."""
+    m = MagicMock()
+    m.model_dump.return_value = {"score": 5, "comment": "great"}
+    return m
+
+
+# pylint: disable=invalid-name
+@pytest.mark.utils
+def test_feedback_session_to_model_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """It delegates to FeedbackResult.model_validate and returns the validated model."""
+    sess_payload = {"message": "hello"}
+    expected_model = MagicMock()
+
+    with patch("utils.feedback_utils.FeedbackResult") as FeedbackResult:
+        FeedbackResult.model_validate.return_value = expected_model  # type: ignore[attr-defined]
+        out = feedback_session_to_model(sess_payload)  # type: ignore[arg-type]
+
+    FeedbackResult.model_validate.assert_called_once_with(sess_payload)  # type: ignore[attr-defined]
+    assert out is expected_model
+
+
+# @pytest.mark.utils
+def test_feedback_session_to_model_raises_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It lets ValidationError propagate when session payload is invalid."""
+    with patch("utils.feedback_utils.FeedbackResult") as FeedbackResult:
+        FeedbackResult.model_validate.side_effect = _make_validation_error()  # type: ignore[attr-defined]
+        with pytest.raises(ValidationError):
+            _ = feedback_session_to_model({"bad": "payload"})  # type: ignore[typeddict-item]
+
+
+@pytest.mark.utils
+def test_map_feedback_result_from_session_missing_returns_none(client) -> None:
+    """It returns None when 'feedback_response' is not in session."""
+    assert map_feedback_result_from_session() is None
+
+
+@pytest.mark.utils
+def test_map_feedback_result_from_session_success(client) -> None:
+    """It returns the validated model when session payload is valid."""
+    app = cast(SurveyAssistFlask, current_app)
+    payload = {"ok": True}
+    with app.test_request_context():
+        session["feedback_response"] = payload
+        expected = MagicMock()
+        with patch("utils.feedback_utils.FeedbackResult") as FeedbackResult:
+            FeedbackResult.model_validate.return_value = expected  # type: ignore[attr-defined]
+            out = map_feedback_result_from_session()
+
+        FeedbackResult.model_validate.assert_called_once_with(payload)  # type: ignore[attr-defined]
+        assert out is expected
+
+
+@pytest.mark.utils
+def test_map_feedback_result_from_session_validation_error_returns_none(client) -> None:
+    """It catches ValidationError and returns None if validation fails."""
+    app = cast(SurveyAssistFlask, current_app)
+
+    with app.test_request_context():
+        session["feedback_response"] = {"broken": True}
+
+        with patch("utils.feedback_utils.FeedbackResult") as FeedbackResult:
+            FeedbackResult.model_validate.side_effect = _make_validation_error()  # type: ignore[attr-defined]
+            out = map_feedback_result_from_session()
+
+        assert out is None
+
+
+@pytest.mark.utils
+def test_send_feedback_calls_send_feedback_result_when_body_present(client) -> None:
+    """It calls send_feedback_result when the mapped model exists."""
+    fake_model = MagicMock()
+    with patch(
+        "utils.feedback_utils.map_feedback_result_from_session", return_value=fake_model
+    ) as p_map, patch(
+        "utils.feedback_utils.send_feedback_result", return_value={"status": "ok"}
+    ) as p_send:
+        out = send_feedback()
+
+    p_map.assert_called_once_with()
+    p_send.assert_called_once_with(fake_model)
+    assert out == {"status": "ok"}
+
+
+@pytest.mark.utils
+def test_send_feedback_returns_none_when_no_body(client) -> None:
+    """It returns None when mapping yields None and does not call downstream."""
+    with patch(
+        "utils.feedback_utils.map_feedback_result_from_session", return_value=None
+    ) as p_map, patch("utils.feedback_utils.send_feedback_result") as p_send:
+        out = send_feedback()
+
+    p_map.assert_called_once_with()
+    p_send.assert_not_called()
+    assert out is None
+
+
+@pytest.mark.utils
+def test_send_feedback_result_posts_model_dump_and_validates_response(
+    client, fake_feedback_model: MagicMock
+) -> None:
+    """It posts model_dump(mode='json') to the API and returns the validated response."""
+    app = cast(SurveyAssistFlask, current_app)
+    with app.app_context(), patch.object(
+        current_app, "api_client", MagicMock()
+    ) as api_client, patch("utils.feedback_utils.FeedbackResultResponse") as FRR:
+        # API returns raw dict; model_validate then transforms/returns object
+        api_client.post.return_value = {"status": "ok", "id": "fbk_123"}  # type: ignore[attr-defined]
+        FRR.model_validate.return_value = {"status": "ok", "id": "fbk_123"}  # type: ignore[attr-defined]
+
+        out = send_feedback_result(fake_feedback_model)
+
+    # Ensure correct endpoint and payload sourced from model_dump(mode='json')
+    api_client.post.assert_called_once_with(  # type: ignore[attr-defined]
+        "/survey-assist/feedback", body={"score": 5, "comment": "great"}
+    )
+    FRR.model_validate.assert_called_once_with({"status": "ok", "id": "fbk_123"})  # type: ignore[attr-defined]
+    assert out == {"status": "ok", "id": "fbk_123"}
+
+
+@pytest.mark.utils
+def test_send_feedback_result_returns_none_on_response_validation_error(
+    client, fake_feedback_model: MagicMock
+) -> None:
+    """It logs (via module logger) and returns None when response validation fails."""
+    app = cast(SurveyAssistFlask, current_app)
+    with app.app_context(), patch.object(
+        current_app, "api_client", MagicMock()
+    ) as api_client, patch("utils.feedback_utils.FeedbackResultResponse") as FRR, patch(
+        "utils.feedback_utils.logger"
+    ) as mock_logger:
+        api_client.post.return_value = {"unexpected": "shape"}  # type: ignore[attr-defined]
+        FRR.model_validate.side_effect = _make_validation_error("FeedbackResultResponse")  # type: ignore[attr-defined]
+
+        out = send_feedback_result(fake_feedback_model)
+
+    assert out is None
+    # Basic sanity that we logged an error
+    mock_logger.error.assert_called()  # type: ignore[attr-defined]
