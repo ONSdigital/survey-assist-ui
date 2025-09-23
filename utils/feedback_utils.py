@@ -8,8 +8,12 @@ from __future__ import annotations
 from collections.abc import MutableMapping, Sequence
 from typing import Any, Literal, TypedDict, cast
 
-from flask import session
+from flask import current_app, session
+from pydantic import ValidationError
 from survey_assist_utils.logging import get_logger
+
+from models.feedback import FeedbackResult, FeedbackResultResponse
+from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -229,3 +233,69 @@ def get_current_feedback_index(
     if index_any < 0 or index_any >= len(questions):
         raise IndexError("current_feedback_index is out of range.")
     return index_any
+
+
+def feedback_session_to_model(sess: FeedbackSession) -> FeedbackResult:
+    """Convert a FeedbackSession dict (from Flask session) into a FeedbackResult model.
+    Raises ValidationError if the shape or values are invalid.
+    """
+    return FeedbackResult.model_validate(sess)
+
+
+def map_feedback_result_from_session() -> FeedbackResult | None:
+    """Map feedback session data from Flask session to a FeedbackResult model.
+
+    Attempts to retrieve and validate the feedback response from the session. If the
+    session data is missing or invalid, logs an error and returns None.
+
+    Returns:
+        FeedbackResult | None: The validated FeedbackResult model, or None if not found
+        or invalid.
+    """
+    try:
+        raw = cast(FeedbackSession, session["feedback_response"])
+    except KeyError:
+        logger.error("feedback_response not found in session")
+        # Not present in session
+        return None
+
+    try:
+        return feedback_session_to_model(raw)
+    except ValidationError as e:
+        # Log and return None
+        logger.error(f"Invalid feedback session: {e}")
+        return None
+
+
+def send_feedback() -> FeedbackResultResponse | None:
+    """Maps the session feedback to a pydantic model and send to the API."""
+    response = None
+    feedback_body = map_feedback_result_from_session()
+    if feedback_body:
+        response = send_feedback_result(feedback_body)
+
+    return response
+
+
+def send_feedback_result(result: FeedbackResult) -> FeedbackResultResponse | None:
+    """Classifies the given parameters using the API client.
+
+    Args:
+        result: A dictionary of the feedback responses from the participant.
+
+    Returns:
+        FeedbackResultResponse | None: result response or None if result fails.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    api_client = app.api_client
+    response = api_client.post(
+        "/survey-assist/feedback",
+        body=result.model_dump(mode="json"),
+    )
+
+    try:
+        validated_response = FeedbackResultResponse.model_validate(response)
+        return validated_response
+    except ValidationError as e:
+        logger.error(f"Validation error in result response: {e}")
+        return None

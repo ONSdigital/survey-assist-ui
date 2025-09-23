@@ -13,7 +13,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 from urllib.parse import urlparse
 
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
@@ -35,6 +35,7 @@ from models.result_sic_only import (
     SurveyAssistResult,
 )
 from utils.api_utils import APIClient  # pylint: disable=wrong-import-position
+from utils.feedback_utils import FeedbackSession, feedback_session_to_model
 from utils.map_results_utils import (
     translate_session_to_model,
 )
@@ -259,6 +260,52 @@ example_session_lookup_result = {
     }
 }
 
+example_session_feedback_response = {
+    "case_id": "test-case-xyz",
+    "person_id": "user.respondent-a",
+    "questions": [
+        {
+            "response": "35-49",
+            "response_name": "age-range",
+            "response_options": ["18-24", "25-34", "35-49", "50-64", "65 plus"],
+        },
+        {
+            "response": "difficult",
+            "response_name": "survey-ease",
+            "response_options": [
+                "Very easy",
+                "Easy",
+                "Neither easy or difficult",
+                "Difficult",
+                "Very difficult",
+            ],
+        },
+        {
+            "response": "very irrelevant",
+            "response_name": "survey-relevance",
+            "response_options": [
+                "Very relevant",
+                "Relevant",
+                "Neither relevant or irrelevant",
+                "Irrelevant",
+                "Very irrelevant",
+            ],
+        },
+        {
+            "response_name": "survey-comfort",
+            "response": "very comfortable",
+            "response_options": [
+                "Very comfortable",
+                "Comfortable",
+                "Neither comfortable or uncomfortable",
+                "Uncomfortable",
+                "Very uncomfortabe",
+            ],
+        },
+    ],
+    "survey_id": "shape_tomorrow_prototype",
+}
+
 
 def get_env_var(name: str) -> str:
     """Retrieves the value of an environment variable or raises an error if missing.
@@ -413,6 +460,30 @@ def post_result_sic_only(
     return None
 
 
+def post_feedback(client: APIClient) -> Optional[dict]:
+    """Sends a result to the Survey Assist API.
+
+    Args:
+        client (APIClient): The API client instance.
+
+    Returns:
+        Optional[dict]: The result response dictionary if successful, else None.
+    """
+    raw = cast(FeedbackSession, example_session_feedback_response)
+    result = feedback_session_to_model(raw)
+
+    response = client.post(
+        "/survey-assist/feedback",
+        body=result.model_dump(mode="json"),  # required for datetime
+    )
+
+    if isinstance(response, dict):
+        logger.info(f"Successfully saved feedback {response.get("result_id")}")
+        return response
+    logger.error("Failed to save feedback")
+    return None
+
+
 def prompt_input(prompt_text: str, default: str) -> str:
     """Prompts the user for input, returning the default if no input is given.
 
@@ -442,7 +513,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--action",
-        choices=["config", "lookup", "classify", "both", "result"],
+        choices=["config", "lookup", "classify", "both", "result", "feedback"],
         help="Action to perform",
     )
     args = parser.parse_args()
@@ -457,6 +528,13 @@ def main() -> None:
     if args.action == "result":
         api_client = init_api_client()
         result_resp = post_result_sic_only(api_client, result_sic_only)
+        if result_resp:
+            logger.debug(json.dumps(result_resp))
+        return
+
+    if args.action == "feedback":
+        api_client = init_api_client()
+        result_resp = post_feedback(api_client)
         if result_resp:
             logger.debug(json.dumps(result_resp))
         return

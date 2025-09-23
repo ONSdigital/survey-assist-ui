@@ -27,6 +27,7 @@ from utils.feedback_utils import (
     get_feedback_questions,
     get_list_of_option_text,
     init_feedback_session,
+    send_feedback,
 )
 from utils.session_utils import (
     remove_model_from_session,
@@ -230,11 +231,17 @@ def update_feedback_and_redirect(
 
 @feedback_blueprint.route("/feedback_thank_you")
 def feedback_thank_you():
-    """Render a thank you page to show results were submitted."""
-    logger.debug("Clean Feedback Session Data")
-    remove_model_from_session("feedback_response")
+    """Send the feedback and render a thank you page to show results were submitted."""
+    if not send_feedback():
+        # Error sending feedback
+        logger.error("UI - error sending feedback")
+        # Don't flag the error to the user
+        return render_template("feedback_thank_you.html")
+    else:
+        logger.debug("Clean Feedback Session Data")
+        remove_model_from_session("feedback_response")
 
-    if "current_feedback_index" in session:
-        session["current_feedback_index"] = 0
+        if "current_feedback_index" in session:
+            session["current_feedback_index"] = 0
 
     return render_template("feedback_thank_you.html")
