@@ -385,7 +385,7 @@ def mock_feedback() -> dict:
                     },
                     {
                         "id": "survey-comfort-very-uncomfortable",
-                        "label": {"text": "Very uncomfortabe"},
+                        "label": {"text": "Very uncomfortable"},
                         "value": "very uncomfortable",
                     },
                 ],

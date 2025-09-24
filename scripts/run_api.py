@@ -299,7 +299,7 @@ example_session_feedback_response = {
                 "Comfortable",
                 "Neither comfortable or uncomfortable",
                 "Uncomfortable",
-                "Very uncomfortabe",
+                "Very uncomfortable",
             ],
         },
     ],
