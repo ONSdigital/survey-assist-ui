@@ -238,13 +238,11 @@ def feedback_thank_you():
     if not send_feedback():
         # Error sending feedback
         logger.error("UI - error sending feedback")
-        # Don't flag the error to the user
-        return render_template("feedback_thank_you.html")
-    else:
-        logger.debug("Clean Feedback Session Data")
-        remove_model_from_session("feedback_response")
+        logger.warning("TBD - Error handling. Clean Feedback Session Data")
 
-        if "current_feedback_index" in session:
-            session["current_feedback_index"] = 0
+    remove_model_from_session("feedback_response")
+
+    if "current_feedback_index" in session:
+        session["current_feedback_index"] = 0
 
     return render_template("feedback_thank_you.html")
