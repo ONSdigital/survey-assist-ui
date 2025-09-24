@@ -28,6 +28,8 @@ T = TypeVar("T", bound=BaseModel)
 
 logger = get_logger(__name__, level="DEBUG")
 
+FIRST_QUESTION = 0
+
 
 def session_debug(f: Callable) -> Callable:
     """Decorator to print session information after a view function is executed.

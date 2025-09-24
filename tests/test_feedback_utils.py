@@ -19,6 +19,7 @@ from utils.feedback_utils import (  # pylint: disable=wrong-import-position
     get_feedback_questions,
     get_list_of_option_text,
 )
+from utils.session_utils import FIRST_QUESTION
 
 
 @pytest.mark.utils
@@ -712,7 +713,7 @@ def test_returns_zero_for_first_question() -> None:
     session = {"current_feedback_index": 0}
     questions = _questions(2)
     result = get_current_feedback_index(session, questions)
-    assert result == 0
+    assert result == FIRST_QUESTION
 
 
 @pytest.mark.parametrize("bad_value", [None, "1", 1.5, [], {}, True])

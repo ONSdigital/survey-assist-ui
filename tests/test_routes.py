@@ -11,6 +11,7 @@ import pytest
 from flask import current_app
 
 from utils.app_types import SurveyAssistFlask
+from utils.session_utils import FIRST_QUESTION
 
 
 @pytest.mark.route
@@ -97,7 +98,7 @@ def test_first_survey_question(client, mock_questions) -> None:
         # Validate session was initialised correctly
         with client.session_transaction() as sess:
             assert "current_question_index" in sess
-            assert sess["current_question_index"] == 0
+            assert sess["current_question_index"] == FIRST_QUESTION
             assert "survey_iteration" in sess
             assert "time_start" in sess["survey_iteration"]
 
@@ -364,7 +365,7 @@ def test_first_feedback_question(client, mock_feedback) -> None:
         # Validate session was initialised correctly
         with client.session_transaction() as sess:
             assert "current_feedback_index" in sess
-            assert sess["current_feedback_index"] == 0
+            assert sess["current_feedback_index"] == FIRST_QUESTION
 
 
 @pytest.mark.route

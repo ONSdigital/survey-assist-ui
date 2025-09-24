@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "survey-assist-ui"
-version = "0.1.0a8"
+version = "0.1.0a9"
 description = "User Interface for Survey Assist API and Backend"
 authors = ["Steve Gibbard <steve.gibbard@ons.gov.uk>"]
 license = "MIT"
