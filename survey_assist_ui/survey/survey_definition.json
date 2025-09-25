@@ -91,7 +91,10 @@
       "justification_text": "Placeholder text",
       "placeholder_field": "",
       "button_text": "Save and continue",
-      "used_for_classifications": []
+      "used_for_classifications": [],
+      "route_on_response": [
+        {"value":"no", "route":"survey.summary"}
+      ]
     },
     {
       "question_id": "q2",
