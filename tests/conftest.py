@@ -5,6 +5,7 @@ instance for use in unit and integration tests.
 """
 
 from datetime import datetime, timezone
+from types import ModuleType
 from typing import Any, Callable, TypedDict
 from unittest.mock import MagicMock
 
@@ -1008,3 +1009,85 @@ def feedback_session_factory() -> Callable:
         return _make_feedback_session(case_id, person_id, survey_id)
 
     return _factory
+
+
+class LogCapture:
+    """Lightweight logger double for tests.
+
+    Captures messages by level and supports %-style formatting to mirror the
+    stdlib logging API. Accepts *args and **kwargs so calls with 'extra' work.
+    """
+
+    # pylint: disable=too-few-public-methods
+    def __init__(self) -> None:
+        self.infos: list[str] = []
+        self.debugs: list[str] = []
+        self.warnings: list[str] = []
+        self.errors: list[str] = []
+
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Capture info logs."""
+        self.infos.append(_fmt(msg, *args))
+
+    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Capture debug logs."""
+        self.debugs.append(_fmt(msg, *args))
+
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Capture warning logs."""
+        self.warnings.append(_fmt(msg, *args))
+
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Capture error logs."""
+        self.errors.append(_fmt(msg, *args))
+
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Capture exception logs (alias to error)."""
+        self.error(msg, *args, **kwargs)
+
+
+def _fmt(msg: str, *args: Any) -> str:
+    """Format like logging.Logger using %-style, falling back safely.
+
+    Args:
+        msg: Message template.
+        *args: Positional arguments for %-style formatting.
+
+    Returns:
+        The formatted message string.
+    """
+    if args:
+        try:
+            return msg % args
+        except Exception:  # pylint: disable=broad-except
+            return str(msg)
+    return str(msg)
+
+
+@pytest.fixture
+def log_capture() -> LogCapture:
+    """Provide a fresh LogCapture for each test."""
+    return LogCapture()
+
+
+@pytest.fixture
+def patch_module_logger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[[ModuleType, LogCapture], LogCapture]:
+    """Return a helper that patches `module.logger` with a LogCapture.
+
+    This is convenient when your production logger uses custom handlers/formatters
+    or has `propagate=False`. The monkeypatch is automatically reverted by pytest.
+
+    Args:
+        monkeypatch: Built-in pytest fixture for safe attribute patching.
+
+    Returns:
+        A callable that takes (module, log_capture) and applies the patch.
+    """
+
+    def _apply(module: ModuleType, stub: LogCapture) -> LogCapture:
+        monkeypatch.setattr(module, "logger", stub, raising=True)
+        return stub
+
+    return _apply

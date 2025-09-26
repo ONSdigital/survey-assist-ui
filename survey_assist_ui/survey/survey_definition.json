@@ -63,7 +63,7 @@
       "question_id": "q1",
       "question_name": "paid_job_question",
       "title": "Paid Job",
-      "question_text": "Did you have a paid job, either as an employee or self-employed, in the week 04 November to 11 November 2024?",
+      "question_text": "Did you have a paid job, either as an employee or self-employed, in the week Monday 10 November to Sunday 16 November 2025?",
       "question_description": "",
       "response_type": "radio",
       "response_name": "paid-job",
@@ -91,14 +91,17 @@
       "justification_text": "Placeholder text",
       "placeholder_field": "",
       "button_text": "Save and continue",
-      "used_for_classifications": []
+      "used_for_classifications": [],
+      "route_on_response": [
+        {"value":"no", "route":"survey.summary"}
+      ]
     },
     {
       "question_id": "q2",
       "question_name": "job_title_question",
       "title": "Job Title",
       "question_text": "What is the exact job title for your main job or business?",
-      "question_description": "",
+      "question_description": "<p>For example, elderly residential care, food and beverage manufacturing or primary education</p>",
       "response_type": "text",
       "response_name": "job-title",
       "response_options": [],
@@ -119,7 +122,7 @@
       "question_name": "job_description_question",
       "title": "Job Description",
       "question_text": "Describe what you do in that job or business as a PLACEHOLDER_TEXT",
-      "question_description": "<p>For example, I pack crates of goods in a warehouse for a supermarket chain</p>",
+      "question_description": "",
       "response_type": "text",
       "response_name": "job-description",
       "response_options": [],
