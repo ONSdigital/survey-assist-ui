@@ -423,6 +423,7 @@ def check_route_on_response(
     Returns:
         str: The resolved route, which may or may not be modified.
     """
+    allowed_routes = {"survey.summary"}
     route_on_response = question.get("route_on_response")
     if not route_on_response:
         # No special routing defined
@@ -439,13 +440,13 @@ def check_route_on_response(
         # Check for invalid configuration
         if expected_value not in valid_values:
             logger.error(
-                f"Invalid route_on_response configuration: value '{expected_value}' not in response_options for question '{question.get("question_id")}'"  # pylint: disable=line-too-long
+                f"Invalid route_on_response: value '{expected_value}' not in response_options for question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
             )
             return current_route
 
         # Apply routing if the user value matches this rule
         if user_value == expected_value:
-            if expected_route == "survey.summary":
+            if expected_route in allowed_routes:
                 return "survey.summary"
             else:
                 logger.error(

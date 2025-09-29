@@ -403,7 +403,7 @@ def test_logs_error_and_returns_current_when_rule_value_not_in_options(
 
     assert result == current_route
     assert any(
-        "value 'maybe' not in response_options for question 'eligibility'" in msg
+        "value 'maybe' not in response_options for question 'eligibility'. Route unchanged." in msg
         for msg in log_capture.errors
     ), "Expected an error log for invalid rule value."
 
