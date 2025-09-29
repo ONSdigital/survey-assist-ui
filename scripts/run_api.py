@@ -16,6 +16,11 @@ from pathlib import Path
 from typing import Optional, cast
 from urllib.parse import urlparse
 
+from firestore_otp_api_client import Client as OTPApiClient
+from firestore_otp_api_client.models import HealthConfigResponse
+from firestore_otp_api_client.api.general.root_get import sync as root_get
+from firestore_otp_api_client.errors import UnexpectedStatus
+
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
@@ -42,8 +47,7 @@ from utils.map_results_utils import (
 
 # pylint: disable=line-too-long
 
-logger = get_logger(__name__)
-
+logger = get_logger(__name__, "DEBUG")
 
 def parse_z(ts: str) -> datetime:
     """Convert an ISO-8601 'Z' timestamp to a UTC-aware datetime.
@@ -513,7 +517,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--action",
-        choices=["config", "lookup", "classify", "both", "result", "feedback"],
+        choices=["config", "lookup", "classify", "both", "result", "feedback", "otp"],
         help="Action to perform",
     )
     args = parser.parse_args()
@@ -537,6 +541,21 @@ def main() -> None:
         result_resp = post_feedback(api_client)
         if result_resp:
             logger.debug(json.dumps(result_resp))
+        return
+
+    if args.action == "otp":
+        with OTPApiClient(base_url="http://0.0.0.0:8080") as client:
+            try:
+                health = root_get(client=client)  # returns HealthConfigResponse | None
+            except UnexpectedStatus as e:
+                # The SDK throws this if raise_on_unexpected_status=True and status != 200
+                # You can map this to a 502 in Flask, log, etc.
+                logger.error(e)
+
+            if health is None:
+                # Defensive: SDK returns None if raise_on_unexpected_status=False and non-200
+                return {}
+            logger.debug(health.to_dict())
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
