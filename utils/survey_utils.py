@@ -86,7 +86,7 @@ def find_matching_interaction(
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-def update_session_and_redirect(
+def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
     req: Request,
     questions: list[dict[str, Any]],
     survey_assist: dict[str, Any],
@@ -144,70 +144,91 @@ def update_session_and_redirect(
     # Add the question and response to the list of questions
     add_question_to_survey(current_question, req.form.get(value))
 
-    # If survey assist is enabled and the current question has an interaction
-    # then redirect to the consent page to ask the user if they want to
-    # continue with the Survey Assist interaction
-    if survey_assist.get("enabled", True):
-        session.modified = True
-        interactions: list[dict[str, Any]] = survey_assist.get("interactions", [])
+    # Determine typical survey route should be bypassed based on config
+    # Note: Only support a route to end at present.
+    next_route = check_route_on_response(
+        question=current_question,
+        user_value=req.form.get(value, ""),
+        current_route=route,
+    )
 
-        matching_interaction = find_matching_interaction(current_question, interactions)
+    # If route is unchanged continue with core processing
+    if next_route == route:
+        # If survey assist is enabled and the current question has an interaction
+        # then redirect to the consent page to ask the user if they want to
+        # continue with the Survey Assist interaction
+        if survey_assist.get("enabled", True):
+            session.modified = True
+            interactions: list[dict[str, Any]] = survey_assist.get("interactions", [])
 
-        if matching_interaction:
-            question_id = current_question.get("question_id")
-            after_id = matching_interaction.get("after_question_id")
-            logger.debug(
-                f"Survey Assist interaction found for question {question_id} and {after_id}",
+            matching_interaction = find_matching_interaction(
+                current_question, interactions
             )
 
-            perform_classification = True
-            if matching_interaction.get("type") == "lookup_classification":
-                # Make the sic lookup request
-                org_description = session["response"].get("organisation_activity", "")
-                if org_description:
-                    lookup_response, start_time, end_time = perform_sic_lookup(
-                        org_description
-                    )
+            if matching_interaction:
+                question_id = current_question.get("question_id")
+                after_id = matching_interaction.get("after_question_id")
+                logger.debug(
+                    f"Survey Assist interaction found for question {question_id} and {after_id}",
+                )
 
-                    # Add response to survey_result
-                    add_sic_lookup_interaction(
-                        lookup_response,
-                        start_time,
-                        end_time,
-                        {"org_description": org_description},
+                perform_classification = True
+                if matching_interaction.get("type") == "lookup_classification":
+                    # Make the sic lookup request
+                    org_description = session["response"].get(
+                        "organisation_activity", ""
                     )
+                    if org_description:
+                        lookup_response, start_time, end_time = perform_sic_lookup(
+                            org_description
+                        )
 
+                        # Add response to survey_result
+                        add_sic_lookup_interaction(
+                            lookup_response,
+                            start_time,
+                            end_time,
+                            {"org_description": org_description},
+                        )
+
+                    else:
+                        logger.warning(
+                            "No organisation description - SIC lookup skipped"
+                        )
+                        lookup_response = None
+
+                    if lookup_response and lookup_response.get("code"):
+                        # If the SIC lookup returns a code skip
+                        # classification
+                        perform_classification = False
+
+                if perform_classification:
+                    app = cast(SurveyAssistFlask, current_app)
+                    if app.show_consent:
+                        return redirect(url_for("survey.survey_assist_consent"))
+                    else:
+                        # skip consent screen
+                        logger.debug(
+                            f"Skipping consent screen - app.show_consent {app.show_consent}"
+                        )
+
+                        survey_iteration["survey_assist_time_start"] = datetime.now(
+                            timezone.utc
+                        )
+                        session.modified = True
+                        return redirect(url_for("survey_assist.survey_assist"))
                 else:
-                    logger.warning("No organisation description - SIC lookup skipped")
-                    lookup_response = None
-
-                if lookup_response and lookup_response.get("code"):
-                    # If the SIC lookup returns a code skip
-                    # classification
-                    perform_classification = False
-
-            if perform_classification:
-                app = cast(SurveyAssistFlask, current_app)
-                if app.show_consent:
-                    return redirect(url_for("survey.survey_assist_consent"))
-                else:
-                    # skip consent screen
-                    logger.debug(
-                        f"Skipping consent screen - app.show_consent {app.show_consent}"
-                    )
-
-                    survey_iteration["survey_assist_time_start"] = datetime.now(
+                    logger.debug("SIC lookup successful, skipping classification")
+                    survey_iteration["survey_assist_time_end"] = datetime.now(
                         timezone.utc
                     )
-                    session.modified = True
-                    return redirect(url_for("survey_assist.survey_assist"))
-            else:
-                logger.debug("SIC lookup successful, skipping classification")
-                survey_iteration["survey_assist_time_end"] = datetime.now(timezone.utc)
 
-    # Look at the next question for routing
-    session["current_question_index"] += 1
-    session.modified = True
+        # Look at the next question for routing
+        session["current_question_index"] += 1
+        session.modified = True
+    else:
+        route = next_route
+        logger.debug(f"Rerouting to {route} in update session and redirect")
     return redirect(url_for(route))
 
 
@@ -384,3 +405,54 @@ def followup_redirect() -> ResponseType | str:
         return redirect(url_for("survey.survey"))
 
     return redirect(url_for("error.page_not_found"))
+
+
+def check_route_on_response(
+    question: dict[str, Any],
+    user_value: str,
+    current_route: str,
+) -> str:
+    """Resolve routing for a given question based on user response.
+
+    Args:
+        question: The full question dictionary (with response_options
+        and optional route_on_response).
+        user_value: The value selected by the user (e.g. "yes", "no").
+        current_route: The route currently in play (e.g. "survey.summary").
+
+    Returns:
+        str: The resolved route, which may or may not be modified.
+    """
+    allowed_routes = {"survey.summary"}
+    route_on_response = question.get("route_on_response")
+    if not route_on_response:
+        # No special routing defined
+        return current_route
+
+    # Build a set of valid values from the question response options
+    valid_values = {opt.get("value") for opt in question.get("response_options", [])}
+
+    # Iterate through route_on_response rules
+    for rule in route_on_response:
+        expected_value = rule.get("value")
+        expected_route = rule.get("route")
+
+        # Check for invalid configuration
+        if expected_value not in valid_values:
+            logger.error(
+                f"Invalid route_on_response: value '{expected_value}' not in response_options for question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
+            )
+            return current_route
+
+        # Apply routing if the user value matches this rule
+        if user_value == expected_value:
+            if expected_route in allowed_routes:
+                return "survey.summary"
+            else:
+                logger.error(
+                    f"Invalid route_on_response: route '{expected_route}' is not allowed for value '{expected_value}' on question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
+                )
+                return current_route
+
+    # If no rules matched, return unchanged
+    return current_route

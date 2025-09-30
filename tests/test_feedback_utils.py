@@ -9,7 +9,7 @@ import pytest
 
 # Module import for monkeypatching globals
 import utils.feedback_utils as feedback_mod
-from tests.conftest import SessionDict
+from tests.conftest import LogCapture, SessionDict
 from utils.feedback_utils import (  # pylint: disable=wrong-import-position
     FeedbackSession,
     _make_feedback_session,
@@ -438,30 +438,18 @@ class SpyFactory:  # pylint: disable=too-few-public-methods
         return self.to_return
 
 
-class LogCapture:
-    """Simple logger stub that records `.info` and `.debug` messages."""
-
-    def __init__(self) -> None:
-        self.infos: list[str] = []
-        self.debugs: list[str] = []
-
-    def info(self, msg: str) -> None:
-        """Capture info logs."""
-        self.infos.append(msg)
-
-    def debug(self, msg: str) -> None:
-        """Capture debug logs."""
-        self.debugs.append(msg)
-
-
 def test_returns_existing_valid_session_without_modifying_or_factory_call(
     monkeypatch: pytest.MonkeyPatch,
     empty_feedback_session: FeedbackSession,
     feedback_session_factory,
+    log_capture: LogCapture,
+    patch_module_logger,
 ) -> None:
     """It should return existing `session[key]` when valid,
     without calling the factory or modifying the session.
     """
+    patch_module_logger(feedback_mod, log_capture)
+
     fake_sess = SessionDict()
     existing = empty_feedback_session.copy()
     fake_sess["feedback_response"] = existing
@@ -475,7 +463,6 @@ def test_returns_existing_valid_session_without_modifying_or_factory_call(
         cast(Callable[..., FeedbackSession], spy),
         raising=True,
     )
-    monkeypatch.setattr(feedback_mod, "logger", LogCapture(), raising=True)
 
     result = feedback_mod.init_feedback_session(
         case_id="case-123", person_id="person-456", survey_id="survey-xyz"
@@ -487,15 +474,19 @@ def test_returns_existing_valid_session_without_modifying_or_factory_call(
 
 
 def test_creates_when_missing_key_sets_modified_and_stores_in_session(
-    monkeypatch: pytest.MonkeyPatch, feedback_session_factory
+    monkeypatch: pytest.MonkeyPatch,
+    feedback_session_factory,
+    log_capture: LogCapture,
+    patch_module_logger,
 ) -> None:
     """It should create a fresh feedback session when key
     is missing, store it, and set `session.modified = True`.
     """
+    patch_module_logger(feedback_mod, log_capture)
+
     fake_sess = SessionDict()
     created = feedback_session_factory("C-1", "P-1", "S-1")
     spy = SpyFactory(created)
-    logs = LogCapture()
 
     monkeypatch.setattr(feedback_mod, "session", fake_sess, raising=True)
     monkeypatch.setattr(
@@ -504,7 +495,6 @@ def test_creates_when_missing_key_sets_modified_and_stores_in_session(
         cast(Callable[..., FeedbackSession], spy),
         raising=True,
     )
-    monkeypatch.setattr(feedback_mod, "logger", logs, raising=True)
 
     result = feedback_mod.init_feedback_session(
         case_id="C-1", person_id="P-1", survey_id="S-1"
@@ -515,26 +505,42 @@ def test_creates_when_missing_key_sets_modified_and_stores_in_session(
     assert fake_sess.modified is True
     assert spy.calls == [("C-1", "P-1", "S-1")]
     # Logging expectations
-    assert any("init feedback_response in session" in msg for msg in logs.infos)
-    assert any("make session" in msg for msg in logs.debugs)
+    assert any("init feedback_response in session" in msg for msg in log_capture.infos)
+    assert any("make session" in msg for msg in log_capture.debugs)
 
 
+@pytest.mark.utils
 def test_creates_when_existing_is_invalid_shape(
-    monkeypatch: pytest.MonkeyPatch, feedback_session_factory
+    monkeypatch: pytest.MonkeyPatch,
+    feedback_session_factory,
+    log_capture: LogCapture,
+    patch_module_logger,
 ) -> None:
-    """It should create a new session when existing value is malformed."""
+    """It should create a new session when the existing value is malformed.
+
+    Asserts:
+        * A new session is created using the factory.
+        * The session object is written back to Flask session.
+        * The session is marked modified.
+        * The factory is called with the expected arguments.
+        * A helpful debug log is emitted.
+    """
+    # Ensure the module uses the shared LogCapture instead of the custom logger
+    patch_module_logger(feedback_mod, log_capture)
+
     fake_sess = SessionDict()
-    # Malformed: questions is not a list (violates the acceptance predicate)
+    # Malformed payload: 'questions' must be a list
     fake_sess["feedback_response"] = {
         "case_id": "c",
         "person_id": "p",
         "survey_id": "s",
         "questions": "not-a-list",  # type: ignore[dict-item]
     }
-    created = feedback_session_factory("c", "p", "s")
-    spy = SpyFactory(created)
-    logs = LogCapture()
 
+    created = feedback_session_factory("c", "p", "s")
+    spy = SpyFactory(created)  # import this from wherever it's defined in your suite
+
+    # Patch Flask session and the internal factory used by init_feedback_session
     monkeypatch.setattr(feedback_mod, "session", fake_sess, raising=True)
     monkeypatch.setattr(
         feedback_mod,
@@ -542,7 +548,6 @@ def test_creates_when_existing_is_invalid_shape(
         cast(Callable[..., FeedbackSession], spy),
         raising=True,
     )
-    monkeypatch.setattr(feedback_mod, "logger", logs, raising=True)
 
     result = feedback_mod.init_feedback_session(
         case_id="c", person_id="p", survey_id="s"
@@ -552,7 +557,11 @@ def test_creates_when_existing_is_invalid_shape(
     assert fake_sess["feedback_response"] == created
     assert fake_sess.modified is True
     assert spy.calls == [("c", "p", "s")]
-    assert any("make session" in msg for msg in logs.debugs)
+
+    # Debug log asserted via the shared log_capture fixture
+    assert any(
+        "make session" in msg.lower() for msg in log_capture.debugs
+    ), "Expected a debug log indicating a new session was created."
 
 
 def test_custom_key_supported(
@@ -586,8 +595,12 @@ def test_existing_valid_session_with_extra_keys_is_accepted_as_is(
     monkeypatch: pytest.MonkeyPatch,
     empty_feedback_session: FeedbackSession,
     feedback_session_factory,
+    log_capture: LogCapture,
+    patch_module_logger,
 ) -> None:
     """It should accept an existing valid mapping with extra keys, and avoid factory call."""
+    patch_module_logger(feedback_mod, log_capture)
+
     fake_sess = SessionDict()
     existing: FeedbackSession = empty_feedback_session.copy()
     # Add an extra field; the predicate only checks known keys.
@@ -603,7 +616,6 @@ def test_existing_valid_session_with_extra_keys_is_accepted_as_is(
         cast(Callable[..., FeedbackSession], spy),
         raising=True,
     )
-    monkeypatch.setattr(feedback_mod, "logger", LogCapture(), raising=True)
 
     result = feedback_mod.init_feedback_session(
         case_id="case-123", person_id="person-456", survey_id="survey-xyz"
