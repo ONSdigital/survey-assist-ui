@@ -11,7 +11,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,7 +47,7 @@ from models.result_sic_only import (
     SurveyAssistInteraction,
     SurveyAssistResult,
 )
-from utils.api_utils import APIClient  # pylint: disable=wrong-import-position
+from utils.api_utils import APIClient, get_verification_api_id_token  # pylint: disable=wrong-import-position
 from utils.feedback_utils import FeedbackSession, feedback_session_to_model
 from utils.map_results_utils import (
     translate_session_to_model,
@@ -63,15 +62,6 @@ VERIFY_API_URL = os.getenv("VERIFY_API_URL", "http://0.0.0.0:8080")
 verify_api_configuration = firestore_otp_verification_api_client.Configuration(
     host=VERIFY_API_URL
 )
-
-
-def get_verification_api_id_token():
-    """Generate a Google ID token for the firestore-otp-api."""
-    gcloud_print_id_token = subprocess.check_output(  # noqa: S603
-        ["gcloud", "auth", "print-identity-token"]  # noqa: S607
-    )
-    id_token = gcloud_print_id_token.decode().strip()
-    return id_token
 
 
 def parse_z(ts: str) -> datetime:

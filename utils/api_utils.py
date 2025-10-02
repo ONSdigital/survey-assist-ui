@@ -9,6 +9,7 @@ poetry run python scripts/run_api.py --type sic --action classify
 poetry run python scripts/run_api.py --type sic --action both
 """
 
+import subprocess
 from http import HTTPStatus
 from typing import Optional
 
@@ -274,3 +275,14 @@ def map_to_lookup_response(
         potential_codes=potential_codes,
         potential_divisions=potential_divisions,
     )
+
+
+def get_verification_api_id_token():
+    """Generate a Google ID token for the firestore-otp-api."""
+    # Lint errors are ok to ignore since the code does not pass user input
+    # to the subprocess, values are hardcoded and therefore valid
+    gcloud_print_id_token = subprocess.check_output(  # noqa: S603
+        ["gcloud", "auth", "print-identity-token"]  # noqa: S607
+    )
+    id_token = gcloud_print_id_token.decode().strip()
+    return id_token
