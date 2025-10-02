@@ -824,24 +824,25 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.6.10)", "diff-cover (>=9.2.1)",
 typing = ["typing-extensions (>=4.12.2) ; python_version < \"3.11\""]
 
 [[package]]
-name = "firestore-otp-api-client"
+name = "firestore-otp-verification-api-client"
 version = "0.1.0"
-description = "Typed Python client for the Firestore OTP FastAPI service."
+description = "Firestore OTP API"
 optional = false
-python-versions = ">=3.12,<4.0"
+python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "firestore_otp_api_client-0.1.0-py3-none-any.whl", hash = "sha256:758d2d069dd905b3f355e492d41ebc627c52836ef8bf7ed809af0a8bbf3dcba7"},
+    {file = "firestore_otp_verification_api_client-0.1.0-py3-none-any.whl", hash = "sha256:08977dcd60d18ccd193633d5ca14d8c319d0ee72345c8d058f73d3a4a01074f8"},
 ]
 
 [package.dependencies]
-httpx = ">=0.27.2,<0.28.0"
-pydantic = ">=2.8.0,<3.0.0"
-typing-extensions = ">=4.12.2,<5.0.0"
+pydantic = ">=2"
+python-dateutil = ">=2.8.2"
+typing-extensions = ">=4.7.1"
+urllib3 = ">=2.1.0,<3.0.0"
 
 [package.source]
 type = "file"
-url = "../firestore-otp-api-client/dist/firestore_otp_api_client-0.1.0-py3-none-any.whl"
+url = "../firestore-otp-verification-api-client/dist/firestore_otp_verification_api_client-0.1.0-py3-none-any.whl"
 
 [[package]]
 name = "flask"
@@ -1717,66 +1718,6 @@ gevent = ["gevent (>=1.4.0)"]
 setproctitle = ["setproctitle"]
 testing = ["coverage", "eventlet", "gevent", "pytest", "pytest-cov"]
 tornado = ["tornado (>=0.2)"]
-
-[[package]]
-name = "h11"
-version = "0.16.0"
-description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"},
-    {file = "h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"},
-]
-
-[[package]]
-name = "httpcore"
-version = "1.0.9"
-description = "A minimal low-level HTTP client."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
-    {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
-]
-
-[package.dependencies]
-certifi = "*"
-h11 = ">=0.16"
-
-[package.extras]
-asyncio = ["anyio (>=4.0,<5.0)"]
-http2 = ["h2 (>=3,<5)"]
-socks = ["socksio (==1.*)"]
-trio = ["trio (>=0.22.0,<1.0)"]
-
-[[package]]
-name = "httpx"
-version = "0.27.2"
-description = "The next generation HTTP client."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "httpx-0.27.2-py3-none-any.whl", hash = "sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0"},
-    {file = "httpx-0.27.2.tar.gz", hash = "sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2"},
-]
-
-[package.dependencies]
-anyio = "*"
-certifi = "*"
-httpcore = "==1.*"
-idna = "*"
-sniffio = "*"
-
-[package.extras]
-brotli = ["brotli ; platform_python_implementation == \"CPython\"", "brotlicffi ; platform_python_implementation != \"CPython\""]
-cli = ["click (==8.*)", "pygments (==2.*)", "rich (>=10,<14)"]
-http2 = ["h2 (>=3,<5)"]
-socks = ["socksio (==1.*)"]
-zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "identify"
@@ -4368,4 +4309,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "8545c5832798c5becc889580b0f24bd00900987b473fff6e900a9edc2137645b"
+content-hash = "00f8830c2a7083a438c43596045f7b04feda8003f0d18642ea43eb45c1c77ca9"
