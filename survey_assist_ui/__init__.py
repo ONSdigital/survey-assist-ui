@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from flask import request
 from flask_misaka import Misaka
+from jinja2 import ChainableUndefined
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
@@ -38,6 +39,8 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
         SurveyAssistFlask: The initialised and configured Flask application instance.
     """
     flask_app = SurveyAssistFlask(__name__)
+    # ONS macros assume ChainableUndefined (e.g if a parameter is missing assume false)
+    flask_app.jinja_env.undefined = ChainableUndefined
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
     flask_app.sa_email = os.getenv("SA_EMAIL", "SA_EMAIL_NOT_SET")
     flask_app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
