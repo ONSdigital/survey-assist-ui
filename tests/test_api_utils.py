@@ -15,7 +15,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError, Timeout
 
 from models.result import LookupResponse
-from utils.api_utils import APIClient, map_to_lookup_response
+from utils.api_utils import APIClient, OTPVerificationService, map_to_lookup_response
 from utils.app_types import SurveyAssistFlask
 from utils.feedback_utils import (
     feedback_session_to_model,
@@ -391,3 +391,211 @@ def test_send_feedback_result_returns_none_on_response_validation_error(
     assert out is None
     # Basic sanity that we logged an error
     mock_logger.error.assert_called()  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+def mock_api() -> MagicMock:
+    """Provide a minimal API client double with logger_handle and post()."""
+    m = MagicMock()
+    m.logger_handle = MagicMock()
+    m.logger_handle.info = MagicMock()
+    m.post = MagicMock()
+    return m
+
+
+@pytest.mark.utils
+def test_verify_success_posts_and_validates_response(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should POST the typed payload to /verify, log with masked OTP, and return the validated response."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+
+    # Patch request/response builders and masking
+    with patch("utils.api_utils.OtpVerifyRequest") as Req, patch(
+        "utils.api_utils.OtpVerifyResponse"
+    ) as Resp, patch("utils.api_utils.mask_otp", return_value="***456") as p_mask:
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc", "otp": "123456"}
+        Req.return_value = fake_req
+
+        expected = {"ok": True, "verified": True}
+        Resp.model_validate.return_value = expected  # type: ignore[attr-defined]
+
+        mock_api.post.return_value = {"ok": True, "verified": True}
+
+        out = service.verify("abc", "123456")
+
+    # Correct endpoint, payload, and masked logging
+    mock_api.post.assert_called_once_with(
+        endpoint="/otp/verify", body={"id": "abc", "otp": "123456"}, return_json=True
+    )
+    p_mask.assert_called_once_with("123456")
+    mock_api.logger_handle.info.assert_called()  # content checked implicitly by mask call
+    assert out == expected
+
+
+@pytest.mark.utils
+def test_verify_api_error_tuple_raises_runtime_error(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should raise RuntimeError when API returns an error tuple (dict, status_code)."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+
+    # Ensure ERROR_LEN matches in the module under test (defensive in case constant differs)
+    monkeypatch.setattr("utils.api_utils.ERROR_LEN", 2, raising=False)
+
+    mock_api.post.return_value = ({"error": "invalid otp"}, 400)
+
+    with patch("utils.api_utils.OtpVerifyRequest") as Req, patch(
+        "utils.api_utils.mask_otp", return_value="***"
+    ):
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc", "otp": "000000"}
+        Req.return_value = fake_req
+
+        with pytest.raises(RuntimeError) as err:
+            _ = service.verify("abc", "000000")
+
+    assert "OTP verify failed: invalid otp" in str(err.value)
+
+
+@pytest.mark.utils
+def test_verify_response_validation_error_wrapped_in_runtime_error(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should wrap a Pydantic ValidationError from model_validate in a RuntimeError."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+    mock_api.post.return_value = {"unexpected": "shape"}
+
+    with patch("utils.api_utils.OtpVerifyRequest") as Req, patch(
+        "utils.api_utils.OtpVerifyResponse"
+    ) as Resp, patch("utils.api_utils.mask_otp", return_value="***"):
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc", "otp": "999999"}
+        Req.return_value = fake_req
+
+        Resp.model_validate.side_effect = _make_validation_error("OtpVerifyResponse")  # type: ignore[attr-defined]
+
+        with pytest.raises(RuntimeError) as err:
+            _ = service.verify("abc", "999999")
+
+    assert "Unexpected OTP verify response:" in str(err.value)
+
+
+@pytest.mark.utils
+def test_delete_success_posts_and_validates_response(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should POST the typed payload to /delete and return the validated response."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+
+    with patch("utils.api_utils.OtpDeleteRequest") as Req, patch(
+        "utils.api_utils.OtpDeleteResponse"
+    ) as Resp:
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc"}
+        Req.return_value = fake_req
+
+        mock_api.post.return_value = {"status": "deleted"}
+        Resp.model_validate.return_value = {"status": "deleted"}  # type: ignore[attr-defined]
+
+        out = service.delete("abc")
+
+    mock_api.post.assert_called_once_with(
+        endpoint="/otp/delete", body={"id": "abc"}, return_json=True
+    )
+    mock_api.logger_handle.info.assert_called()  # ensures we logged the delete call
+    assert out == {"status": "deleted"}
+
+
+@pytest.mark.utils
+def test_delete_api_error_tuple_raises_runtime_error(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should raise RuntimeError when delete receives an API error tuple."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+    monkeypatch.setattr("utils.api_utils.ERROR_LEN", 2, raising=False)
+
+    mock_api.post.return_value = ({"error": "not found"}, 404)
+
+    with patch("utils.api_utils.OtpDeleteRequest") as Req:
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc"}
+        Req.return_value = fake_req
+
+        with pytest.raises(RuntimeError) as err:
+            _ = service.delete("abc")
+
+    assert "OTP delete failed: not found" in str(err.value)
+
+
+@pytest.mark.utils
+def test_delete_response_validation_error_wrapped_in_runtime_error(
+    monkeypatch: pytest.MonkeyPatch, mock_api: MagicMock
+) -> None:
+    """It should wrap a Pydantic ValidationError from delete model_validate in a RuntimeError."""
+    service = OTPVerificationService(mock_api, base_path="/otp")
+    mock_api.post.return_value = {"unexpected": "shape"}
+
+    with patch("utils.api_utils.OtpDeleteRequest") as Req, patch(
+        "utils.api_utils.OtpDeleteResponse"
+    ) as Resp:
+        fake_req = MagicMock()
+        fake_req.model_dump.return_value = {"id": "abc"}
+        Req.return_value = fake_req
+
+        Resp.model_validate.side_effect = _make_validation_error("OtpDeleteResponse")  # type: ignore[attr-defined]
+
+        with pytest.raises(RuntimeError) as err:
+            _ = service.delete("abc")
+
+    assert "Unexpected OTP delete response:" in str(err.value)
+
+
+@pytest.mark.parametrize(
+    ("base", "expected_verify_endpoint", "expected_delete_endpoint"),
+    [
+        ("", "/verify", "/delete"),
+        ("/otp", "/otp/verify", "/otp/delete"),
+        ("/otp/", "/otp/verify", "/otp/delete"),
+    ],
+)
+@pytest.mark.utils
+def test_base_path_endpoint_construction(
+    base: str,
+    expected_verify_endpoint: str,
+    expected_delete_endpoint: str,
+    mock_api: MagicMock,
+) -> None:
+    """It should rstrip the base path and construct endpoints without double slashes."""
+    service = OTPVerificationService(mock_api, base_path=base)
+
+    with patch("utils.api_utils.OtpVerifyRequest") as VReq, patch(
+        "utils.api_utils.OtpVerifyResponse"
+    ) as VResp, patch("utils.api_utils.mask_otp", return_value="***"):
+        vreq = MagicMock()
+        vreq.model_dump.return_value = {"id": "X", "otp": "111111"}
+        VReq.return_value = vreq
+        VResp.model_validate.return_value = {"ok": True}  # type: ignore[attr-defined]
+        mock_api.post.return_value = {"ok": True}
+        _ = service.verify("X", "111111")
+        mock_api.post.assert_called_with(
+            endpoint=expected_verify_endpoint,
+            body={"id": "X", "otp": "111111"},
+            return_json=True,
+        )
+
+    mock_api.post.reset_mock()
+
+    with patch("utils.api_utils.OtpDeleteRequest") as DReq, patch(
+        "utils.api_utils.OtpDeleteResponse"
+    ) as DResp:
+        dreq = MagicMock()
+        dreq.model_dump.return_value = {"id": "Y"}
+        DReq.return_value = dreq
+        DResp.model_validate.return_value = {"status": "deleted"}  # type: ignore[attr-defined]
+        mock_api.post.return_value = {"status": "deleted"}
+        _ = service.delete("Y")
+        mock_api.post.assert_called_with(
+            endpoint=expected_delete_endpoint, body={"id": "Y"}, return_json=True
+        )
