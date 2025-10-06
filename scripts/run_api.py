@@ -18,15 +18,9 @@ from typing import Optional, cast
 from urllib.parse import urlparse
 
 import firestore_otp_verification_api_client  # type: ignore
-from firestore_otp_verification_api_client import GeneralApi, OTPManagementApi
+from firestore_otp_verification_api_client import GeneralApi
 from firestore_otp_verification_api_client.models.health_config_response import (  # type: ignore
     HealthConfigResponse,
-)
-from firestore_otp_verification_api_client.models.otp_verify_request import (  # type: ignore
-    OtpVerifyRequest,
-)
-from firestore_otp_verification_api_client.models.otp_verify_response import (  # type: ignore
-    OtpVerifyResponse,
 )
 from firestore_otp_verification_api_client.rest import ApiException  # type: ignore
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
@@ -49,6 +43,7 @@ from models.result_sic_only import (
 )
 from utils.api_utils import (  # pylint: disable=wrong-import-position
     APIClient,
+    OTPVerificationService,
     get_verification_api_id_token,
 )
 from utils.feedback_utils import FeedbackSession, feedback_session_to_model
@@ -567,8 +562,8 @@ def numeric_str(value: str) -> str:
     return v
 
 
-# pylint: disable=too-many-locals,too-many-branches,too-many-statements
-def main() -> None:  # noqa: C901, PLR0912, PLR0915
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
+def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
     """Main entry point for running Survey Assist API tasks from the command line.
 
     Parses command-line arguments, prompts for input, and performs lookup and/or
@@ -591,6 +586,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             "result",
             "feedback",
             "root-otp",
+            "delete-otp",
             "verify-otp",
             "verify-invalid-otp",
         ],
@@ -656,6 +652,26 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
                 logger.debug(f"Exception when calling GeneralApi->root_get: {e}\n")
         return
 
+    if args.action == "delete-otp":
+
+        if not args.id_str:
+            parser.error("--id_str is required when --action delete-otp")
+
+        token = get_verification_api_id_token()
+        logger.debug(f"id:{args.id_str}")
+
+        verify_client = APIClient(
+            base_url=VERIFY_API_URL,
+            token=token,
+            logger_handle=logger,
+            redirect_on_error=False,
+        )
+        otp_service = OTPVerificationService(verify_client)
+        del_resp = otp_service.delete(id_str=args.id_str)
+        if del_resp:
+            logger.debug(f"{del_resp.model_dump()}")
+        return
+
     if args.action == "verify-otp":
 
         if not args.otp or not args.id_str:
@@ -663,52 +679,33 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
         token = get_verification_api_id_token()
         logger.debug(f"id:{args.id_str} otp:{args.otp}")
-        verify_body = OtpVerifyRequest(id=args.id_str, otp=args.otp)
 
-        with firestore_otp_verification_api_client.ApiClient(
-            verify_api_configuration
-        ) as api_client:
-            # Create an instance of the API class
-            mgmt_api_instance: OTPManagementApi = (
-                firestore_otp_verification_api_client.OTPManagementApi(api_client)
-            )
-
-            try:
-                # Health Check & Config Info
-                mgmt_api_response: OtpVerifyResponse = (
-                    mgmt_api_instance.verify_verify_post(
-                        otp_verify_request=verify_body,
-                        _headers={"Authorization": f"Bearer {token}"},
-                        _request_timeout=(2.0, 5.0),
-                    )
-                )
-                logger.debug(f"{mgmt_api_response.model_dump()}")
-            except ApiException as e:
-                logger.debug(f"Exception when calling verify: {e}\n")
+        verify_client = APIClient(
+            base_url=VERIFY_API_URL,
+            token=token,
+            logger_handle=logger,
+            redirect_on_error=False,
+        )
+        otp_service = OTPVerificationService(verify_client)
+        ver_resp = otp_service.verify(id_str=args.id_str, otp=args.otp)
+        if ver_resp:
+            logger.debug(f"{ver_resp.model_dump()}")
         return
 
     if args.action == "verify-invalid-otp":
+        token = get_verification_api_id_token()
+        logger.debug(f"id:{args.id_str} otp:{args.otp}")
 
-        with firestore_otp_verification_api_client.ApiClient(
-            verify_api_configuration
-        ) as api_client:
-            # Create an instance of the API class
-            mgmt_api_instance = firestore_otp_verification_api_client.OTPManagementApi(
-                api_client
-            )
-
-            try:
-                token = get_verification_api_id_token()
-                verify_body = OtpVerifyRequest(id="0", otp="fred-bobb-geff-abbi")
-                # Health Check & Config Info
-                mgmt_api_response = mgmt_api_instance.verify_verify_post(
-                    otp_verify_request=verify_body,
-                    _headers={"Authorization": f"Bearer {token}"},
-                    _request_timeout=(2.0, 5.0),
-                )
-                logger.debug(f"{mgmt_api_response.model_dump()}")
-            except ApiException as e:
-                logger.debug(f"Exception when calling verify: {e}\n")
+        verify_client = APIClient(
+            base_url=VERIFY_API_URL,
+            token=token,
+            logger_handle=logger,
+            redirect_on_error=False,
+        )
+        otp_service = OTPVerificationService(verify_client)
+        ver_resp = otp_service.verify(id_str="0", otp="fred-bobb-geff-abbi")
+        if ver_resp:
+            logger.debug(f"{ver_resp.model_dump()}")
         return
 
     job_title = prompt_input("Enter job title", "Kitchen Assistant")
