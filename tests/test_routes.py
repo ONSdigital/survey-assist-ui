@@ -15,6 +15,23 @@ from utils.session_utils import FIRST_QUESTION
 
 
 @pytest.mark.route
+def test_access_route(client) -> None:
+    """Tests that the access route contains survey title and returns a 200 OK response.
+
+    Args:
+        client: Flask test client fixture.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    response = client.get("/access")
+    expected_text = app.survey_title
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Access page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Access route should return 200 OK"
+
+
+@pytest.mark.route
 def test_index_route(client) -> None:
     """Tests that the index route contains survey title and returns a 200 OK response.
 
