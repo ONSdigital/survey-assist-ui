@@ -1,12 +1,13 @@
 {% extends "layout/_template.njk" %}
 {% from "components/access-code/_macro.njk" import onsAccessCode %}
+{% from "components/input/_macro.njk" import onsInput %}
 {% from "components/button/_macro.njk" import onsButton %}
 {% from "components/panel/_macro.njk" import onsPanel %}
 {% from "components/details/_macro.njk" import onsDetails %}
 {%
     set pageConfig = {
         "header": {
-            "title": "Study title",
+            "title": title,
             "mastheadLogo": {
               "large": '<img class="logo" src="https://cdn.ons.gov.uk/assets/images/ons-logo/v2/ons-logo.svg" height="150" width="250" alt="Office for National Statistics logo">'
             },
@@ -21,19 +22,41 @@
 %}
 
 {% block main %}
+    {% if error %}
+        {%
+            call onsPanel({
+                "title": "There is a problem validating your ONS ID or PFR ID",
+                "variant": "error"
+            })
+        %}
+        {{error}}
+    {% endcall %}
+    {% endif %}
     <h1 class="ons-u-mt-2xl">Start study</h1>
+    <form method="POST" action="{{ url_for('access.check_access') }}"> 
 
     {{
-        onsAccessCode({
-            "id": "access-code-example",
-            "name": "access-code",
-            "postTextboxLinkText": "Where to find your access code",
-            "postTextboxLinkUrl": "#0",
+        onsInput({
+            "id": "unique-participant-id",
+            "name": "participant-id",
+            "type": "number",
             "label": {
-                "text": "Enter your 16-character access code",
-                "description": "Keep this code safe. You will need to enter it every time you access your study"
+                "text": "Enter your ONS Participant ID",
+                "description": "This ID will have been provided to you in the email from PFR."
             },
-            "securityMessage": "Your personal information is protected by law and will be kept confidential"
+            "attributes": { "required": true }
+        })
+    }}
+    {{
+        onsAccessCode({
+            "id": "unique-access-code",
+            "name": "access-code",
+            "label": {
+                "text": "Enter your 16-character PFR ID",
+                "description": "This ID can be found in the email invite PFR sent you. This ID will be used to gain access to the stidy and process your incentive."
+            },
+            "securityMessage": "Your personal information is protected by law and will be kept confidential",
+            "attributes": { "required": true }
         })
     }}
 
@@ -43,6 +66,7 @@
             "classes": "ons-u-mb-2xl ons-u-mt-s"
         })
     }}
+    </form>
 
     <h2>If you do not have an access code</h2>
     <p>

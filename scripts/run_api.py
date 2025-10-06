@@ -47,7 +47,10 @@ from models.result_sic_only import (
     SurveyAssistInteraction,
     SurveyAssistResult,
 )
-from utils.api_utils import APIClient, get_verification_api_id_token  # pylint: disable=wrong-import-position
+from utils.api_utils import (  # pylint: disable=wrong-import-position
+    APIClient,
+    get_verification_api_id_token,
+)
 from utils.feedback_utils import FeedbackSession, feedback_session_to_model
 from utils.map_results_utils import (
     translate_session_to_model,

@@ -9,8 +9,9 @@ poetry run python scripts/run_api.py --type sic --action classify
 poetry run python scripts/run_api.py --type sic --action both
 """
 
-import subprocess
+import subprocess  # nosec
 from http import HTTPStatus
+from shutil import which
 from typing import Optional
 
 import requests
@@ -278,11 +279,28 @@ def map_to_lookup_response(
 
 
 def get_verification_api_id_token():
-    """Generate a Google ID token for the firestore-otp-api."""
+    """Generates a Google identity token for the Firestore OTP API.
+
+    This function uses the Google Cloud CLI (`gcloud`) to generate an identity token
+    for authenticating requests to the Firestore OTP API. The command is executed
+    using a subprocess call with hardcoded arguments, ensuring no untrusted input
+    is passed to the shell.
+
+    Returns:
+        str: The generated Google identity token.
+
+    Raises:
+        RuntimeError: If the `gcloud` CLI is not found in the system PATH.
+        subprocess.CalledProcessError: If the subprocess call fails.
+    """
     # Lint errors are ok to ignore since the code does not pass user input
     # to the subprocess, values are hardcoded and therefore valid
-    gcloud_print_id_token = subprocess.check_output(  # noqa: S603
-        ["gcloud", "auth", "print-identity-token"]  # noqa: S607
+    gcloud = which("gcloud")
+    if not gcloud:
+        raise RuntimeError("gcloud not found in PATH")
+
+    gcloud_print_id_token = subprocess.check_output(  # noqa: S603 # nosec: B603
+        [gcloud, "auth", "print-identity-token"]
     )
     id_token = gcloud_print_id_token.decode().strip()
     return id_token
