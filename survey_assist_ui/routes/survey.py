@@ -22,6 +22,7 @@ from models.result import (
     GenericResponse,
     GenericSurveyAssistResult,
 )
+from utils.access_utils import require_access
 from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.map_results_utils import translate_session_to_model
 from utils.session_utils import (
@@ -41,6 +42,8 @@ from utils.survey_utils import (
 )
 
 survey_blueprint = Blueprint("survey", __name__)
+survey_blueprint.before_request(require_access)
+
 
 logger = get_logger(__name__, level="DEBUG")
 

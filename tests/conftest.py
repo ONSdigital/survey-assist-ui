@@ -49,6 +49,15 @@ def app() -> Flask:
 
 
 @pytest.fixture
+def granted_access(client):
+    """Provides a client with access granted."""
+    with client.session_transaction() as sess:
+        sess["participant_id"] = "1"
+        sess["access_code"] = "EXAM-PLE1-23FO-UR56"
+    return client
+
+
+@pytest.fixture
 def mock_questions() -> list[dict]:
     """Provides a mock survey question set for testing the /survey route."""
     return [

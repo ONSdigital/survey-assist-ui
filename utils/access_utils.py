@@ -8,6 +8,8 @@ import csv
 import os
 import re
 
+from flask import redirect, session
+from flask.typing import ResponseReturnValue
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__, level="DEBUG")
@@ -64,3 +66,19 @@ def format_access_code(raw: str) -> str:
     """
     # trims ends and turns any run of spaces/tabs into a single hyphen
     return re.sub(r"\s+", "-", raw.strip()).upper()
+
+
+def require_access() -> ResponseReturnValue | None:
+    """Checks if participant access credentials are present in the session.
+
+    If either 'participant_id' or 'access_code' is missing from the session,
+    redirects the user to the access page. Otherwise, allows the request to proceed.
+
+    Returns:
+        Response or None: Redirects to the access page if credentials are missing,
+        otherwise None to allow further processing.
+    """
+    if "participant_id" not in session and "access_code" not in session:
+        return redirect("/access")
+    # else allow
+    return None

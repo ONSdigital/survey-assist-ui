@@ -9,11 +9,13 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
+from utils.access_utils import require_access
 from utils.app_types import ResponseType
 from utils.session_utils import session_debug
 from utils.survey_assist_utils import classify_and_handle_followup
 
 survey_assist_blueprint = Blueprint("survey_assist", __name__)
+survey_assist_blueprint.before_request(require_access)
 
 logger = get_logger(__name__, level="DEBUG")
 
