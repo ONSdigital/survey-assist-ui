@@ -18,10 +18,13 @@ class SurveyAssistFlask(Flask):
     """Custom Flask app class with additional attributes for Survey Assist.
 
     Attributes:
-        api_client (Any): The API client instance for external requests.
-        api_base (str): The base URL for the API.
-        api_ver (str): The version of the API (defaults to v1).
-        api_token (str): The API authentication token.
+        api_client (Any): The Survey Assist API client instance for external requests.
+        api_base (str): The base URL for the Survey Assist API.
+        api_ver (str): The version of the Survey Assist API (defaults to v1).
+        api_token (str): The Survey Assist API authentication token.
+        verify_api_client (Any): The Verify client instance for external auth requests.
+        verify_api_base (str): The base URL for the Verify API.
+        verify_api_token (str): The Verify API authentication token.
         sa_email (str): Survey Assist service account.
         survey_title (str): Title of the survey.
         survey_intro (bool): Is survey intro enabled or not.
@@ -37,6 +40,9 @@ class SurveyAssistFlask(Flask):
     api_base: str
     api_ver: str
     api_token: str
+    verify_api_client: Any
+    verify_api_base: str
+    verify_api_token: str
     sa_email: str
     survey_title: str
     survey_intro: bool

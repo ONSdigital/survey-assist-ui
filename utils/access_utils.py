@@ -4,13 +4,15 @@ This module provides an functionality used to verify access to the Survey Assist
 
 """
 
-import csv
-import os
 import re
+from typing import cast
 
-from flask import redirect, session
+from flask import current_app, redirect, session
 from flask.typing import ResponseReturnValue
 from survey_assist_utils.logging import get_logger
+
+from utils.api_utils import OTPVerificationService
+from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -18,7 +20,7 @@ FILENAME = "example_access.csv"
 
 
 def validate_access(access_id: str, access_code: str) -> tuple[bool, str]:
-    """STUBBED - Validate the user against the credentials in a local file.
+    """Use the Verify API Service to determine if the entered id and access code is valid.
 
     Args:
         access_id (str): The user's access identifier.
@@ -33,23 +35,52 @@ def validate_access(access_id: str, access_code: str) -> tuple[bool, str]:
         logger.warning(f"Empty access code entered for access_id: {access_id}")
         return False, "You must enter both ONS ID and PFR ID"
     try:
-        if not os.path.exists(FILENAME):
-            logger.error(f"Access file '{FILENAME}' not found.")
-            return False, error_string
+        app = cast(SurveyAssistFlask, current_app)
+        verify_service = OTPVerificationService(app.verify_api_client)
+        verify_resp = verify_service.verify(id_str=access_id, otp=access_code)
 
-        with open(FILENAME, newline="", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                if (
-                    row.get("survey_access_id") == access_id
-                    and row.get("one_time_passcode") == access_code
-                ):
-                    return True, ""
-        logger.warning(f"Validation unsuccessful for id: {access_id}")
-        return False, error_string
-    except Exception as e:  # pylint: disable=broad-exception-caught
+        if verify_resp.verified is True:
+            return True, ""
+        else:
+            logger.warning(
+                f"Validation unsuccessful for id: {access_id} - {verify_resp.message}"
+            )
+            return False, error_string
+    except RuntimeError as e:
         logger.warning(f"Error validating user: {e}")
     return False, "Error in validation module"
+
+
+def delete_access(access_id: str) -> tuple[bool, str]:
+    """Use the Verify API Service to delete the access code associated with a access ID.
+
+    Args:
+        access_id (str): The access identifier to be deleted.
+
+    Returns:
+        tuple[bool, str]: Tuple of (True, "") if valid, or (False, error message) if not.
+    """
+    logger.debug(f"Delete access for {access_id}")
+    error_string = f"Invalid id {access_id}. Not deleted."
+    if not access_id:
+        logger.warning("Access id not set. Not deleted.")
+        return False, "ID not set in session"
+    try:
+        app = cast(SurveyAssistFlask, current_app)
+        verify_service = OTPVerificationService(app.verify_api_client)
+        delete_resp = verify_service.delete(id_str=access_id)
+
+        if delete_resp.deleted is True:
+            logger.info(f"Access code deleted for id:{access_id}")
+            return True, ""
+        else:
+            logger.warning(
+                f"Deletion unsuccessful for id: {access_id} - {delete_resp.message}"
+            )
+            return False, error_string
+    except RuntimeError as e:
+        logger.warning(f"Error deleting access: {e}")
+    return False, "Error in validation module when deleting access code"
 
 
 def format_access_code(raw: str) -> str:

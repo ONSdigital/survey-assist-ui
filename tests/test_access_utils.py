@@ -1,11 +1,14 @@
 """Tests for the format_access_code utility function."""
 
 import re
-from io import StringIO
+from types import SimpleNamespace
+from typing import cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from utils.access_utils import format_access_code, validate_access
+from utils.access_utils import delete_access, format_access_code, validate_access
+from utils.app_types import SurveyAssistFlask
 
 
 @pytest.mark.utils
@@ -75,47 +78,191 @@ class TestFormatAccessCode:
 
 
 @pytest.mark.auth
-class TestValidateAccess:
-    """Tests for access validation logic that do not depend on file operations."""
+def test_returns_error_when_access_code_missing() -> None:
+    """It should return an error when the access code is missing.
 
-    def test_returns_error_when_access_code_missing(self) -> None:
-        """It should return an error when the access code is missing.
+    Verifies the early-return branch for a falsy access_code.
+    """
+    # Act
+    result: tuple[bool, str] = validate_access(access_id="ONS123", access_code="")
 
-        Verifies the early-return branch for a falsy access_code.
-        """
-        # Act
-        result: tuple[bool, str] = validate_access(access_id="ONS123", access_code="")
+    # Assert
+    assert result == (
+        False,
+        "You must enter both ONS ID and PFR ID",
+    ), "Should require both ONS ID and PFR ID"
 
-        # Assert
-        assert result == (
-            False,
-            "You must enter both ONS ID and PFR ID",
-        ), "Should require both ONS ID and PFR ID"
 
-    def test_returns_error_when_access_not_found(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """It should return an error when no credentials match the provided id/code.
+@pytest.mark.auth
+def test_returns_true_when_service_verifies_success(client) -> None:
+    """It should return (True, '') when the service reports verified=True."""
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
 
-        Patches file existence and provides an empty CSV via StringIO to avoid disk I/O.
-        """
-        # Pretend the credentials file exists
-        monkeypatch.setattr("utils.access_utils.os.path.exists", lambda _path: True)
+        # Provide the dependency used by validate_access
+        app.verify_api_client = MagicMock()
 
-        # Provide an empty CSV with headers only; no matching rows possible
-        empty_csv = "survey_access_id,one_time_passcode\n"
-        monkeypatch.setattr(
-            "builtins.open", lambda *args, **kwargs: StringIO(empty_csv)
+        svc_inst = service.return_value
+        svc_inst.verify.return_value = SimpleNamespace(verified=True, message="OK")
+
+        result = validate_access(access_id="ONS123", access_code="PFR456")
+
+    assert result == (True, "")
+    mock_logger.warning.assert_not_called()  # type: ignore[attr-defined]
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="PFR456")
+
+
+@pytest.mark.auth
+def test_returns_invalid_credentials_when_verification_fails(client) -> None:
+    """It should return a generic invalid-credentials message when verified=False."""
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
+
+        app.verify_api_client = MagicMock()
+
+        svc_inst = service.return_value
+        svc_inst.verify.return_value = SimpleNamespace(
+            verified=False, message="invalid or expired code"
         )
 
-        # Act
-        result: tuple[bool, str] = validate_access(
-            access_id="NONEXISTENT_ID",
-            access_code="WRONG_CODE",
+        result = validate_access(access_id="ONS123", access_code="BADCODE")
+
+    assert result == (False, "Invalid credentials. Please try again.")
+    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
+    args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
+    assert "Validation unsuccessful for id: ONS123 - invalid or expired code" in args[0]
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="BADCODE")
+
+
+@pytest.mark.auth
+def test_returns_module_error_when_service_raises_runtime_error(client) -> None:
+    """It should catch RuntimeError from the service and return the module error message."""
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
+
+        app.verify_api_client = MagicMock()
+
+        svc_inst = service.return_value
+        svc_inst.verify.side_effect = RuntimeError("boom")
+
+        result = validate_access(access_id="ONS123", access_code="ANYCODE")
+
+    assert result == (False, "Error in validation module")
+    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
+    args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
+    assert "Error validating user: boom" in args[0]
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="ANYCODE")
+
+
+@pytest.mark.auth
+def test_delete_access_returns_true_when_service_deletes_successfully(client) -> None:
+    """It should return (True, '') when the service reports deleted=True.
+
+    Behaviour:
+        - Builds OTPVerificationService with current_app.verify_api_client.
+        - Calls delete(id_str=...).
+        - Logs info on success.
+    """
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
+
+        app.verify_api_client = MagicMock()
+
+        svc_inst = service.return_value
+        svc_inst.delete.return_value = SimpleNamespace(deleted=True, message="OK")
+
+        out = delete_access(access_id="ONS123")
+
+    assert out == (True, "")
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.delete.assert_called_once_with(id_str="ONS123")
+    mock_logger.info.assert_called()  # type: ignore[attr-defined]
+    mock_logger.warning.assert_not_called()  # type: ignore[attr-defined]
+
+
+@pytest.mark.auth
+def test_delete_access_returns_invalid_id_when_service_reports_failure(client) -> None:
+    """It should return the formatted invalid-id message when deleted=False.
+
+    Behaviour:
+        - Service returns deleted=False with a failure message.
+        - Function returns (False, f"Invalid id {access_id}. Not deleted.").
+        - Logs a warning that includes the service message.
+    """
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
+
+        app.verify_api_client = MagicMock()
+
+        svc_inst = service.return_value
+        svc_inst.delete.return_value = SimpleNamespace(
+            deleted=False, message="not found or expired"
         )
 
-        # Assert
-        assert result == (
-            False,
-            "Invalid credentials. Please try again.",
-        ), "Should return invalid credentials when no matching row is found"
+        out = delete_access(access_id="ONS999")
+
+    assert out == (False, "Invalid id ONS999. Not deleted.")
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.delete.assert_called_once_with(id_str="ONS999")
+    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
+    args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
+    assert "Deletion unsuccessful for id: ONS999 - not found or expired" in args[0]
+
+
+@pytest.mark.auth
+def test_delete_access_returns_module_error_when_service_raises_runtime_error(
+    client,
+) -> None:
+    """It should catch RuntimeError from the service and return the module error message.
+
+    Behaviour:
+        - Service.delete raises RuntimeError('boom').
+        - Function logs a warning and returns the generic module error tuple.
+    """
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch(
+        "utils.access_utils.OTPVerificationService"
+    ) as service, patch("utils.access_utils.logger") as mock_logger:
+
+        app.verify_api_client = MagicMock()
+
+        svc_inst = service.return_value
+        svc_inst.delete.side_effect = RuntimeError("boom")
+
+        out = delete_access(access_id="ONS123")
+
+    assert out == (False, "Error in validation module when deleting access code")
+    service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
+    svc_inst.delete.assert_called_once_with(id_str="ONS123")
+    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
+    args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
+    assert "Error deleting access: boom" in args[0]
+
+
+@pytest.mark.auth
+def test_delete_access_returns_error_when_id_missing(client) -> None:
+    """It should return an error when the access id is missing.
+
+    Behaviour:
+        - Early return branch for falsy access_id.
+        - Logs a warning and returns (False, 'ID not set in session').
+    """
+    app = cast(SurveyAssistFlask, client.application)
+    with app.app_context(), patch("utils.access_utils.logger") as mock_logger:
+        out = delete_access(access_id="")
+
+    assert out == (False, "ID not set in session")
+    mock_logger.warning.assert_called()  # type: ignore[attr-defined]

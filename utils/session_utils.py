@@ -22,6 +22,7 @@ from models.result import (
     GenericSurveyAssistResult,
     InputField,
 )
+from utils.access_utils import delete_access
 from utils.api_utils import map_to_lookup_response
 
 T = TypeVar("T", bound=BaseModel)
@@ -184,6 +185,17 @@ def load_model_from_session(key: str, model_class: type[T]) -> T:
 def remove_model_from_session(key: str) -> None:
     """Remove a model from the Flask session."""
     session.pop(key, None)
+    session.modified = True
+
+
+def remove_access_from_session() -> None:
+    """Remove access grant from the verify API and Flask session."""
+    logger.warning("TBD - Must add delete Access Code Functionality")
+    #delete_access(session.get("participant_id", ""))
+
+    session.pop("participant_id", None)
+    session.pop("access_code", None)
+
     session.modified = True
 
 
