@@ -14,7 +14,7 @@ flask-misaka = "^1.0.1"
 survey-assist-utils = { git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.3" }
 pydantic = "^2.11.7"
 gunicorn = "^23.0.0"
-firestore-otp-verification-api-client = {path = "../firestore-otp-verification-api-client/dist/firestore_otp_verification_api_client-0.1.0-py3-none-any.whl"}
+firestore-otp-verification-api-client = {git = "https://github.com/ONSdigital/firestore-otp-verification-api-client.git", tag = "v0.1.0"}
 
 [tool.poetry.group.dev.dependencies]
 mkdocs-material = "^9.6.7"

@@ -828,21 +828,22 @@ name = "firestore-otp-verification-api-client"
 version = "0.1.0"
 description = "Firestore OTP API"
 optional = false
-python-versions = "*"
+python-versions = "^3.9"
 groups = ["main"]
-files = [
-    {file = "firestore_otp_verification_api_client-0.1.0-py3-none-any.whl", hash = "sha256:08977dcd60d18ccd193633d5ca14d8c319d0ee72345c8d058f73d3a4a01074f8"},
-]
+files = []
+develop = false
 
 [package.dependencies]
-pydantic = ">=2"
-python-dateutil = ">=2.8.2"
-typing-extensions = ">=4.7.1"
-urllib3 = ">=2.1.0,<3.0.0"
+pydantic = ">= 2"
+python-dateutil = ">= 2.8.2"
+typing-extensions = ">= 4.7.1"
+urllib3 = ">= 2.1.0, < 3.0.0"
 
 [package.source]
-type = "file"
-url = "../firestore-otp-verification-api-client/dist/firestore_otp_verification_api_client-0.1.0-py3-none-any.whl"
+type = "git"
+url = "https://github.com/ONSdigital/firestore-otp-verification-api-client.git"
+reference = "v0.1.0"
+resolved_reference = "c0929be98241d85afbef56722521d229a974058b"
 
 [[package]]
 name = "flask"
@@ -4309,4 +4310,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "00f8830c2a7083a438c43596045f7b04feda8003f0d18642ea43eb45c1c77ca9"
+content-hash = "ecac122d5fff55da95908248fca31f5466c83edf568ec95afbfdfa6cb388a7b2"
