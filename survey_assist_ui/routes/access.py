@@ -9,6 +9,7 @@ from flask import Blueprint, current_app, redirect, render_template, request, se
 from survey_assist_utils.logging import get_logger
 
 from utils.access_utils import format_access_code, validate_access
+from utils.api_utils import mask_otp
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import session_debug
 
@@ -45,7 +46,7 @@ def check_access():
     participant_id = request.form.get("participant-id")
     access_code = format_access_code(request.form.get("access-code"))
 
-    logger.debug(f"participant: {participant_id} access code:{access_code}")
+    logger.debug(f"participant: {participant_id} access code:{mask_otp(access_code)}")
     valid, error = validate_access(participant_id, access_code)
     if valid:
         session["participant_id"] = participant_id

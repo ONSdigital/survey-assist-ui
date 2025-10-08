@@ -12,7 +12,11 @@ from flask import Request, current_app, redirect, session
 from flask.typing import ResponseReturnValue
 from survey_assist_utils.logging import get_logger
 
-from utils.api_utils import OTPVerificationService, get_verification_api_id_token
+from utils.api_utils import (
+    OTPVerificationService,
+    get_verification_api_id_token,
+    mask_otp,
+)
 from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__, level="DEBUG")
@@ -30,7 +34,7 @@ def validate_access(access_id: str, access_code: str) -> tuple[bool, str]:
     Returns:
         tuple[bool, str]: Tuple of (True, "") if valid, or (False, error message) if not.
     """
-    logger.debug(f"Validate access for {access_id} : {access_code}")
+    logger.debug(f"Validate access for {access_id} : {mask_otp(access_code)}")
     error_string = "Invalid credentials. Please try again."
     if not access_code:
         logger.warning(f"Empty access code entered for access_id: {access_id}")
