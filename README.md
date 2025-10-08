@@ -243,4 +243,3 @@ poetry run python scripts/run_api.py --type sic --action verify-otp --id_str=<ID
 ```bash
 poetry run python scripts/run_api.py --type sic --action delete-otp --id_str=<ID>
 ```
-

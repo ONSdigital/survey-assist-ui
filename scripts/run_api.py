@@ -640,7 +640,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
             )
 
             try:
-                token = get_verification_api_id_token()
+                token = get_verification_api_id_token(audience=VERIFY_API_URL)
 
                 # Health Check & Config Info
                 api_response: HealthConfigResponse = api_instance.root_get(
@@ -657,7 +657,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
         if not args.id_str:
             parser.error("--id_str is required when --action delete-otp")
 
-        token = get_verification_api_id_token()
+        token = get_verification_api_id_token(audience=VERIFY_API_URL)
         logger.debug(f"id:{args.id_str}")
 
         verify_client = APIClient(
@@ -677,7 +677,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
         if not args.otp or not args.id_str:
             parser.error("--otp and --id_str are required when --action verify-otp")
 
-        token = get_verification_api_id_token()
+        token = get_verification_api_id_token(audience=VERIFY_API_URL)
         logger.debug(f"id:{args.id_str} otp:{args.otp}")
 
         verify_client = APIClient(
@@ -693,7 +693,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
         return
 
     if args.action == "verify-invalid-otp":
-        token = get_verification_api_id_token()
+        token = get_verification_api_id_token(audience=VERIFY_API_URL)
         logger.debug(f"id:{args.id_str} otp:{args.otp}")
 
         verify_client = APIClient(

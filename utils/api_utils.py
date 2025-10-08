@@ -22,6 +22,9 @@ from firestore_otp_verification_api_client import (
     OtpVerifyResponse,
 )
 from flask import jsonify, redirect, url_for
+from google.auth.exceptions import DefaultCredentialsError
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token as oauth_id_token
 from pydantic import ValidationError
 from survey_assist_utils.logging import get_logger
 
@@ -414,7 +417,7 @@ def map_to_lookup_response(
     )
 
 
-def get_verification_api_id_token():
+def get_verification_api_id_token(audience: str) -> str:
     """Generates a Google identity token for the Firestore OTP API.
 
     This function uses the Google Cloud CLI (`gcloud`) to generate an identity token
@@ -429,14 +432,22 @@ def get_verification_api_id_token():
         RuntimeError: If the `gcloud` CLI is not found in the system PATH.
         subprocess.CalledProcessError: If the subprocess call fails.
     """
-    # Lint errors are ok to ignore since the code does not pass user input
-    # to the subprocess, values are hardcoded and therefore valid
-    gcloud = which("gcloud")
-    if not gcloud:
-        raise RuntimeError("gcloud not found in PATH")
+    logger.info(f"Aud:{audience}")
+    req = Request()
+    try:
+        # Works in Cloud Run (metadata) and locally if ADC is a service account.
+        return oauth_id_token.fetch_id_token(req, audience)
+    except DefaultCredentialsError:
+        # Likely local user ADC; fallback to gcloud
+        gcloud = which("gcloud")
+        if not gcloud:
+            raise RuntimeError("gcloud not found in PATH") from DefaultCredentialsError
 
-    gcloud_print_id_token = subprocess.check_output(  # noqa: S603 # nosec: B603
-        [gcloud, "auth", "print-identity-token"]
-    )
-    id_token = gcloud_print_id_token.decode().strip()
-    return id_token
+        # Lint errors are ok to ignore since the code does not pass user input
+        # to the subprocess, values are hardcoded and therefore valid
+        gcloud_print_id_token = subprocess.check_output(  # noqa: S603 # nosec: B603
+            [gcloud, "auth", "print-identity-token"]
+        )
+        id_token = gcloud_print_id_token.decode().strip()
+
+        return id_token

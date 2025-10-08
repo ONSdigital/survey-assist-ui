@@ -4,14 +4,15 @@ This module provides an functionality used to verify access to the Survey Assist
 
 """
 
+import os
 import re
 from typing import cast
 
-from flask import current_app, redirect, session
+from flask import Request, current_app, redirect, session
 from flask.typing import ResponseReturnValue
 from survey_assist_utils.logging import get_logger
 
-from utils.api_utils import OTPVerificationService
+from utils.api_utils import OTPVerificationService, get_verification_api_id_token
 from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__, level="DEBUG")
@@ -113,3 +114,46 @@ def require_access() -> ResponseReturnValue | None:
         return redirect("/access")
     # else allow
     return None
+
+
+def update_tokens_on_api_clients(
+    flask_app: SurveyAssistFlask, request: Request, new_sa_token: str
+):
+    """Synchronise API tokens on Survey Assist and Verify API clients.
+
+    Updates the Survey Assist API client token and the Verify API client token
+    on the provided Flask app instance. Logs the refresh events and errors if
+    clients are not initialised. The Verify API token is regenerated using the
+    configured URL.
+
+    Args:
+        flask_app (SurveyAssistFlask): The Flask app instance containing API clients.
+        request (Request): The current Flask request object.
+        new_sa_token (str): The new Survey Assist API token to set.
+
+    Returns:
+        None
+    """
+    # Keep the Survey Assist API client token in sync
+    if hasattr(flask_app, "api_client"):
+        flask_app.api_client.token = new_sa_token
+        logger.info(
+            f"Survey Assist API token refresh Rx Method:{request.method} Route:{request.endpoint}"
+        )
+    else:
+        logger.error("Survey Assist API token refresh - API client not initialised!")
+
+    # Update the token associated with the Verify Client, these work on the
+    # same rotation schedule.
+    if hasattr(flask_app, "verify_api_client"):
+        # Regenrate token
+        flask_app.verify_api_token = get_verification_api_id_token(
+            os.getenv("VERIFY_API_URL", "http://127.0.0.1:8080")
+        )
+        # Update client
+        flask_app.verify_api_client.token = flask_app.verify_api_token
+        logger.info(
+            f"Verify API token refresh Rx Method: {request.method} - Route: {request.endpoint}"
+        )
+    else:
+        logger.error("Verify API token refresh - API client not initialised!")
