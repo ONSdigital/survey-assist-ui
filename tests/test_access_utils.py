@@ -77,7 +77,7 @@ class TestFormatAccessCode:
         assert spy_called["text"] == "abc def", "Should pass stripped text to re.sub"
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_returns_error_when_access_code_missing() -> None:
     """It should return an error when the access code is missing.
 
@@ -93,7 +93,7 @@ def test_returns_error_when_access_code_missing() -> None:
     ), "Should require both ONS ID and PFR ID"
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_returns_true_when_service_verifies_success(client) -> None:
     """It should return (True, '') when the service reports verified=True."""
     app = cast(SurveyAssistFlask, client.application)
@@ -115,7 +115,7 @@ def test_returns_true_when_service_verifies_success(client) -> None:
     svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="PFR456")
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_returns_invalid_credentials_when_verification_fails(client) -> None:
     """It should return a generic invalid-credentials message when verified=False."""
     app = cast(SurveyAssistFlask, client.application)
@@ -140,7 +140,7 @@ def test_returns_invalid_credentials_when_verification_fails(client) -> None:
     svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="BADCODE")
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_returns_module_error_when_service_raises_runtime_error(client) -> None:
     """It should catch RuntimeError from the service and return the module error message."""
     app = cast(SurveyAssistFlask, client.application)
@@ -163,7 +163,7 @@ def test_returns_module_error_when_service_raises_runtime_error(client) -> None:
     svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="ANYCODE")
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_delete_access_returns_true_when_service_deletes_successfully(client) -> None:
     """It should return (True, '') when the service reports deleted=True.
 
@@ -191,7 +191,7 @@ def test_delete_access_returns_true_when_service_deletes_successfully(client) ->
     mock_logger.warning.assert_not_called()  # type: ignore[attr-defined]
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_delete_access_returns_invalid_id_when_service_reports_failure(client) -> None:
     """It should return the formatted invalid-id message when deleted=False.
 
@@ -222,7 +222,7 @@ def test_delete_access_returns_invalid_id_when_service_reports_failure(client) -
     assert "Deletion unsuccessful for id: ONS999 - not found or expired" in args[0]
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_delete_access_returns_module_error_when_service_raises_runtime_error(
     client,
 ) -> None:
@@ -252,7 +252,7 @@ def test_delete_access_returns_module_error_when_service_raises_runtime_error(
     assert "Error deleting access: boom" in args[0]
 
 
-@pytest.mark.auth
+@pytest.mark.utils
 def test_delete_access_returns_error_when_id_missing(client) -> None:
     """It should return an error when the access id is missing.
 

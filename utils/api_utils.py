@@ -9,11 +9,10 @@ poetry run python scripts/run_api.py --type sic --action classify
 poetry run python scripts/run_api.py --type sic --action both
 """
 
-import subprocess  # nosec
 from http import HTTPStatus
-from shutil import which
 from typing import Any, Optional
 
+import google.auth
 import requests
 from firestore_otp_verification_api_client import (
     OtpDeleteRequest,
@@ -438,16 +437,11 @@ def get_verification_api_id_token(audience: str) -> str:
         # Works in Cloud Run (metadata) and locally if ADC is a service account.
         return oauth_id_token.fetch_id_token(req, audience)
     except DefaultCredentialsError:
-        # Likely local user ADC; fallback to gcloud
-        gcloud = which("gcloud")
-        if not gcloud:
-            raise RuntimeError("gcloud not found in PATH") from DefaultCredentialsError
-
-        # Lint errors are ok to ignore since the code does not pass user input
-        # to the subprocess, values are hardcoded and therefore valid
-        gcloud_print_id_token = subprocess.check_output(  # noqa: S603 # nosec: B603
-            [gcloud, "auth", "print-identity-token"]
+        # Likely local user ADC; fallback for local dev
+        creds, _project_id = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
-        id_token = gcloud_print_id_token.decode().strip()
-
+        auth_req = Request()
+        creds.refresh(auth_req)
+        id_token = creds.id_token
         return id_token
