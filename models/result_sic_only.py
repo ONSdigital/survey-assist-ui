@@ -137,13 +137,16 @@ class SurveyAssistResult(BaseModel):
     survey_id: str = Field(
         ..., description="Identifier for the survey", examples=["test-survey-123"]
     )
+    wave_id: str = Field(
+        ..., description="Identifier for the wave", examples=["DD-MM-YYYY-14D"]
+    )
     case_id: str = Field(
-        ..., description="Identifier for the case", examples=["test-case-456"]
+        ..., description="Identifier for the case", examples=["ONS-000001"]
     )
     user: str = Field(
         ...,
-        description="User identifier in format 'name.surname'",
-        examples=["test.userSA187"],
+        description="User identifier in format 'case_id-99' where 99 is any numeric",
+        examples=["ONS000001-01"],
     )
     time_start: datetime = Field(
         ..., description="Start time of the survey", examples=["2024-03-19T10:00:00Z"]

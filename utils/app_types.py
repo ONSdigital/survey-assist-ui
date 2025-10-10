@@ -27,6 +27,7 @@ class SurveyAssistFlask(Flask):
         verify_api_token (str): The Verify API authentication token.
         sa_email (str): Survey Assist service account.
         survey_title (str): Title of the survey.
+        wave_id (str): Wave (run) of the survey.
         survey_intro (bool): Is survey intro enabled or not.
         show_consent (bool): Should the consent be shown before Survey Assist questions.
         survey_assist (dict[str, Any]): Survey Assist configuration dictionary.
@@ -45,6 +46,7 @@ class SurveyAssistFlask(Flask):
     verify_api_token: str
     sa_email: str
     survey_title: str
+    wave_id: str
     survey_intro: bool
     show_consent: bool
     survey_assist: dict[str, Any]

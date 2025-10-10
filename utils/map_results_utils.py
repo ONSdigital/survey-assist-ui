@@ -177,6 +177,7 @@ def translate_session_to_model(session: dict[str, Any]) -> SurveyAssistResult:
 
     return SurveyAssistResult(
         survey_id=sr["survey_id"],
+        wave_id=sr["wave_id"],
         case_id=sr["case_id"],
         user=sr["user"],
         time_start=sr["time_start"],

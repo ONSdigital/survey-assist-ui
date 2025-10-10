@@ -296,6 +296,7 @@ def nested_survey_result_model() -> GenericSurveyAssistResult:
         survey_id="shape_tomorrow_prototype",
         case_id="test-case-xyz",
         user="user.respondent-a",
+        wave_id="17-10-2025-14D",
         time_start=datetime.fromisoformat("2025-08-11T15:29:14.427109+00:00"),
         time_end=datetime.fromisoformat("2025-08-11T15:29:47.719649+00:00"),
         responses=[
@@ -467,13 +468,14 @@ def base_result() -> GenericSurveyAssistResult:
     """Survey assist result test fixture."""
     return GenericSurveyAssistResult(
         survey_id="survey-xyz",
+        wave_id="17-10-2025-14D",
         case_id="case-abc",
-        user="test.user",
+        user="test.user-01",
         time_start=datetime(2025, 8, 13, 10, 0),
         time_end=datetime(2025, 8, 13, 10, 5),
         responses=[
             GenericResponse(
-                person_id="user.respondent-a",
+                person_id="test.user-01",
                 time_start=datetime(2025, 8, 13, 10, 0),
                 time_end=datetime(2025, 8, 13, 10, 2),
                 survey_assist_interactions=[],
@@ -509,7 +511,7 @@ def test_add_interaction_success(
 ) -> None:
     """Successfully add interaction to survey_result."""
     updated = add_interaction_to_response(
-        base_result, "user.respondent-a", example_interaction
+        base_result, "test.user-01", example_interaction
     )
 
     assert len(updated.responses[0].survey_assist_interactions) == 1
@@ -530,7 +532,7 @@ def test_add_interaction_with_input_fields(
     input_fields = {"job_title": "Developer", "org_description": "Tech Company"}
 
     updated = add_interaction_to_response(
-        base_result, "user.respondent-a", example_interaction, input_fields
+        base_result, "test.user-01", example_interaction, input_fields
     )
 
     inputs = updated.responses[0].survey_assist_interactions[0].input
@@ -563,7 +565,7 @@ def test_add_interaction_result_time_not_updated_if_earlier(
     example_interaction.time_end = datetime(2025, 8, 13, 10, 1)
 
     updated = add_interaction_to_response(
-        base_result, "user.respondent-a", example_interaction
+        base_result, "test.user-01", example_interaction
     )
 
     assert updated.responses[0].time_end == example_interaction.time_end
@@ -581,7 +583,7 @@ def test_add_sic_lookup_interaction_adds_interaction(
     with app.test_request_context():
         # Save initial model to session
         save_model_to_session("survey_result", base_result)
-
+        session["participant_id"] = "test.user"
         # Create fake SIC API response
         fake_sic_response = {
             "code": "46210",
@@ -638,6 +640,7 @@ def test_add_sic_lookup_with_missing_person(
     # Modify to have different person_id
     base_result.responses[0].person_id = "someone-else"
     with app.test_request_context():
+        session["participant_id"] = "test.user"
         save_model_to_session("survey_result", base_result)
 
         with pytest.raises(ValueError, match="No response found for person_id"):
@@ -693,6 +696,7 @@ def test_add_classify_interaction_adds_correctly(
 ) -> None:
     """Successfully add a classification interaction."""
     with app.test_request_context():
+        session["participant_id"] = "test.user"
         save_model_to_session("survey_result", base_result)
 
         input_fields = {
@@ -738,6 +742,7 @@ def test_add_classify_interaction_invalid_person(
     base_result.responses[0].person_id = "someone-else"
 
     with app.test_request_context():
+        session["participant_id"] = "test.user"
         save_model_to_session("survey_result", base_result)
 
         with pytest.raises(ValueError, match="No response found for person_id"):
@@ -755,6 +760,7 @@ def base_result_with_classify_model() -> GenericSurveyAssistResult:
     """Survey assist result test fixture."""
     return GenericSurveyAssistResult(
         survey_id="shape_tomorrow_prototype",
+        wave_id="17-10-2025-14D",
         case_id="test-case-xyz",
         user="user.respondent-a",
         time_start=datetime(2025, 8, 13, 10, 0),
@@ -818,7 +824,9 @@ def test_add_follow_up_classify_model_response(
     """Successfully add folow up questions to classify interaction."""
     with app.test_request_context():
         save_model_to_session("survey_result", base_result_with_classify_model)
-        updated = add_follow_up_to_latest_classify("sic", follow_up_questions)
+        updated = add_follow_up_to_latest_classify(
+            "sic", follow_up_questions, "user.respondent-a"
+        )
 
         primary = updated.responses[0].survey_assist_interactions[0].response[0]
         assert isinstance(primary, GenericClassificationResult)
@@ -863,7 +871,9 @@ def test_add_follow_up_no_classify_found(
         with pytest.raises(
             ValueError, match="No classify interaction found for flavour=sic"
         ):
-            add_follow_up_to_latest_classify("sic", follow_up_questions)
+            add_follow_up_to_latest_classify(
+                "sic", follow_up_questions, "user.respondent-a"
+            )
 
 
 @pytest.mark.utils
@@ -889,7 +899,9 @@ def test_add_follow_up_wrong_type_response(
         save_model_to_session("survey_result", base_result_with_classify_model)
 
         with pytest.raises(TypeError, match="Expected classification response list"):
-            add_follow_up_to_latest_classify("sic", follow_up_questions)
+            add_follow_up_to_latest_classify(
+                "sic", follow_up_questions, "user.respondent-a"
+            )
 
 
 @pytest.fixture
@@ -897,6 +909,7 @@ def survey_result_with_followup_model() -> GenericSurveyAssistResult:
     """Survey result including follow up question test fixture."""
     return GenericSurveyAssistResult(
         survey_id="test-survey",
+        wave_id="17-10-2025-14D",
         case_id="test-case",
         user="user.respondent-a",
         time_start=datetime(2025, 8, 13, 10, 0),
@@ -956,7 +969,9 @@ def test_add_follow_up_model_question(
     with app.test_request_context():
         save_model_to_session("survey_result", survey_result_with_followup_model)
 
-        updated = add_follow_up_response_to_classify("f1", "New answer")
+        updated = add_follow_up_response_to_classify(
+            "f1", "New answer", "user.respondent-a"
+        )
 
         response = updated.responses[0].survey_assist_interactions[0].response
         assert isinstance(response, list)
@@ -977,7 +992,9 @@ def test_add_follow_up_no_matching_question_id(
         with pytest.raises(
             ValueError, match="No follow-up question found with id=does-not-exist"
         ):
-            add_follow_up_response_to_classify("does-not-exist", "irrelevant")
+            add_follow_up_response_to_classify(
+                "does-not-exist", "irrelevant", "user.respondent-a"
+            )
 
 
 @pytest.mark.utils
@@ -985,6 +1002,7 @@ def test_add_follow_up_no_classify_interaction(app) -> None:
     """Unsuccessfully add follow up question to survey_result - no interaction."""
     empty_result = GenericSurveyAssistResult(
         survey_id="test-survey",
+        wave_id="17-10-2025-14D",
         case_id="test-case",
         user="user.respondent-a",
         time_start=datetime(2025, 8, 13, 10, 0),
@@ -1005,7 +1023,9 @@ def test_add_follow_up_no_classify_interaction(app) -> None:
         with pytest.raises(
             ValueError, match="No follow-up question found with id=anything"
         ):
-            add_follow_up_response_to_classify("anything", "irrelevant")
+            add_follow_up_response_to_classify(
+                "anything", "irrelevant", "user.respondent-a"
+            )
 
 
 @pytest.mark.utils

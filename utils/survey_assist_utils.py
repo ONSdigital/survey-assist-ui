@@ -23,6 +23,7 @@ from utils.session_utils import (
     add_classify_interaction,
     add_follow_up_to_latest_classify,
     add_question_to_survey,
+    get_person_id,
 )
 
 # This is temporary, will be changed to configurable in the future
@@ -300,9 +301,8 @@ def classify_and_handle_followup(
         )
     ]
 
-    add_follow_up_to_latest_classify(
-        "sic", questions=questions, person_id="user.respondent-a"
-    )
+    person_id = get_person_id()
+    add_follow_up_to_latest_classify("sic", questions=questions, person_id=person_id)
 
     formatted_question = format_followup(
         question_data=question_data,

@@ -76,14 +76,15 @@ def parse_z(ts: str) -> datetime:
 
 # The API currently uses a model that only expects SIC in results
 result_sic_only: SurveyAssistResult = SurveyAssistResult(
-    survey_id="test-survey-123",
-    case_id="test-case-456",
-    user="test.userSA187",
+    survey_id="test_shape_tomorrow_prototype",
+    case_id="STP000001",
+    wave_id="17-10-2025-14D",
+    user="STP000001-01",
     time_start=parse_z("2025-08-19T10:00:00Z"),
     time_end=parse_z("2025-08-19T10:05:00Z"),
     responses=[
         Response(
-            person_id="person-1",
+            person_id="STP000001-01",
             time_start=parse_z("2025-08-19T10:00:00Z"),
             time_end=parse_z("2025-08-19T10:05:00Z"),
             survey_assist_interactions=[
@@ -150,10 +151,11 @@ result_sic_only: SurveyAssistResult = SurveyAssistResult(
 # pylint: disable=duplicate-code
 example_session_classify_result = {
     "survey_result": {
-        "case_id": "test-case-xyz",
+        "wave_id": "17-10-2025-14D",
+        "case_id": "STP000001",
         "responses": [
             {
-                "person_id": "user.respondent-a",
+                "person_id": "STP000001-01",
                 "survey_assist_interactions": [
                     {
                         "flavour": "sic",
@@ -238,19 +240,20 @@ example_session_classify_result = {
                 "time_start": "2025-09-05T08:12:06.412975Z",
             }
         ],
-        "survey_id": "tlfs_shape_tomorrow_prototype",
+        "survey_id": "test_shape_tomorrow_prototype",
         "time_end": "2025-09-05T08:12:26.599931Z",
         "time_start": "2025-09-05T08:12:06.412975Z",
-        "user": "user.respondent-a",
+        "user": "STP000001-01",
     }
 }
 
 example_session_lookup_result = {
     "survey_result": {
-        "case_id": "test-case-xyz",
+        "wave_id": "17-10-2025-14D",
+        "case_id": "STP000001",
         "responses": [
             {
-                "person_id": "user.respondent-a",
+                "person_id": "STP000001-01",
                 "survey_assist_interactions": [
                     {
                         "flavour": "sic",
@@ -270,16 +273,17 @@ example_session_lookup_result = {
                 "time_start": "2025-09-05T09:00:28.493081Z",
             }
         ],
-        "survey_id": "shape_tomorrow_prototype",
+        "survey_id": "test_shape_tomorrow_prototype",
         "time_end": "2025-09-05T09:00:46.000783Z",
         "time_start": "2025-09-05T09:00:28.493081Z",
-        "user": "user.respondent-a",
+        "user": "STP000001-01",
     }
 }
 
 example_session_feedback_response = {
-    "case_id": "test-case-xyz",
-    "person_id": "user.respondent-a",
+    "wave_id": "17-10-2025-14D",
+    "case_id": "STP000001",
+    "person_id": "STP000001-01",
     "questions": [
         {
             "response": "35-49",
@@ -320,7 +324,7 @@ example_session_feedback_response = {
             ],
         },
     ],
-    "survey_id": "shape_tomorrow_prototype",
+    "survey_id": "test_shape_tomorrow_prototype",
 }
 
 
