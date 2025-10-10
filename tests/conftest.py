@@ -597,6 +597,7 @@ def survey_result_session() -> dict[str, Any]:
     return {
         "survey_result": {
             "case_id": "test-case-xyz",
+            "wave_id": "17-10-2025-14D",
             "responses": [
                 {
                     "person_id": "user.respondent-a",
@@ -698,6 +699,7 @@ def survey_result_session_lookup_found() -> dict[str, Any]:
     """Mock survey result when SIC lookup finds a match."""
     return {
         "survey_result": {
+            "wave_id": "17-10-2025-14D",
             "case_id": "test-case-xyz",
             "responses": [
                 {
@@ -817,13 +819,18 @@ class FeedbackQuestion(TypedDict, total=False):
     response_options: list[str]
 
 
-class FeedbackSession(TypedDict):  # pylint: disable=duplicate-code
+# pylint: disable=duplicate-code
+class FeedbackSession(TypedDict):
     """TypedDict mirroring the FeedbackSession for clarity in tests."""
 
     case_id: str
     person_id: str
     survey_id: str
+    wave_id: str
     questions: list[FeedbackQuestion]
+
+
+# pylint: enable=duplicate-code
 
 
 @pytest.fixture(name="survey_iteration_questions")
@@ -935,6 +942,7 @@ def fixture_empty_feedback_session() -> FeedbackSession:
         "case_id": "case-123",
         "person_id": "person-456",
         "survey_id": "survey-xyz",
+        "wave_id": "17-10-2025-14D",
         "questions": [],
     }
 
@@ -1013,9 +1021,12 @@ def feedback_session_factory() -> Callable:
     """Return a factory for creating new FeedbackSession dicts."""
 
     def _factory(
-        case_id: str = "case", person_id: str = "person", survey_id: str = "survey"
+        case_id: str = "case",
+        person_id: str = "person",
+        survey_id: str = "survey",
+        wave_id: str = "wave",
     ) -> FeedbackSession:
-        return _make_feedback_session(case_id, person_id, survey_id)
+        return _make_feedback_session(case_id, person_id, survey_id, wave_id)
 
     return _factory
 

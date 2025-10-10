@@ -35,6 +35,8 @@ def load_survey_definition(flask_app: Any, file_path: str | Path) -> None:
         "survey_title", "Survey Assist Example"
     )
 
+    flask_app.wave_id = survey_definition.get("wave_id", "DD-MM-YYYY-XXD")
+
     survey_intro = survey_definition.get("survey_intro", {})
     if isinstance(survey_intro, dict):
         flask_app.survey_intro = survey_intro.get("enabled", False)

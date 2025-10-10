@@ -31,12 +31,14 @@ class FeedbackResult(BaseModel):
     case_id - the unique id associated with (typically) the household.
     person_id - the unique id associated with a respondent in the household.
     survey_id - the unique id for the survey
+    wave_id - the unique id for the survey wave (run)
     questions - list of questions used to gather respondent feedback.
     """
 
     case_id: str = Field(..., description="Unique id for group")
     person_id: str = Field(..., description="Unique id for person")
     survey_id: str = Field(..., description="Unique id for survey")
+    wave_id: str = Field(..., description="Unique id for survey wave (run)")
     questions: list[FeedbackQuestionMod] = Field(
         ..., description="List of follow-up questions"
     )

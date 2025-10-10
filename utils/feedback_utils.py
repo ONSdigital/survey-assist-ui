@@ -24,12 +24,14 @@ class FeedbackSession(TypedDict):
     case_id - the unique id associated with (typically) the household.
     person_id - the unique id associated with a respondent in the household.
     survey_id - the unique id for the survey
+    wave_id - the wave (run) of the survey
     questions - list of questions used to gather respondent feedback.
     """
 
     case_id: str
     person_id: str
     survey_id: str
+    wave_id: str
     questions: list[FeedbackQuestion]
 
 
@@ -155,12 +157,13 @@ def copy_feedback_from_survey_iteration(  # pylint: disable=too-many-locals
 
 
 def _make_feedback_session(
-    case_id: str, person_id: str, survey_id: str
+    case_id: str, person_id: str, survey_id: str, wave_id: str
 ) -> FeedbackSession:
     return {
         "case_id": case_id,
         "person_id": person_id,
         "survey_id": survey_id,
+        "wave_id": wave_id,
         "questions": [],
     }
 
@@ -169,6 +172,7 @@ def init_feedback_session(
     case_id: str,
     person_id: str,
     survey_id: str,
+    wave_id: str,
     *,
     key: str = "feedback_response",
 ) -> FeedbackSession:
@@ -176,18 +180,19 @@ def init_feedback_session(
     raw: Any = session.get(key)
 
     logger.info(
-        f"init {key} in session - case_id:{case_id} person_id:{person_id} survey_id:{survey_id}"
+        f"init {key} in session - case_id:{case_id} person_id:{person_id} survey_id:{survey_id} wave_id:{wave_id}"  # pylint: disable=line-too-long
     )
-    if (
+    if (  # pylint: disable=too-many-boolean-expressions
         isinstance(raw, dict)
         and isinstance(raw.get("case_id"), str)
         and isinstance(raw.get("person_id"), str)
         and isinstance(raw.get("survey_id"), str)
+        and isinstance(raw.get("wave_id"), str)
     ) and isinstance(raw.get("questions"), list):
         return cast(FeedbackSession, raw)
 
     logger.debug("make session")
-    fs = _make_feedback_session(case_id, person_id, survey_id)
+    fs = _make_feedback_session(case_id, person_id, survey_id, wave_id)
     session[key] = fs
     session.modified = True
     return fs

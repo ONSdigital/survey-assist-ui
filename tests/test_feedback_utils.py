@@ -362,17 +362,25 @@ def test_returns_expected_structure() -> None:
     case_id = "case-123"
     person_id = "person-456"
     survey_id = "survey-xyz"
+    wave_id = "17-10-2025-14D"
 
-    session = _make_feedback_session(case_id, person_id, survey_id)
+    session = _make_feedback_session(case_id, person_id, survey_id, wave_id)
 
     # Basic shape
     assert isinstance(session, dict)
-    assert set(session.keys()) == {"case_id", "person_id", "survey_id", "questions"}
+    assert set(session.keys()) == {
+        "case_id",
+        "person_id",
+        "survey_id",
+        "wave_id",
+        "questions",
+    }
 
     # Values
     assert session["case_id"] == case_id
     assert session["person_id"] == person_id
     assert session["survey_id"] == survey_id
+    assert session["wave_id"] == wave_id
 
     # Questions initialisation
     assert isinstance(session["questions"], list)
@@ -382,8 +390,8 @@ def test_returns_expected_structure() -> None:
 @pytest.mark.utils
 def test_returns_fresh_list_each_call_no_shared_state() -> None:
     """It should create a new questions list each call (no shared mutable state)."""
-    s1 = _make_feedback_session("a", "b", "c")
-    s2 = _make_feedback_session("a", "b", "c")
+    s1 = _make_feedback_session("a", "b", "c", "d")
+    s2 = _make_feedback_session("a", "b", "c", "d")
 
     # Change s1 and ensure s2 is unaffected
     s1["questions"].append({"response_name": "x", "response": "y"})  # type: ignore[index]
@@ -392,11 +400,11 @@ def test_returns_fresh_list_each_call_no_shared_state() -> None:
 
 
 @pytest.mark.parametrize(
-    ("case_id", "person_id", "survey_id"),
+    ("case_id", "person_id", "survey_id", "wave_id"),
     [
-        ("", "", ""),  # empty strings are accepted and stored verbatim
-        ("CASE", "PERSON", "SURVEY"),
-        ("123", "456", "789"),
+        ("", "", "", ""),  # empty strings are accepted and stored verbatim
+        ("CASE", "PERSON", "SURVEY", "WAVE"),
+        ("123", "456", "789", "101"),
     ],
 )
 @pytest.mark.utils
@@ -404,18 +412,20 @@ def test_stores_values_verbatim(
     case_id: str,
     person_id: str,
     survey_id: str,
+    wave_id: str,
 ) -> None:
     """It should store provided identifiers verbatim, including empty strings."""
-    session = _make_feedback_session(case_id, person_id, survey_id)
+    session = _make_feedback_session(case_id, person_id, survey_id, wave_id)
     assert session["case_id"] == case_id
     assert session["person_id"] == person_id
     assert session["survey_id"] == survey_id
+    assert session["wave_id"] == wave_id
 
 
 @pytest.mark.utils
 def test_type_narrowing_matches_feedbacksession() -> None:
     """It should be assignable to FeedbackSession for static type checks."""
-    session: FeedbackSession = _make_feedback_session("c", "p", "s")
+    session: FeedbackSession = _make_feedback_session("c", "p", "s", "w")
     # Minimal runtime assertion to keep pylint/mypy happy and document intent.
     assert isinstance(session["questions"], list)
 
@@ -430,11 +440,13 @@ class SpyFactory:  # pylint: disable=too-few-public-methods
     def __init__(self, to_return: FeedbackSession) -> None:
         """Initialise the spy with a fixed return value."""
         self.to_return = to_return
-        self.calls: list[tuple[str, str, str]] = []
+        self.calls: list[tuple[str, str, str, str]] = []
 
-    def __call__(self, case_id: str, person_id: str, survey_id: str) -> FeedbackSession:
+    def __call__(
+        self, case_id: str, person_id: str, survey_id: str, wave_id: str
+    ) -> FeedbackSession:
         """Record call args and return the predefined session."""
-        self.calls.append((case_id, person_id, survey_id))
+        self.calls.append((case_id, person_id, survey_id, wave_id))
         return self.to_return
 
 
@@ -465,7 +477,10 @@ def test_returns_existing_valid_session_without_modifying_or_factory_call(
     )
 
     result = feedback_mod.init_feedback_session(
-        case_id="case-123", person_id="person-456", survey_id="survey-xyz"
+        case_id="case-123",
+        person_id="person-456",
+        survey_id="survey-xyz",
+        wave_id="17-10-2025-14D",
     )
 
     assert result is existing  # identity preserved
@@ -485,7 +500,7 @@ def test_creates_when_missing_key_sets_modified_and_stores_in_session(
     patch_module_logger(feedback_mod, log_capture)
 
     fake_sess = SessionDict()
-    created = feedback_session_factory("C-1", "P-1", "S-1")
+    created = feedback_session_factory("C-1", "P-1", "S-1", "W-1")
     spy = SpyFactory(created)
 
     monkeypatch.setattr(feedback_mod, "session", fake_sess, raising=True)
@@ -497,13 +512,13 @@ def test_creates_when_missing_key_sets_modified_and_stores_in_session(
     )
 
     result = feedback_mod.init_feedback_session(
-        case_id="C-1", person_id="P-1", survey_id="S-1"
+        case_id="C-1", person_id="P-1", survey_id="S-1", wave_id="W-1"
     )
 
     assert result == created
     assert fake_sess["feedback_response"] == created
     assert fake_sess.modified is True
-    assert spy.calls == [("C-1", "P-1", "S-1")]
+    assert spy.calls == [("C-1", "P-1", "S-1", "W-1")]
     # Logging expectations
     assert any("init feedback_response in session" in msg for msg in log_capture.infos)
     assert any("make session" in msg for msg in log_capture.debugs)
@@ -534,10 +549,11 @@ def test_creates_when_existing_is_invalid_shape(
         "case_id": "c",
         "person_id": "p",
         "survey_id": "s",
+        "wave_id": "w",
         "questions": "not-a-list",  # type: ignore[dict-item]
     }
 
-    created = feedback_session_factory("c", "p", "s")
+    created = feedback_session_factory("c", "p", "s", "w")
     spy = SpyFactory(created)  # import this from wherever it's defined in your suite
 
     # Patch Flask session and the internal factory used by init_feedback_session
@@ -550,13 +566,13 @@ def test_creates_when_existing_is_invalid_shape(
     )
 
     result = feedback_mod.init_feedback_session(
-        case_id="c", person_id="p", survey_id="s"
+        case_id="c", person_id="p", survey_id="s", wave_id="w"
     )
 
     assert result == created
     assert fake_sess["feedback_response"] == created
     assert fake_sess.modified is True
-    assert spy.calls == [("c", "p", "s")]
+    assert spy.calls == [("c", "p", "s", "w")]
 
     # Debug log asserted via the shared log_capture fixture
     assert any(
@@ -569,7 +585,7 @@ def test_custom_key_supported(
 ) -> None:
     """It should allow a custom `key` parameter for the destination session entry."""
     fake_sess = SessionDict()
-    created = feedback_session_factory("C", "P", "S")
+    created = feedback_session_factory("C", "P", "S", "W")
     spy = SpyFactory(created)
 
     monkeypatch.setattr(feedback_mod, "session", fake_sess, raising=True)
@@ -582,13 +598,13 @@ def test_custom_key_supported(
     monkeypatch.setattr(feedback_mod, "logger", LogCapture(), raising=True)
 
     result = feedback_mod.init_feedback_session(
-        case_id="C", person_id="P", survey_id="S", key="alt_feedback"
+        case_id="C", person_id="P", survey_id="S", wave_id="W", key="alt_feedback"
     )
 
     assert result == created
     assert fake_sess["alt_feedback"] == created
     assert fake_sess.modified is True
-    assert spy.calls == [("C", "P", "S")]
+    assert spy.calls == [("C", "P", "S", "W")]
 
 
 def test_existing_valid_session_with_extra_keys_is_accepted_as_is(
@@ -607,7 +623,7 @@ def test_existing_valid_session_with_extra_keys_is_accepted_as_is(
     cast(dict[str, Any], existing)["extra"] = {"ignored": True}
     fake_sess["feedback_response"] = existing
 
-    spy = SpyFactory(feedback_session_factory("X", "Y", "Z"))
+    spy = SpyFactory(feedback_session_factory("X", "Y", "Z", "A"))
 
     monkeypatch.setattr(feedback_mod, "session", fake_sess, raising=True)
     monkeypatch.setattr(
@@ -618,7 +634,10 @@ def test_existing_valid_session_with_extra_keys_is_accepted_as_is(
     )
 
     result = feedback_mod.init_feedback_session(
-        case_id="case-123", person_id="person-456", survey_id="survey-xyz"
+        case_id="case-123",
+        person_id="person-456",
+        survey_id="survey-xyz",
+        wave_id="17-10-2025-14D",
     )
 
     assert result is existing

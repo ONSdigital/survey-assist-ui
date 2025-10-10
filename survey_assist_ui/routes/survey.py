@@ -28,6 +28,7 @@ from utils.map_results_utils import translate_session_to_model
 from utils.session_utils import (
     FIRST_QUESTION,
     add_follow_up_response_to_classify,
+    get_person_id,
     save_model_to_session,
     session_debug,
 )
@@ -66,6 +67,7 @@ def survey() -> str:
     """
     app = cast(SurveyAssistFlask, current_app)
     survey_title = app.survey_title
+    wave_id = app.wave_id
     questions = app.questions
 
     # Initialise the current question index in the session if it doesn't exist
@@ -92,8 +94,9 @@ def survey() -> str:
         # user is the main user that starts the survey.
         result_model = GenericSurveyAssistResult(
             survey_id=re.sub(r"\s+", "_", survey_title.strip().lower()),
-            case_id="test-case-xyz",
-            user="user.respondent-a",
+            wave_id=wave_id,
+            case_id=session["participant_id"],
+            user=get_person_id(),
             time_start=session["survey_iteration"]["time_start"],
             time_end=session["survey_iteration"]["time_start"],  # will be updated later
             responses=[],
@@ -101,7 +104,7 @@ def survey() -> str:
 
         # person-id is an indiviual respondent in the household
         new_response = GenericResponse(
-            person_id="user.respondent-a",
+            person_id=get_person_id(),
             time_start=session["survey_iteration"]["time_start"],
             time_end=session["survey_iteration"]["time_start"],  # will be updated later
             survey_assist_interactions=[],
@@ -193,9 +196,10 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         last_question = survey_questions[-1]
         last_question["response"] = request.form.get(last_question["response_name"])
 
+        user_id = get_person_id()
         logger.info("Saving response against follow_up, questions")
         add_follow_up_response_to_classify(
-            last_question["question_id"], last_question["response"], "user.respondent-a"
+            last_question["question_id"], last_question["response"], user_id
         )
 
     if question in actions:

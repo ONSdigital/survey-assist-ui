@@ -253,6 +253,7 @@ def add_sic_lookup_interaction(
     Returns:
         None
     """
+    person_id = get_person_id()
     survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
 
     lookup_result = map_to_lookup_response(lookup_resp, max_codes=3, max_divisions=3)
@@ -269,7 +270,7 @@ def add_sic_lookup_interaction(
 
     survey_result = add_interaction_to_response(
         survey_result,
-        person_id="user.respondent-a",
+        person_id=person_id,
         interaction=interaction,
         input_fields=inputs_dict,
     )
@@ -300,6 +301,7 @@ def add_classify_interaction(
     Returns:
         None
     """
+    get_person_id()
     survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
 
     classification_result = classify_resp.results[0]
@@ -315,7 +317,7 @@ def add_classify_interaction(
 
     survey_result = add_interaction_to_response(
         survey_result,
-        person_id="user.respondent-a",
+        person_id=get_person_id(),
         interaction=interaction,
         input_fields=inputs_dict,
     )
@@ -326,7 +328,7 @@ def add_classify_interaction(
 def add_follow_up_to_latest_classify(
     flavour: str,
     questions: list[FollowUpQuestion],
-    person_id: str = "user.respondent-a",
+    person_id: str = "EXAMPLE0001-01",
 ):
     """Add follow-up questions to the latest classify interaction for a person.
 
@@ -339,7 +341,7 @@ def add_follow_up_to_latest_classify(
         flavour (str): The classification flavour (e.g., "sic" or "soc").
         questions (list[FollowUpQuestion]): List of follow-up questions to add.
         person_id (str, optional): The person ID to update. Defaults to
-            "user.respondent-a".
+            "EXAMPLE0001-01".
 
     Returns:
         GenericSurveyAssistResult: The updated survey result model.
@@ -406,7 +408,7 @@ QuestionsListLike = Optional[list]
 def add_follow_up_response_to_classify(
     question_id: str,
     response_value: str,
-    person_id: str = "user.respondent-a",
+    person_id: str = "EXAMPLE0001-01",
 ) -> GenericSurveyAssistResult:
     """Set the response for a follow-up question identified by a unique question_id.
 
@@ -417,7 +419,7 @@ def add_follow_up_response_to_classify(
         question_id (str): The unique identifier of the follow-up question.
         response_value (str): The value to set as the response.
         person_id (str, optional): The person ID to search for. Defaults to
-            "user.respondent-a".
+            "EXAMPLE0001-01".
 
     Returns:
         GenericSurveyAssistResult: The updated survey result model.
@@ -568,3 +570,28 @@ def _set_response_on_question_list(
             q.response = response_value
         return True
     return False
+
+
+def get_person_id(default: str = "participant_session_error") -> str:
+    """Return the person ID from the session, or a default error string if missing.
+
+    Retrieves the participant ID from the Flask session and appends '-01' to it.
+    If the participant ID is not found in the session, logs an error and returns
+    a default error string with '-01' appended.
+
+    Note: For the first iteration of the survey there will only ever be a single respondent,
+    hence "-01".
+
+    Args:
+        default (str): The default error string to use if the participant ID is missing.
+
+    Returns:
+        str: The person ID from the session, or the default error string if not found.
+    """
+    participant_id = session.get("participant_id")
+
+    if participant_id is None:
+        logger.error("participant_id not found in session, defaulting")
+        return f"{default}-01"
+
+    return f"{participant_id}-01"

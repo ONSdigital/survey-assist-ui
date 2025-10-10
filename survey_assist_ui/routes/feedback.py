@@ -87,6 +87,7 @@ def feedback() -> str:
                 case_id=survey_result.get("case_id", "error_case_id"),
                 person_id=person_id,
                 survey_id=survey_result.get("survey_id", "error_survey_id"),
+                wave_id=app.wave_id,
             )
         else:
             logger.error("survey_result not found for feedback")

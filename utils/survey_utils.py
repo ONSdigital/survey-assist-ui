@@ -27,6 +27,7 @@ from utils.session_utils import (
     add_follow_up_to_latest_classify,
     add_question_to_survey,
     add_sic_lookup_interaction,
+    get_person_id,
 )
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
@@ -363,11 +364,12 @@ def followup_redirect() -> ResponseType | str:
                 ]
 
                 if interactions[0].get("param") == "sic":
+                    person_id = get_person_id()
                     # SIC interaction
                     add_follow_up_to_latest_classify(
                         "sic",
                         questions=follow_up_questions,
-                        person_id="user.respondent-a",
+                        person_id=person_id,
                     )
 
                     # Format for rendering and add to survey iteration in session

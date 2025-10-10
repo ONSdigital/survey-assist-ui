@@ -206,7 +206,8 @@ class GenericSurveyAssistResult(BaseModel):
 
     Attributes:
         survey_id (str): Identifier for the survey.
-        case_id (str): Identifier for the case.
+        wave_id (str): Id fr the wave of survey (i.e the run)
+        case_id (str): Identifier for the case (e.g the household identifier).
         user (str): User identifier in format 'name.surname'.
         time_start (datetime): Start time of the survey.
         time_end (datetime): End time of the survey.
@@ -216,13 +217,16 @@ class GenericSurveyAssistResult(BaseModel):
     survey_id: str = Field(
         ..., description="Identifier for the survey", examples=["test-survey-123"]
     )
+    wave_id: str = Field(
+        ..., description="Identifier for the wave", examples=["DD-MM-YYYY-14D"]
+    )
     case_id: str = Field(
-        ..., description="Identifier for the case", examples=["test-case-456"]
+        ..., description="Identifier for the case", examples=["ONS-000001"]
     )
     user: str = Field(
         ...,
-        description="User identifier in format 'name.surname'",
-        examples=["test.userSA187"],
+        description="User identifier in format 'case_id-99'",
+        examples=["ONS000001-01"],
     )
     time_start: datetime = Field(
         ..., description="Start time of the survey", examples=["2024-03-19T10:00:00Z"]
