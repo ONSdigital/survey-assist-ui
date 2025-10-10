@@ -15,14 +15,31 @@ from utils.session_utils import FIRST_QUESTION
 
 
 @pytest.mark.route
-def test_index_route(client) -> None:
-    """Tests that the index route contains survey title and returns a 200 OK response.
+def test_access_route(client) -> None:
+    """Tests that the access route contains survey title and returns a 200 OK response.
 
     Args:
         client: Flask test client fixture.
     """
     app = cast(SurveyAssistFlask, current_app)
-    response = client.get("/")
+    response = client.get("/access")
+    expected_text = app.survey_title
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Access page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Access route should return 200 OK"
+
+
+@pytest.mark.route
+def test_index_route(granted_access) -> None:
+    """Tests that the index route contains survey title and returns a 200 OK response.
+
+    Args:
+        granted_access: Flask test client fixture.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+    response = granted_access.get("/")
     expected_text = app.survey_title
 
     assert (
@@ -32,14 +49,14 @@ def test_index_route(client) -> None:
 
 
 @pytest.mark.route
-def test_intro_route(client) -> None:
+def test_intro_route(granted_access) -> None:
     """Tests that the survey intro route contains survey title and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
     """
     app = cast(SurveyAssistFlask, current_app)
-    response = client.get("/intro")
+    response = granted_access.get("/intro")
     expected_text = app.survey_title
 
     assert (
@@ -68,23 +85,23 @@ def test_error_route(client) -> None:
 
 
 @pytest.mark.route
-def test_first_survey_question(client, mock_questions) -> None:
+def test_first_survey_question(granted_access, mock_questions) -> None:
     """Tests that the survey route contains correct text
     for the first question and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             sess.pop("current_question_index", None)
             sess.pop("survey_iteration", None)
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
 
         expected_text = mock_questions[0]["question_text"]
         assert (
@@ -96,7 +113,7 @@ def test_first_survey_question(client, mock_questions) -> None:
         ), "Expected 'Save and continue' in response"
 
         # Validate session was initialised correctly
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             assert "current_question_index" in sess
             assert sess["current_question_index"] == FIRST_QUESTION
             assert "survey_iteration" in sess
@@ -104,23 +121,23 @@ def test_first_survey_question(client, mock_questions) -> None:
 
 
 @pytest.mark.route
-def test_survey_question_justification_disabled(client, mock_questions) -> None:
+def test_survey_question_justification_disabled(granted_access, mock_questions) -> None:
     """Tests that the survey route does not contain a justification,
      the justification_enabled is false and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             sess.pop("current_question_index", None)
             sess.pop("survey_iteration", None)
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
 
         # The first mock question has justification_enabled False
         justification_text = "Why we ask this question"
@@ -131,23 +148,23 @@ def test_survey_question_justification_disabled(client, mock_questions) -> None:
 
 
 @pytest.mark.route
-def test_survey_question_guidance_disabled(client, mock_questions) -> None:
+def test_survey_question_guidance_disabled(granted_access, mock_questions) -> None:
     """Tests that the survey route does not contain guidance,
      the guidance_enabled is false and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             sess.pop("current_question_index", None)
             sess.pop("survey_iteration", None)
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
 
         # The first mock question has guidance_enabled False
         guidance_text = "Guidance Text"
@@ -161,24 +178,24 @@ QUESTION_TWO_INDEX = 1
 
 
 @pytest.mark.route
-def test_survey_question_justification_enabled(client, mock_questions) -> None:
+def test_survey_question_justification_enabled(granted_access, mock_questions) -> None:
     """Tests that the survey route does not contain a justification,
      the justification_enabled is false and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             # Question two has functionality enabled
             sess["current_question_index"] = QUESTION_TWO_INDEX
             sess.modified = True
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
 
         # The second mock question has justification_enabled True
         justification_title = "Why we ask this question"
@@ -194,24 +211,24 @@ def test_survey_question_justification_enabled(client, mock_questions) -> None:
 
 
 @pytest.mark.route
-def test_survey_question_guidance_enabled(client, mock_questions) -> None:
+def test_survey_question_guidance_enabled(granted_access, mock_questions) -> None:
     """Tests that the survey route does not contain guidance,
      the guidance_enabled is false and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             # Question two has functionality enabled
             sess["current_question_index"] = QUESTION_TWO_INDEX
             sess.modified = True
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
 
         # The second mock question has guidance_enabled True
         guidance_text = "Guidance Text"
@@ -225,24 +242,24 @@ QUESTION_THREE_INDEX = 2
 
 
 @pytest.mark.route
-def test_placeholder_survey_question(client, mock_questions) -> None:
+def test_placeholder_survey_question(granted_access, mock_questions) -> None:
     """Tests that the survey route contains correct text
     for the first question and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_questions: Mocked questions to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "questions", mock_questions):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             sess["current_question_index"] = QUESTION_THREE_INDEX
 
             sess["response"] = {"job_title": "Warehouse Manager"}
             sess.modified = True
 
-        response = client.get("/survey")
+        response = granted_access.get("/survey")
         expected_text = mock_questions[QUESTION_THREE_INDEX]["question_text"].replace(
             "PLACEHOLDER_TEXT", "Warehouse Manager"
         )
@@ -256,11 +273,11 @@ def test_placeholder_survey_question(client, mock_questions) -> None:
 
 
 @pytest.mark.route
-def test_survey_assist_consent(client, mock_survey_assist) -> None:
+def test_survey_assist_consent(granted_access, mock_survey_assist) -> None:
     """Tests that the consent route returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_survey_assist: Mocked survey assist data.
     """
     app = cast(SurveyAssistFlask, current_app)
@@ -268,7 +285,7 @@ def test_survey_assist_consent(client, mock_survey_assist) -> None:
     route_text = "survey_assist_consent"
 
     with patch.object(app, "survey_assist", mock_survey_assist):
-        response = client.get("/" + route_text)
+        response = granted_access.get("/" + route_text)
         assert (
             response.status_code == HTTPStatus.OK
         ), "{route_text} should return 200 OK"
@@ -278,20 +295,20 @@ def test_survey_assist_consent(client, mock_survey_assist) -> None:
 
 
 @pytest.mark.route
-def test_survey_summary(client, mock_survey_iteration) -> None:
+def test_survey_summary(granted_access, mock_survey_iteration) -> None:
     """Tests that the survey summary route returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_survey_iteration: Mocked survey iteration data.
     """
     route_text = "summary"
 
-    with client.session_transaction() as sess:
+    with granted_access.session_transaction() as sess:
         sess["survey_iteration"] = mock_survey_iteration
         sess.modified = True
 
-    response = client.get("/" + route_text)
+    response = granted_access.get("/" + route_text)
     assert response.status_code == HTTPStatus.OK, "{route_text} should return 200 OK"
     assert (
         b"Summary" in response.data
@@ -299,14 +316,14 @@ def test_survey_summary(client, mock_survey_iteration) -> None:
 
 
 @pytest.mark.route
-def test_thank_you_route(client) -> None:
+def test_thank_you_route(granted_access) -> None:
     """Tests that the survey thank you route contains survey title and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
     """
     app = cast(SurveyAssistFlask, current_app)
-    response = client.get("/thank_you")
+    response = granted_access.get("/thank_you")
     expected_text = app.survey_title
 
     assert (
@@ -316,13 +333,13 @@ def test_thank_you_route(client) -> None:
 
 
 @pytest.mark.route
-def test_feedback_intro_route(client) -> None:
+def test_feedback_intro_route(granted_access) -> None:
     """Tests that the feedback intro route contains survey title and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
     """
-    response = client.get("/feedback_intro")
+    response = granted_access.get("/feedback_intro")
     expected_text = "feedback on your experience today"
 
     assert (
@@ -334,22 +351,22 @@ def test_feedback_intro_route(client) -> None:
 
 
 @pytest.mark.route
-def test_first_feedback_question(client, mock_feedback) -> None:
+def test_first_feedback_question(granted_access, mock_feedback) -> None:
     """Tests that the feedback route contains correct text
     for the first feedback question and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
         mock_feedback: Mocked feedback to simulate survey data.
     """
     app = cast(SurveyAssistFlask, current_app)
 
     with patch.object(app, "feedback", mock_feedback):
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             # Ensure a clean state to trigger init logic
             sess.pop("current_feedback_index", None)
 
-        response = client.get("/feedback")
+        response = granted_access.get("/feedback")
 
         mock_feedback_questions = mock_feedback.get("questions")
 
@@ -363,19 +380,19 @@ def test_first_feedback_question(client, mock_feedback) -> None:
         ), "Expected 'Save and continue' in response"
 
         # Validate session was initialised correctly
-        with client.session_transaction() as sess:
+        with granted_access.session_transaction() as sess:
             assert "current_feedback_index" in sess
             assert sess["current_feedback_index"] == FIRST_QUESTION
 
 
 @pytest.mark.route
-def test_feedback_thank_you_route(client) -> None:
+def test_feedback_thank_you_route(granted_access) -> None:
     """Tests that the feedback thank you route contains survey title and returns a 200 OK response.
 
     Args:
-        client: Flask test client fixture.
+        granted_access: Flask test client fixture.
     """
-    response = client.get("/feedback_thank_you")
+    response = granted_access.get("/feedback_thank_you")
     expected_text = "Feedback has been successfully submitted"
 
     assert (

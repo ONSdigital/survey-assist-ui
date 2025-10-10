@@ -824,6 +824,28 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.6.10)", "diff-cover (>=9.2.1)",
 typing = ["typing-extensions (>=4.12.2) ; python_version < \"3.11\""]
 
 [[package]]
+name = "firestore-otp-verification-api-client"
+version = "0.1.0"
+description = "Firestore OTP API"
+optional = false
+python-versions = "^3.9"
+groups = ["main"]
+files = []
+develop = false
+
+[package.dependencies]
+pydantic = ">= 2"
+python-dateutil = ">= 2.8.2"
+typing-extensions = ">= 4.7.1"
+urllib3 = ">= 2.1.0, < 3.0.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/ONSdigital/firestore-otp-verification-api-client.git"
+reference = "v0.1.0"
+resolved_reference = "c0929be98241d85afbef56722521d229a974058b"
+
+[[package]]
 name = "flask"
 version = "3.1.1"
 description = "A simple framework for building complex web applications."
@@ -4288,4 +4310,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "3c6269c6c9da0b77b93ee2b39650b534b2fcf6fe72ea8199a7b83304a5d9d712"
+content-hash = "ecac122d5fff55da95908248fca31f5466c83edf568ec95afbfdfa6cb388a7b2"

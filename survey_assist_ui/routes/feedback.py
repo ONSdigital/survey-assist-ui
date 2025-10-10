@@ -19,6 +19,7 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
+from utils.access_utils import require_access
 from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.feedback_utils import (
     FeedbackQuestion,
@@ -29,10 +30,16 @@ from utils.feedback_utils import (
     init_feedback_session,
     send_feedback,
 )
-from utils.session_utils import FIRST_QUESTION, remove_model_from_session, session_debug
+from utils.session_utils import (
+    FIRST_QUESTION,
+    remove_access_from_session,
+    remove_model_from_session,
+    session_debug,
+)
 from utils.survey_utils import number_to_word
 
 feedback_blueprint = Blueprint("feedback", __name__)
+feedback_blueprint.before_request(require_access)
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -241,6 +248,9 @@ def feedback_thank_you():
         logger.warning("TBD - Error handling. Clean Feedback Session Data")
 
     remove_model_from_session("feedback_response")
+
+    # Remove further access from the session
+    remove_access_from_session()
 
     if "current_feedback_index" in session:
         session["current_feedback_index"] = 0

@@ -12,11 +12,13 @@ from urllib.parse import urlparse
 
 from flask import request
 from flask_misaka import Misaka
+from jinja2 import ChainableUndefined
 from survey_assist_utils.api_token.jwt_utils import check_and_refresh_token
 from survey_assist_utils.logging import get_logger
 
 from survey_assist_ui.routes import register_blueprints
-from utils.api_utils import APIClient
+from utils.access_utils import update_tokens_on_api_clients
+from utils.api_utils import APIClient, get_verification_api_id_token
 from utils.app_types import SurveyAssistFlask
 from utils.app_utils import load_survey_definition
 
@@ -38,14 +40,22 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
         SurveyAssistFlask: The initialised and configured Flask application instance.
     """
     flask_app = SurveyAssistFlask(__name__)
+    # ONS macros assume ChainableUndefined (e.g if a parameter is missing assume false)
+    flask_app.jinja_env.undefined = ChainableUndefined
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
     flask_app.sa_email = os.getenv("SA_EMAIL", "SA_EMAIL_NOT_SET")
     flask_app.api_base = os.getenv("BACKEND_API_URL", "http://127.0.0.1:5000")
     flask_app.api_ver = os.getenv("BACKEND_API_VERSION", "/v1")
+    flask_app.verify_api_base = os.getenv("VERIFY_API_URL", "http://127.0.0.1:8080")
 
     # API token is generated at runtime, so we set it to an empty string initially
     flask_app.api_token = ""  # nosec
     flask_app.token_start_time = 0
+
+    # Get a token for the verify service
+    flask_app.verify_api_token = get_verification_api_id_token(
+        os.getenv("VERIFY_API_URL", "http://127.0.0.1:8080")
+    )
 
     Misaka(flask_app)
 
@@ -77,6 +87,14 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
     flask_app.api_client = APIClient(
         base_url=f"{flask_app.api_base}{flask_app.api_ver}",
         token=flask_app.api_token,
+        logger_handle=logger,
+        redirect_on_error=False,
+    )
+
+    # Initialise API client for Verify Service
+    flask_app.verify_api_client = APIClient(
+        base_url=f"{flask_app.verify_api_base}",
+        token=flask_app.verify_api_token,
         logger_handle=logger,
         redirect_on_error=False,
     )
@@ -118,10 +136,9 @@ def create_app(test_config: dict | None = None) -> SurveyAssistFlask:
             app.sa_email,
         )
 
+        # Update the client when a new token is generated
         if orig_time != app.token_start_time:
-            logger.info(
-                f"JWT token refresh Rx Method: {request.method} - Route: {request.endpoint}"
-            )
+            update_tokens_on_api_clients(flask_app, request, app.api_token)
 
     @flask_app.after_request
     def add_version_header(resp):

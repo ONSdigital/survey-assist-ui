@@ -5,13 +5,16 @@ This is the home page for the Survey Assist UI
 
 from typing import cast
 
-from flask import Blueprint, current_app, render_template, session
+from flask import Blueprint, current_app, redirect, render_template, session
+from flask.typing import ResponseReturnValue
 from survey_assist_utils.logging import get_logger
 
+from utils.access_utils import require_access
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import remove_model_from_session, session_debug
 
 main_blueprint = Blueprint("main", __name__)
+main_blueprint.before_request(require_access)
 
 logger = get_logger(__name__)
 
@@ -19,7 +22,7 @@ logger = get_logger(__name__)
 # Method to render the index page
 @main_blueprint.route("/")
 @session_debug
-def index() -> str:
+def index() -> ResponseReturnValue:
     """Renders the index page.
 
     This route handles requests to the root URL ("/") and serves the `index.html` template.
@@ -30,6 +33,9 @@ def index() -> str:
     logger.info("Rendering index page")
 
     app = cast(SurveyAssistFlask, current_app)
+
+    if "participant_id" not in session and "access_code" not in session:
+        return redirect("/access")
 
     # Reset the current question index in the session
     if "current_question_index" in session:

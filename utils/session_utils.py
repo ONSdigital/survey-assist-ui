@@ -187,6 +187,17 @@ def remove_model_from_session(key: str) -> None:
     session.modified = True
 
 
+def remove_access_from_session() -> None:
+    """Remove access grant from the verify API and Flask session."""
+    logger.warning("TBD - Must add delete Access Code Functionality")
+    # delete_access(session.get("participant_id", ""))
+
+    session.pop("participant_id", None)
+    session.pop("access_code", None)
+
+    session.modified = True
+
+
 def add_interaction_to_response(
     result_model: GenericSurveyAssistResult,
     person_id: str,

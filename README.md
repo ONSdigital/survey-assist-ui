@@ -67,6 +67,12 @@ To direct standard error and sys to a log file run use the following command.
 make run-ui > application_output.log 2>&1
 ```
 
+#### UI Access Credentials
+
+The UI will be accessed using a unique ID and access code.  These credentials are generated using a separate verification service (see [firestore-otp](https://github.com/ONSdigital/firestore-otp)).
+
+It is assumed such a service is running and you have access to a list of ID and code pairs.  See the environment section for details on how to setup the base url for this service.
+
 #### Run the Application in a Container
 
 To run the application in a container against API gateway deployed in GCP then you can do the following:
@@ -177,6 +183,12 @@ export BACKEND_API_VERSION=v1 (or desired version)
 export SA_EMAIL=<service account email associated with API access>
 ```
 
+The following environment variable is set to connect with the verification service.
+
+```bash
+export VERIFY_API_URL=<URL for cloud run where firestore otp verification service is running>
+```
+
 Set the following environment variables for extra logging of session data and to prettify JSON.
 
 ```bash
@@ -212,4 +224,22 @@ poetry run python scripts/run_api.py --type sic --action classify
 
 ```bash
 poetry run python scripts/run_api.py --type sic --action both
+```
+
+#### Execute Verify API root "/"
+
+```bash
+poetry run python scripts/run_api.py --type sic --action root-otp
+```
+
+#### Execute Verify API Post /verify
+
+```bash
+poetry run python scripts/run_api.py --type sic --action verify-otp --id_str=<ID> --otp=EXAM-PLE1-23FO-UR56
+```
+
+#### Execute Verify API Post /delete
+
+```bash
+poetry run python scripts/run_api.py --type sic --action delete-otp --id_str=<ID>
 ```

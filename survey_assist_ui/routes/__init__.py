@@ -4,6 +4,7 @@ This module imports and provides a function to register all route blueprints
 with a Flask application instance.
 """
 
+from .access import access_blueprint
 from .error import error_blueprint
 from .feedback import feedback_blueprint
 from .index import main_blueprint
@@ -21,6 +22,7 @@ def register_blueprints(app):
     Returns:
         None
     """
+    app.register_blueprint(access_blueprint)
     app.register_blueprint(main_blueprint)
     app.register_blueprint(survey_blueprint)
     app.register_blueprint(survey_assist_blueprint)
