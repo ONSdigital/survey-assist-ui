@@ -174,3 +174,8 @@ cython_debug/
 survey_assist_ui/templates/components
 survey_assist_ui/templates/layout
 .vscode/
+
+# Google Cloud SDK in conda forge
+google-cloud-sdk/
+templates.*
+google-cloud-sdk-*
