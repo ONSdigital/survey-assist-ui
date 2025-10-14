@@ -171,6 +171,77 @@ def add_question_to_survey(
     session.modified = True
 
 
+def get_last_response_for_person(
+    person_id: str, responses: list[GenericResponse]
+) -> Optional[GenericResponse]:
+    """Retrieve the last response for a given person ID from the session.
+
+    Args:
+        person_id (str): The person ID to search for.
+        responses (list[GenericResponse]): List of response objects to search within.
+
+    Returns:
+        Optional[GenericResponse]: The last response for the person, or None if not found.
+    """
+    return next(
+        (resp for resp in reversed(responses) if resp.person_id == person_id),
+        None,
+    )
+
+
+def update_classify_end_time(response: GenericResponse) -> None:
+    """Update the end time for all classify interactions in a response.
+
+    Iterates through the survey assist interactions in the given response and updates
+    the end time of each classify interaction to the current UTC time. Only interactions
+    of type "classify" with a response that is a list are updated. Logs the time before
+    and after the update for debugging purposes.
+
+    Args:
+        response (GenericResponse): The response object containing survey assist interactions.
+
+    Returns:
+        None
+    """
+    for interaction in response.survey_assist_interactions:
+        if interaction.type != "classify":
+            continue
+        if not isinstance(interaction.response, list):
+            continue
+
+        logger.info(f"Before update: {interaction.time_end} ")
+        # Update the end_time associated with the classification
+        # now that the user has answered questions.  The last time
+        # this is accessed will be the time that the final
+        # classification related question is answered.
+        interaction.time_end = datetime.now(timezone.utc)
+        logger.info(f"After update: {interaction.time_end} ")
+
+
+def update_end_time_of_classify_result() -> None:
+    """Update the end time of the classify interaction for the current person.
+
+    Finds the latest classify interaction for the current person in the survey result,
+    updates its end time to the current UTC time, and saves the updated survey result
+    back to the session.
+
+    Returns:
+        None
+    """
+    # Find classify interaction and update end time
+    survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
+
+    person_id = get_person_id()
+
+    response = get_last_response_for_person(person_id, survey_result.responses)
+
+    if response is not None:
+        update_classify_end_time(response)
+        save_model_to_session("survey_result", survey_result)
+    else:
+        logger.warning(f"No response found for person_id '{person_id}'")
+
+
 def save_model_to_session(key: str, model: BaseModel) -> None:
     """Convert a Pydantic model to dict and saves in session."""
     session[key] = model.model_dump(mode="json")
