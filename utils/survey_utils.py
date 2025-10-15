@@ -21,13 +21,15 @@ from flask import (
 )
 from survey_assist_utils.logging import get_logger
 
-from models.result import FollowUpQuestion
+from models.result import FollowUpQuestion, GenericSurveyAssistResult
 from utils.app_types import ResponseType, SurveyAssistFlask
 from utils.session_utils import (
     add_follow_up_to_latest_classify,
     add_question_to_survey,
     add_sic_lookup_interaction,
     get_person_id,
+    load_model_from_session,
+    save_model_to_session,
     update_end_time_of_survey_response,
 )
 from utils.survey_assist_utils import (
