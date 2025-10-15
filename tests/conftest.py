@@ -935,6 +935,63 @@ def fixture_survey_iteration_questions() -> list[dict[str, Any]]:
     ]
 
 
+@pytest.fixture
+def survey_result_data():
+    """Return realistic survey_result data structure for session."""
+    return {
+        "case_id": "01",
+        "responses": [
+            {
+                "person_id": "01-01",
+                "survey_assist_interactions": [
+                    {
+                        "flavour": "sic",
+                        "input": [{"field": "org_description", "value": "mod"}],
+                        "response": {
+                            "code": "84220",
+                            "code_division": "84",
+                            "found": True,
+                            "potential_codes": [
+                                {"code": "55209", "description": ""},
+                                {"code": "25110", "description": ""},
+                                {"code": "25400", "description": ""},
+                            ],
+                            "potential_codes_count": 3,
+                            "potential_divisions": [
+                                {
+                                    "code": "29",
+                                    "detail": "Manufacture of motor vehicles...",
+                                    "title": "Manufacture of motor vehicles, trailers and semi-trailers",
+                                },
+                                {
+                                    "code": "22",
+                                    "detail": "Manufacture of rubber and plastic products...",
+                                    "title": "Manufacture of rubber and plastic products",
+                                },
+                                {
+                                    "code": "45",
+                                    "detail": "Wholesale and retail trade and repair of motor vehicles...",
+                                    "title": "Wholesale and retail trade and repair of motor vehicles and motorcycles",
+                                },
+                            ],
+                        },
+                        "time_end": "2025-10-15T12:42:48.578105Z",
+                        "time_start": "2025-10-15T12:42:48.031041Z",
+                        "type": "lookup",
+                    }
+                ],
+                "time_end": "2025-10-15T12:43:03.256272Z",
+                "time_start": "2025-10-15T12:42:23.623922Z",
+            }
+        ],
+        "survey_id": "shape_tomorrow_prototype",
+        "time_end": "2025-10-15T12:42:48.578105Z",
+        "time_start": "2025-10-15T12:42:23.623922Z",
+        "user": "01-01",
+        "wave_id": "17-11-2025-14D",
+    }
+
+
 @pytest.fixture(name="empty_feedback_session")
 def fixture_empty_feedback_session() -> FeedbackSession:
     """Provide an initialised, empty feedback session structure."""

@@ -13,6 +13,7 @@ import pytest
 from flask import Request, session, url_for
 
 import utils.survey_utils as sut
+from models.result import GenericSurveyAssistResult
 from tests.conftest import LogCapture
 from utils.survey_utils import (
     check_route_on_response,
@@ -135,7 +136,7 @@ def test_update_session_and_redirect_to_survey_assist_consent(app):
     ],
 )
 def test_get_question_routing_valid(
-    question_name, expected_response_name, expected_route
+    app, question_name, expected_response_name, expected_route, survey_result_data
 ):
     """Tests correct response name and routing based on position of the question."""
     questions = [
@@ -150,10 +151,12 @@ def test_get_question_routing_valid(
             "response_name": "org-description",
         },
     ]
-
-    response_name, route = get_question_routing(question_name, questions)
-    assert response_name == expected_response_name
-    assert route == expected_route
+    with app.test_request_context():
+        survey_result = GenericSurveyAssistResult.model_validate(survey_result_data)
+        session["survey_result"] = survey_result.model_dump()
+        response_name, route = get_question_routing(question_name, questions)
+        assert response_name == expected_response_name
+        assert route == expected_route
 
 
 @pytest.mark.utils

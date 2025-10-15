@@ -4218,7 +4218,7 @@ optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 fsspec = "^2025.3.2"
@@ -4237,8 +4237,10 @@ seaborn = "^0.13.2"
 toml = "^0.10.2"
 
 [package.source]
-type = "directory"
-url = "../survey-assist-utils"
+type = "git"
+url = "https://github.com/ONSdigital/survey-assist-utils.git"
+reference = "v0.0.6"
+resolved_reference = "c19cc9a73d707d01c196a3ba3e15d849a07993a2"
 
 [[package]]
 name = "tenacity"
@@ -4746,4 +4748,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "962939a7b435b014e1a386afcd18f0a370a561cbec1e4d31e6dc6360de7f446b"
+content-hash = "644c1bf488f8c30ca00fd56b5924075835fd027df5e5c323eebc4e8911fc34f4"

@@ -242,6 +242,14 @@ def update_end_time_of_classify_result() -> None:
         logger.warning(f"No response found for person_id '{person_id}'")
 
 
+def update_end_time_of_survey_response() -> None:
+    """Update the end time of the survey response for the current person."""
+    survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
+    survey_result.responses[0].time_end = datetime.now(timezone.utc)
+    save_model_to_session("survey_result", survey_result)
+    session.modified = True
+
+
 def save_model_to_session(key: str, model: BaseModel) -> None:
     """Convert a Pydantic model to dict and saves in session."""
     session[key] = model.model_dump(mode="json")

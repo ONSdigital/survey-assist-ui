@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "survey-assist-ui"
-version = "0.1.0a11"
+version = "0.1.0a12"
 description = "User Interface for Survey Assist API and Backend"
 authors = ["Steve Gibbard <steve.gibbard@ons.gov.uk>"]
 license = "MIT"
@@ -11,7 +11,7 @@ packages =[{ include = "survey_assist_ui"}]
 python = "^3.12"
 flask = "^3.1.0"
 flask-misaka = "^1.0.1"
-survey-assist-utils = { path = "../survey-assist-utils", develop = true }
+survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.6"}
 pydantic = "^2.11.7"
 gunicorn = "^23.0.0"
 firestore-otp-verification-api-client = {git = "https://github.com/ONSdigital/firestore-otp-verification-api-client.git", tag = "v0.1.0"}
