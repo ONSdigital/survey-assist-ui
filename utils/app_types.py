@@ -29,6 +29,7 @@ class SurveyAssistFlask(Flask):
         survey_title (str): Title of the survey.
         wave_id (str): Wave (run) of the survey.
         survey_intro (bool): Is survey intro enabled or not.
+        survey_summary (bool): Is survey summary enabled or not.
         show_consent (bool): Should the consent be shown before Survey Assist questions.
         survey_assist (dict[str, Any]): Survey Assist configuration dictionary.
         token_start_time (int): Start time for the authentication token.
@@ -48,6 +49,7 @@ class SurveyAssistFlask(Flask):
     survey_title: str
     wave_id: str
     survey_intro: bool
+    survey_summary: bool
     show_consent: bool
     survey_assist: dict[str, Any]
     token_start_time: int

@@ -43,6 +43,12 @@ def load_survey_definition(flask_app: Any, file_path: str | Path) -> None:
     else:
         flask_app.survey_intro = False
 
+    survey_summary = survey_definition.get("survey_summary", {})
+    if isinstance(survey_summary, dict):
+        flask_app.survey_summary = survey_summary.get("enabled", False)
+    else:
+        flask_app.survey_summary = False
+
     flask_app.questions = survey_definition["questions"]
     flask_app.survey_assist = survey_definition["survey_assist"]
 
