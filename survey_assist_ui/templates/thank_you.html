@@ -32,10 +32,15 @@
 %}
 
 {% block main %}
-{% if show_feedback %}
+{% set extra_text = "" %}
+{% if show_feedback and not incentive_msg %}
   {% set button_url = url_for('feedback.intro') %}
   {% set button_text = "Feedback" %}
+  {% set extra_text = "Complete the short feedback section to be entered into the prize draw." %}
 {% else %}
+  {% if incentive_msg %}
+    {% set extra_text = "<p>People for Research will be in touch with prize draw winners once the survey has closed.</p><p>You may now close the browser.</p>" %}
+  {% endif %}
   {% set button_url = url_for('main.index') %}
   {% set button_text = "Finish" %}
 {% endif %}
@@ -47,14 +52,20 @@
         "id": 'success-id',
         "iconType": 'check',
         "body": 'Information has been successfully submitted',
-        "spacious": true
+        "spacious": false
     })
 }}
-<br></br>
+<br>
 {{ onsLabel({
-    "text": 'Thank you for your response to the '+survey+' survey!',
+    "text": 'Thank you for taking part in the '+survey+' survey.',
     "classes": 'ons-u-mb-l'
 }) }}
+
+{%if extra_text != "" %}
+{{ onsPanel({
+    "body": extra_text
+}) }}
+{% endif %}
 <p></p>
 {{ onsButton({
     "id": "submit-button",

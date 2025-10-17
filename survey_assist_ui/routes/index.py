@@ -44,6 +44,10 @@ def index() -> ResponseReturnValue:
     # Remove the survey_result if it exists
     remove_model_from_session("survey_result")
 
+    # Reset the rerouted flag in the session
+    if "rerouted" in session:
+        session["rerouted"] = False
+
     return render_template(
         "index.html", survey_title=app.survey_title, show_intro=app.survey_intro
     )

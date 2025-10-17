@@ -460,6 +460,10 @@ def check_route_on_response(
         # Apply routing if the user value matches this rule
         if user_value == expected_value:
             if expected_route in allowed_routes:
+                # Record that a reroute has occurred.
+                # This can be used to drive logic elsewhere
+                # e.g. tailor user feedback
+                session["rerouted"] = True
                 return "survey.summary"
             else:
                 logger.error(
