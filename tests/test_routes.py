@@ -8,7 +8,7 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
-from flask import current_app
+from flask import current_app, url_for
 
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import FIRST_QUESTION
@@ -295,24 +295,46 @@ def test_survey_assist_consent(granted_access, mock_survey_assist) -> None:
 
 
 @pytest.mark.route
-def test_survey_summary(granted_access, mock_survey_iteration) -> None:
-    """Tests that the survey summary route returns a 200 OK response.
+@pytest.mark.parametrize("summary_enabled", [True, False])
+def test_survey_summary_param(
+    granted_access, mock_survey_iteration, summary_enabled
+) -> None:
+    """Tests the survey summary route for both enabled and disabled states.
 
     Args:
         granted_access: Flask test client fixture.
         mock_survey_iteration: Mocked survey iteration data.
+        summary_enabled: Boolean flag for whether survey_summary is enabled.
     """
     route_text = "summary"
 
+    # Cast current_app to your custom Flask type
+    app: SurveyAssistFlask = current_app  # type: ignore
+    app.survey_summary = summary_enabled
+
+    # Inject the mock survey iteration into session
     with granted_access.session_transaction() as sess:
         sess["survey_iteration"] = mock_survey_iteration
         sess.modified = True
 
-    response = granted_access.get("/" + route_text)
-    assert response.status_code == HTTPStatus.OK, "{route_text} should return 200 OK"
-    assert (
-        b"Summary" in response.data
-    ), "{route_text} page should contain 'Summary' text"
+    # Make the GET request without following redirects
+    response = granted_access.get("/" + route_text, follow_redirects=False)
+
+    if summary_enabled:
+        # Summary is enabled → should return 200 OK with summary content
+        assert (
+            response.status_code == HTTPStatus.OK
+        ), f"{route_text} should return 200 OK"
+        assert (
+            b"Summary" in response.data
+        ), f"{route_text} page should contain 'Summary' text"
+    else:
+        # Summary is disabled → should redirect to survey_result
+        assert response.status_code in (
+            HTTPStatus.FOUND,
+            HTTPStatus.SEE_OTHER,
+        ), f"{route_text} should redirect when survey summary is disabled"
+        assert response.headers["Location"].endswith(url_for("survey.survey_result"))
 
 
 @pytest.mark.route

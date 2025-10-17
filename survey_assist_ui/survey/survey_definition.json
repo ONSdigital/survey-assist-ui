@@ -4,6 +4,9 @@
   "survey_intro": {
     "enabled": true 
   },
+  "survey_summary":{
+    "enabled": false
+  },
   "questions": [
     {
       "question_id": "q0",

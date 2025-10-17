@@ -299,6 +299,11 @@ def summary():
                 + current_app.survey_assist["question_assist_label"]
             )
 
+    # If survey summary is not enabled then skip showing the summary page
+    if current_app.survey_summary is False:
+        logger.debug("Survey summary disabled, redirecting to survey_result")
+        return redirect(url_for("survey.survey_result"))
+
     return render_template("summary_template.html", questions=survey_questions)
 
 
