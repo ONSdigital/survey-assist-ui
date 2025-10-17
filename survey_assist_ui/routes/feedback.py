@@ -202,7 +202,6 @@ def update_feedback_and_redirect(
     app = cast(SurveyAssistFlask, current_app)
     feedback_data = app.feedback
 
-    logger.info(f"Updating feedback for question: {value}")
     # Index into the current feedback question
     questions = get_feedback_questions(feedback_data)
     question_index = get_current_feedback_index(session, questions)
