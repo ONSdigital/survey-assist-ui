@@ -350,12 +350,12 @@ def thank_you():
     else:
         # No feedback, no reroute, no incentive message
         # This is the tahnk you at the end of the first
-        # part of the survey
+        # part of the survey    
         incentive_msg = False
 
     return render_template(
         "thank_you.html",
         survey=app.survey_title,
         show_feedback=app.show_feedback,
-        incentive_msg=incentive_msg,
+        incentive_msg=incentive_msg
     )
