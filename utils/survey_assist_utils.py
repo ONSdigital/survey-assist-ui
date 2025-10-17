@@ -24,6 +24,7 @@ from utils.session_utils import (
     add_follow_up_to_latest_classify,
     add_question_to_survey,
     get_person_id,
+    update_end_time_of_classify_result,
 )
 
 # This is temporary, will be changed to configurable in the future
@@ -279,15 +280,21 @@ def classify_and_handle_followup(
     )
 
     if not followup_questions:
-        logger.info(
-            "No follow-up questions available, redirecting to question template."
-        )
-        return redirect(url_for("survey.question_template"))
+        logger.info("Classified without requiring follow-up, dynamic questions skipped")
+        update_end_time_of_classify_result()
+
+        # Increment to the next question
+        session["current_question_index"] += 1
+        session.modified = True
+        return redirect(url_for("survey.survey"))
 
     question = get_next_followup(followup_questions, FOLLOW_UP_TYPE)
     if not question:
-        logger.info("No follow-up question found, redirecting to question template.")
-        return redirect(url_for("survey.question_template"))
+        logger.warning("No follow-up question found, skip to core questions.")
+        # Increment to the next question
+        session["current_question_index"] += 1
+        session.modified = True
+        return redirect(url_for("survey.survey"))
 
     question_text, question_data = question
 

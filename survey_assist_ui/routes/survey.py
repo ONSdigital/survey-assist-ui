@@ -314,6 +314,9 @@ def survey_result():
     """
     sr = session.get("survey_result")
 
+    # Update the end time of the survey result
+    sr["time_end"] = datetime.now(timezone.utc)
+
     result = translate_session_to_model(sr)
 
     response = result_sic_only(result)

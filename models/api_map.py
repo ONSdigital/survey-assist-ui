@@ -78,7 +78,8 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         "follow_up": {"questions": []},
     }
 
-    if not api_response.get("classified", False):
+    logger.info(f"Classification response - classified: {results[0].get('classified')}")
+    if results[0].get("classified") is not True:
         # There is a choice of classifications, create follow-up question
         # list which will be a text based question and a select based question
         if results[0].get("followup"):
@@ -95,8 +96,4 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             follow_up["questions"].append(
                 create_follow_up_question(results[0], "f1.2", "select", select_options)
             )
-    else:
-        # Classification is set to True
-        # Currently not implemented in Survey Assist prompt
-        logger.error("/classify returned: classified (true) - must add support!")
     return internal_representation

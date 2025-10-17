@@ -28,6 +28,7 @@ from utils.session_utils import (
     add_question_to_survey,
     add_sic_lookup_interaction,
     get_person_id,
+    update_end_time_of_survey_response,
 )
 from utils.survey_assist_utils import (
     FOLLOW_UP_TYPE,
@@ -230,6 +231,11 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
     else:
         route = next_route
         logger.debug(f"Rerouting to {route} in update session and redirect")
+        if route != "survey.survey":
+            # Routing away from the survey
+            # Update the end time for the survey result
+            update_end_time_of_survey_response()
+
     return redirect(url_for(route))
 
 
@@ -257,7 +263,12 @@ def get_question_routing(
             response_name = question["response_name"]
             # If the question is the last in the list, redirect to summary
             # else redirect to the next question
-            route = "survey.summary" if i == len(questions) - 1 else "survey.survey"
+            if i == len(questions) - 1:
+                # Update the end time for the survey result
+                update_end_time_of_survey_response()
+                route = "survey.summary"
+            else:
+                route = "survey.survey"
             return response_name, route
     raise ValueError(f"Question name '{question_name}' not found in questions.")
 
