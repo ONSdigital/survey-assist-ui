@@ -2,6 +2,7 @@
 {% from "components/button/_macro.njk" import onsButton %}
 {% from "components/radios/_macro.njk" import onsRadios %}
 {% from "components/input/_macro.njk" import onsInput %}
+{% from "components/textarea/_macro.njk" import onsTextarea %}
 {% from "components/question/_macro.njk" import onsQuestion %}
 {%
     set pageConfig = {
@@ -74,6 +75,21 @@
             "searchButton": false,
             "attributes": { "required": true }
             }) }}
+        {% elif response_type == "textarea" %}
+            {{
+            onsTextarea({
+                "id": response_name,
+                "name": response_name,
+                "width": "30",
+                "charCheckLimit": {
+                    "limit": 200,
+                    "charCountSingular": "You have {x} character remaining",
+                    "charCountPlural": "You have {x} characters remaining",
+                    "charCountOverLimitSingular": "{x} character too many",
+                    "charCountOverLimitPlural": "{x} characters too many"
+                }
+            })
+            }}
         {% endif %}
         {% endcall %}
         

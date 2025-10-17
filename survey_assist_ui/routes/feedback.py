@@ -221,6 +221,8 @@ def update_feedback_and_redirect(
         texts = get_list_of_option_text(opts)
         if texts:
             feedback_q["response_options"] = texts
+    else:
+        feedback_q["response_options"] = []
 
     feedback_resp = session.get("feedback_response")
     if not isinstance(feedback_resp, dict) or not isinstance(

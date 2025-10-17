@@ -392,7 +392,7 @@ def test_first_feedback_question(granted_access, mock_feedback) -> None:
 
         mock_feedback_questions = mock_feedback.get("questions")
 
-        expected_text = mock_feedback_questions[0]["question_text"]
+        expected_text = mock_feedback_questions[FIRST_QUESTION]["question_text"]
         assert (
             expected_text.encode() in response.data
         ), "Feedback page should contain the first question text"
@@ -405,6 +405,42 @@ def test_first_feedback_question(granted_access, mock_feedback) -> None:
         with granted_access.session_transaction() as sess:
             assert "current_feedback_index" in sess
             assert sess["current_feedback_index"] == FIRST_QUESTION
+
+
+@pytest.mark.route
+def test_last_feedback_question(granted_access, mock_feedback) -> None:
+    """Tests that the feedback route contains correct text
+    for the last feedback question and returns a 200 OK response.
+
+    Args:
+        granted_access: Flask test client fixture.
+        mock_feedback: Mocked feedback to simulate survey data.
+    """
+    app = cast(SurveyAssistFlask, current_app)
+
+    with patch.object(app, "feedback", mock_feedback):
+        with granted_access.session_transaction() as sess:
+            # Point to last question
+            last_question_index = len(mock_feedback.get("questions", [])) - 1
+            sess["current_feedback_index"] = last_question_index
+
+        response = granted_access.get("/feedback")
+
+        mock_feedback_questions = mock_feedback.get("questions")
+
+        expected_text = mock_feedback_questions[last_question_index]["question_text"]
+        assert (
+            expected_text.encode() in response.data
+        ), "Feedback page should contain the last question text"
+        assert response.status_code == HTTPStatus.OK, "/feedback should return 200 OK"
+        assert (
+            b"Save and continue" in response.data
+        ), "Expected 'Save and continue' in response"
+
+        # Validate session was initialised correctly
+        with granted_access.session_transaction() as sess:
+            assert "current_feedback_index" in sess
+            assert sess["current_feedback_index"] == last_question_index
 
 
 @pytest.mark.route
