@@ -424,8 +424,8 @@ def mock_feedback() -> dict:
                 "justification_text": "<p>Placeholder text</p>",
                 "button_text": "Save and continue",
                 "placeholder_field": "",
-                "used_for_classifications": []
-            }
+                "used_for_classifications": [],
+            },
         ],
         "include_survey_resp": False,
         "survey_responses": [""],
