@@ -372,18 +372,23 @@ def test_returns_current_when_no_route_rules() -> None:
 
 
 @pytest.mark.utils
-def test_routes_to_summary_when_rule_matches_allowed_route() -> None:
-    """It routes to 'survey.summary' when the value matches a rule with the allowed route."""
-    question = _make_question(
-        route_on_response=[{"value": "yes", "route": "survey.summary"}],
-    )
-    current_route = "survey.next-section"
+def test_routes_to_summary_when_rule_matches_allowed_route(app) -> None:
+    """It routes to 'survey.summary' when the value matches a rule with the allowed route
+    and sets the 'rerouted' flag in the session.
+    """
+    with app.app_context():
+        session["rerouted"] = False
+        session.modified = True
+        question = _make_question(
+            route_on_response=[{"value": "yes", "route": "survey.summary"}],
+        )
+        current_route = "survey.next-section"
 
-    result = check_route_on_response(
-        question, user_value="yes", current_route=current_route
-    )
-
-    assert result == "survey.summary"
+        result = check_route_on_response(
+            question, user_value="yes", current_route=current_route
+        )
+        assert session["rerouted"] is True
+        assert result == "survey.summary"
 
 
 @pytest.mark.utils
