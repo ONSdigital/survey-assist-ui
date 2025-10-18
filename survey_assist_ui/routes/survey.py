@@ -29,6 +29,7 @@ from utils.session_utils import (
     FIRST_QUESTION,
     add_follow_up_response_to_classify,
     get_person_id,
+    remove_access_from_session,
     save_model_to_session,
     session_debug,
 )
@@ -338,6 +339,23 @@ def survey_result():
 def thank_you():
     """Render a thank you page to show results were submitted."""
     app = cast(SurveyAssistFlask, current_app)
+
+    if session.get("rerouted") is True:
+        # Reroute before feedback, say thank you
+        # and show incentive message
+        remove_access_from_session()
+        session["rerouted"] = False
+        session.modified = True
+        incentive_msg = True
+    else:
+        # No feedback, no reroute, no incentive message
+        # This is the tahnk you at the end of the first
+        # part of the survey
+        incentive_msg = False
+
     return render_template(
-        "thank_you.html", survey=app.survey_title, show_feedback=app.show_feedback
+        "thank_you.html",
+        survey=app.survey_title,
+        show_feedback=app.show_feedback,
+        incentive_msg=incentive_msg,
     )
