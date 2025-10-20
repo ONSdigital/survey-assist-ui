@@ -245,6 +245,7 @@ def update_feedback_and_redirect(
 @feedback_blueprint.route("/feedback_thank_you")
 def feedback_thank_you():
     """Send the feedback and render a thank you page to show results were submitted."""
+    app = cast(SurveyAssistFlask, current_app)
     if not send_feedback():
         # Error sending feedback
         logger.error("UI - error sending feedback")
@@ -258,4 +259,4 @@ def feedback_thank_you():
     if "current_feedback_index" in session:
         session["current_feedback_index"] = 0
 
-    return render_template("feedback_thank_you.html")
+    return render_template("feedback_thank_you.html", survey=app.survey_title)

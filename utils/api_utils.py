@@ -33,7 +33,7 @@ from models.result import (
     PotentialDivision,
 )
 
-API_TIMER_SEC = 10
+API_TIMER_SEC = 20
 logger = get_logger(__name__, level="DEBUG")
 
 

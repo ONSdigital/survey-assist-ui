@@ -33,21 +33,26 @@
 
 {% block main %}
 {% set button_url = url_for('main.index') %}
-
+{% set extra_text = "<p>People for Research will be in touch with prize draw winners once the survey has closed.</p><p>You may now close the browser.</p>" %}
 {{
     onsPanel({
         "variant": 'success',
         "id": 'success-id',
         "iconType": 'check',
         "body": 'Feedback has been successfully submitted',
-        "spacious": true
+        "spacious": false
     })
 }}
-<br></br>
+<br>
 {{ onsLabel({
-    "text": 'Thank you for providing your feedback, this will help us improve our statistics.',
+    "text": 'Thank you for taking part in the '+survey+' survey.',
     "classes": 'ons-u-mb-l'
 }) }}
+{%if extra_text != "" %}
+{{ onsPanel({
+    "body": extra_text
+}) }}
+{% endif %}
 <p></p>
 {{ onsButton({
     "id": "submit-button",
