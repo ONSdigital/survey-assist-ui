@@ -15,7 +15,6 @@ steps:
     args:
       - '-c'
       - >
-        set -e
         export BACKEND_API_URL=$_BACKEND_API_URL export BACKEND_API_VERSION=v1
         export SA_EMAIL=$_SA_EMAIL
         export VERIFY_API_URL=$_VERIFY_API_URL
