@@ -26,7 +26,8 @@ from models.classify import (
 from unittest.mock import patch
 
 # Patch BEFORE importing the package that runs create_app()
-with patch("utils.api_utils.get_verification_api_id_token", return_value="test-stub-token"):
+with patch("survey_assist_utils.api_token.jwt_utils.generate_jwt", return_value="test-jwt"), \
+     patch("utils.api_utils.get_verification_api_id_token", return_value="test-stub-token"):
     from survey_assist_ui import create_app
 from utils.feedback_utils import _make_feedback_session
 

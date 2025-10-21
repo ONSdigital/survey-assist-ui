@@ -14,16 +14,17 @@ steps:
   - name: gcr.io/$PROJECT_ID/testrunner
     args:
       - '-c'
-      - >
+      - |
         set -e
-        export BACKEND_API_URL=$_BACKEND_API_URL export BACKEND_API_VERSION=v1
+        export BACKEND_API_URL=$_BACKEND_API_URL
+        export BACKEND_API_VERSION=v1
         export SA_EMAIL=$_SA_EMAIL
         export VERIFY_API_URL=$_VERIFY_API_URL
 
         poetry install
 
         make load-design-system-templates
-
+        echo $SA_EMAIL
         make all-tests
 
         poetry version -s > /workspace/version.txt
