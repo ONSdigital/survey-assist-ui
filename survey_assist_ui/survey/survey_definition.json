@@ -250,8 +250,9 @@
   "survey_assist": {
     "enabled": true,
     "question_assist_label": "<br><strong>(Asked by Survey Assist)</strong></br>",
-    "guidance_enabled": true,
-    "guidance_text": "Automated follow-up question.", 
+    "guidance_enabled": true, 
+    "guidance_text": "Automated follow-up question.",
+    "randomise_options": true,
     "consent": {
       "required": false,
       "question_id": "c1",
