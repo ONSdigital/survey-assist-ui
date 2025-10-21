@@ -12,6 +12,7 @@ poetry run python scripts/run_api.py --type sic --action both
 from http import HTTPStatus
 from typing import Any, Optional
 
+import os
 import google.auth
 import requests
 from firestore_otp_verification_api_client import (
@@ -431,6 +432,13 @@ def get_verification_api_id_token(audience: str) -> str:
         RuntimeError: If the `gcloud` CLI is not found in the system PATH.
         subprocess.CalledProcessError: If the subprocess call fails.
     """
+    # Test code!
+    ui_sa_id_token = os.getenv("UI_SA_ID_TOKEN")
+    logger.debug("Looking for UI_SA_ID_TOKEN : " + ui_sa_id_token)
+    if ui_sa_id_token:
+        logger.debug("returning UI SA ID Token from env var...")
+        return ui_sa_id_token
+
     logger.info(f"Aud:{audience}")
     req = Request()
     try:
