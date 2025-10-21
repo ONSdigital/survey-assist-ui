@@ -21,7 +21,7 @@ from firestore_otp_verification_api_client import (
     OtpVerifyResponse,
 )
 from flask import jsonify, redirect, url_for
-from google.auth.exceptions import DefaultCredentialsError
+from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token as oauth_id_token
 from pydantic import ValidationError
@@ -436,7 +436,7 @@ def get_verification_api_id_token(audience: str) -> str:
     try:
         # Works in Cloud Run (metadata) and locally if ADC is a service account.
         return oauth_id_token.fetch_id_token(req, audience)
-    except DefaultCredentialsError:
+    except (DefaultCredentialsError, RefreshError):
         # Likely local user ADC; fallback for local dev
         creds, _project_id = google.auth.default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
