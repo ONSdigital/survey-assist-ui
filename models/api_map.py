@@ -3,6 +3,7 @@
 This module provides functions to convert API responses into the internal model
 format required by Survey Assist, including follow-up question generation.
 """
+
 import random
 from typing import cast
 
