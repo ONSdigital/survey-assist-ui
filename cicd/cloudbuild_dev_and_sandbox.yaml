@@ -24,7 +24,6 @@ steps:
         poetry install
 
         make load-design-system-templates
-        echo $SA_EMAIL
         make all-tests
 
         poetry version -s > /workspace/version.txt
