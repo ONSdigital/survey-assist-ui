@@ -43,7 +43,7 @@ def check_access():
         rendered access page with an error message.
     """
     app = cast(SurveyAssistFlask, current_app)
-    participant_id = request.form.get("participant-id")
+    participant_id = request.form.get("participant-id").upper()
     access_code = format_access_code(request.form.get("access-code"))
 
     logger.debug(f"participant: {participant_id} access code:{mask_otp(access_code)}")
