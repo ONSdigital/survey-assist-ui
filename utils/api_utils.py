@@ -432,12 +432,6 @@ def get_verification_api_id_token(audience: str) -> str:
         RuntimeError: If the `gcloud` CLI is not found in the system PATH.
         subprocess.CalledProcessError: If the subprocess call fails.
     """
-    # Test code!
-    ui_sa_id_token = os.getenv("UI_SA_ID_TOKEN")
-    logger.debug("Looking for UI_SA_ID_TOKEN : " + ui_sa_id_token)
-    if ui_sa_id_token:
-        logger.debug("returning UI SA ID Token from env var...")
-        return ui_sa_id_token
 
     logger.info(f"Aud:{audience}")
     req = Request()
@@ -445,6 +439,13 @@ def get_verification_api_id_token(audience: str) -> str:
         # Works in Cloud Run (metadata) and locally if ADC is a service account.
         return oauth_id_token.fetch_id_token(req, audience)
     except DefaultCredentialsError:
+
+        # First check if a UI SA token has been supplied via UI_SA_ID_TOKEN (e.g. Cloud Build CICD)
+        ui_sa_id_token = os.getenv("UI_SA_ID_TOKEN")
+        if ui_sa_id_token:
+            logger.info("Returning UI SA ID Token from UI_SA_ID_TOKEN env var")
+            return ui_sa_id_token
+
         # Likely local user ADC; fallback for local dev
         creds, _project_id = google.auth.default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
