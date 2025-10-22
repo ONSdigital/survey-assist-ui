@@ -9,10 +9,10 @@ poetry run python scripts/run_api.py --type sic --action classify
 poetry run python scripts/run_api.py --type sic --action both
 """
 
+import os
 from http import HTTPStatus
 from typing import Any, Optional
 
-import os
 import google.auth
 import requests
 from firestore_otp_verification_api_client import (
