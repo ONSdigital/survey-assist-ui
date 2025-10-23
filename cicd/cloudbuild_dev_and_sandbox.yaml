@@ -36,7 +36,9 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - '-c'
-      - 'docker push $_GAR_IMAGE:$(cat /workspace/version.txt)'
+      - |
+        docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
+        docker push $_GAR_IMAGE:latest
     id: Push UI Image Tag Version
     entrypoint: sh
   - name: gcr.io/cloud-builders/docker
