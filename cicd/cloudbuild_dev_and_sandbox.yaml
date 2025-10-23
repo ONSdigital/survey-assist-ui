@@ -30,7 +30,7 @@ steps:
     args:
       - '-c'
       - |
-        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA .
+        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
     id: Build UI Image
     entrypoint: sh
   - name: gcr.io/cloud-builders/docker
@@ -38,6 +38,7 @@ steps:
       - '-c'
       - |
         docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
+        # Update latest tag
         docker push $_GAR_IMAGE:latest
     id: Push UI Image Tag Version
     entrypoint: sh

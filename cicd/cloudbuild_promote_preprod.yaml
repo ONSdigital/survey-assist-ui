@@ -2,27 +2,21 @@ steps:
   - name: gcr.io/$PROJECT_ID/testrunner
     args:
       - '-c'
-      - >
+      - |
         set -e
         echo Pulling image dev image with tag $SHORT_SHA ... 
 
-        docker pull
-        $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA
+        docker pull $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA
 
         echo Tagging pulled image as a release candidate $TAG_NAME ...
 
-        docker tag
-        $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA
-        $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
+        docker tag $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
 
         echo Pushing tagged image to release GAR ...
 
-        docker push
-        $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
+        docker push $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
 
-        gcloud run deploy survey-assist-ui
-        --image=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
-        --region $LOCATION --project $_PREPROD_PROJECT_ID
+        gcloud run deploy survey-assist-ui --image=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME --region $LOCATION --project $_PREPROD_PROJECT_ID
     id: 'Promote release image, Deploy and Run Smoke Tests'
     entrypoint: bash
 timeout: 600s
