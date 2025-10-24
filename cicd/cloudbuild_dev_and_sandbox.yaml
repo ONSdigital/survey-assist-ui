@@ -21,8 +21,11 @@ steps:
         make load-design-system-templates
 
         export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_UI_SA_EMAIL)
-        #make all-tests
-        poetry run pytest --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=80
+        poetry run pytest --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=80 | tee coverage-report.txt
+        if grep -q "FAIL Required test coverage" coverage-report.txt; then
+          echo "ERROR: Target coverage was not reached, stopping pipeline."
+          exit 1
+        fi
 
         poetry version -s > /workspace/version.txt
 
