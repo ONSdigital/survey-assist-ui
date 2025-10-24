@@ -18,11 +18,11 @@
       "response_name": "age-range",
       "response_options": [
         {
-          "id": "age-range-18-24",
+          "id": "age-range-16-24",
           "label": {
-            "text": "18-24"
+            "text": "16-24"
           },
-          "value": "18-24",
+          "value": "16-24",
           "attributes": { "required": true }
         },
         {
@@ -250,8 +250,9 @@
   "survey_assist": {
     "enabled": true,
     "question_assist_label": "<br><strong>(Asked by Survey Assist)</strong></br>",
-    "guidance_enabled": true,
-    "guidance_text": "Automated follow-up question.", 
+    "guidance_enabled": true, 
+    "guidance_text": "Automated follow-up question.",
+    "randomise_options": true,
     "consent": {
       "required": false,
       "question_id": "c1",
@@ -279,7 +280,7 @@
       ],
       "justification_enabled": true,
       "justification_title": "Why am I being asked an automated follow-up question?",
-      "justification_text": "<p>You are only asked an automated follow-up question when we need clarity on your previous answers. By providing an answer you will help us improve the accuracy of our statistics.</p><p>You can choose to answer, give feedback on, or skip automated follow-up questions.</p><p>There is a small risk that automated follow-up questions will be inaccurate, offensive or ask for personal information. If that happens, please skip the question and give your feedback so we can improve the tool.</p><p>The AI tool uses an LLM (large language model) called Google Gemini that generates the automated follow-up questions. Your data is not stored by Google Gemini and it is not used to train Google AI models. It is only used once, for the specific purpose of creating the follow up questions.</p>",
+      "justification_text": "<p>Automated follow-up questions are only asked if we need extra information. By answering, you help make our statistics more accurate.</p><p>Sometimes these automated follow-up questions may be confusing or ask for personal details. If that happens, type ‘n/a’ or ‘inappropriate’ into the text box. This helps us improve the tool.</p><p>The automated follow-up questions are created by Google Gemini. This is an AI tool which uses a large language model. Your data is not stored by Google Gemini, and it is not used to train Google’s AI models. It is only used to create the automated follow-up questions. The ONS will receive all data and remain in control of all information you give.</p>",
       "placeholder_reason": "your main job and workplace",
       "max_followup": 2
     },
@@ -475,8 +476,8 @@
         "response_type": "textarea",
         "response_name": "other-feedback",
         "response_options": [],
-        "guidance_enabled": true,
-        "guidance_text": "<p>For instance did you see a long wait before a question was asked?</p><p>If you were asked a dynamic question was it a sensible and clear question to answer?</p><p>What are your thoughts about using AI as part of surveys?</p>",
+        "guidance_enabled": false,
+        "guidance_text": "",
         "justification_enabled": false,
         "justification_title": "Why we ask this question",
         "justification_text": "<p>Placeholder text</p>",

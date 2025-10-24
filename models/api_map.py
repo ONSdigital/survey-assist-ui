@@ -4,7 +4,13 @@ This module provides functions to convert API responses into the internal model
 format required by Survey Assist, including follow-up question generation.
 """
 
+import random
+from typing import cast
+
+from flask import current_app
 from survey_assist_utils.logging import get_logger
+
+from utils.app_types import SurveyAssistFlask
 
 logger = get_logger(__name__, level="DEBUG")
 
@@ -52,6 +58,9 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             "select_options": select_options,
         }
 
+    app = cast(SurveyAssistFlask, current_app)
+    survey_assist = app.survey_assist
+    randomise_options = survey_assist.get("randomise_options", False)
     results = api_response.get("results", [])
     candidates = results[0].get("candidates", [])
 
@@ -91,6 +100,9 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         # Create select follow-up question
         if candidates:
             select_options = [candidate["descriptive"] for candidate in candidates]
+            if randomise_options:
+                logger.debug("Randomising follow-up select options")
+                random.shuffle(select_options)
             select_options.append("None of the above")
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
