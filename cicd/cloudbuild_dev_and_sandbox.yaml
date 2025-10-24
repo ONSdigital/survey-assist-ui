@@ -33,7 +33,7 @@ steps:
 
         docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
         docker push $_GAR_IMAGE:latest
-        docker push $_GAR_IMAGE:$SHORT_SHA'
+        docker push $_GAR_IMAGE:$SHORT_SHA
 
         gcloud run deploy survey-assist-ui --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $_TARGET_PROJECT_ID
     id: Unit Test, Build, Tag and Deploy UI
