@@ -24,36 +24,15 @@ steps:
         make all-tests
 
         poetry version -s > /workspace/version.txt
-    id: Verify Base Tooling Versions and Run All UI Tests
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - '-c'
-      - |
+
         docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
-    id: Build UI Image
-    entrypoint: sh
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - '-c'
-      - |
+
         docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
-        # Update latest tag
         docker push $_GAR_IMAGE:latest
-    id: Push UI Image Tag Version
-    entrypoint: sh
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - '-c'
-      - 'docker push $_GAR_IMAGE:$SHORT_SHA'
-    id: Push UI Image Tag Short SHA
-    entrypoint: sh
-  - name: gcr.io/$PROJECT_ID/testrunner
-    args:
-      - '-c'
-      - |
+        docker push $_GAR_IMAGE:$SHORT_SHA'
+
         gcloud run deploy survey-assist-ui --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $_TARGET_PROJECT_ID
-    id: Deploy Survey Assist UI Image
+    id: Unit Test, Build, Tag and Deploy UI
     entrypoint: bash
 timeout: 600s
 options:
