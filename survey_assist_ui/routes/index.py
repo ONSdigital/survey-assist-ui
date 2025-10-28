@@ -11,7 +11,7 @@ from survey_assist_utils.logging import get_logger
 
 from utils.access_utils import require_access
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import remove_model_from_session, session_debug
+from utils.session_utils import log_route, remove_model_from_session, session_debug
 
 main_blueprint = Blueprint("main", __name__)
 main_blueprint.before_request(require_access)
@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 # Method to render the index page
 @main_blueprint.route("/")
 @session_debug
+@log_route()
 def index() -> ResponseReturnValue:
     """Renders the index page.
 
@@ -30,8 +31,6 @@ def index() -> ResponseReturnValue:
     Returns:
         str: Rendered HTML content of the index page.
     """
-    logger.info("Rendering index page")
-
     app = cast(SurveyAssistFlask, current_app)
 
     if "participant_id" not in session and "access_code" not in session:

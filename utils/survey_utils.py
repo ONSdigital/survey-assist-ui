@@ -46,7 +46,7 @@ number_to_word: dict[int, str] = {
     6: "six",
 }
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 def init_survey_iteration() -> dict:
@@ -127,8 +127,6 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
         survey_iteration = session["survey_iteration"]
         # Set the time start based on the current timestamp
         survey_iteration["time_start"] = datetime.now(timezone.utc)
-        logger.debug("Initialise survey data in update_session_and_redirect")
-        logger.debug(f"Survey Iteration: {survey_iteration}")
         session.modified = True
 
     # Get the current question and take a copy so
@@ -195,7 +193,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
 
                     else:
                         logger.warning(
-                            "No organisation description - SIC lookup skipped"
+                            f"person_id:{get_person_id()} - no org desc, skip /sic-lookup"
                         )
                         lookup_response = None
 
@@ -205,22 +203,23 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                         perform_classification = False
 
                 if perform_classification:
+                    logger.info(
+                        f"person_id:{get_person_id()} - /sic-lookup NOT matched, classify"  # pylint: disable=line-too-long
+                    )
                     app = cast(SurveyAssistFlask, current_app)
                     if app.show_consent:
                         return redirect(url_for("survey.survey_assist_consent"))
                     else:
                         # skip consent screen
-                        logger.debug(
-                            f"Skipping consent screen - app.show_consent {app.show_consent}"
-                        )
-
                         survey_iteration["survey_assist_time_start"] = datetime.now(
                             timezone.utc
                         )
                         session.modified = True
                         return redirect(url_for("survey_assist.survey_assist"))
                 else:
-                    logger.debug("SIC lookup successful, skipping classification")
+                    logger.info(
+                        f"person_id:{get_person_id()} - /sic-lookup match, skip classification. code:{lookup_response.get('code')}"  # pylint: disable=line-too-long
+                    )
                     survey_iteration["survey_assist_time_end"] = datetime.now(
                         timezone.utc
                     )
@@ -236,6 +235,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
             # Update the end time for the survey result
             update_end_time_of_survey_response()
 
+    logger.info(f"person_id:{get_person_id()} saved response for {key}")
     return redirect(url_for(route))
 
 
@@ -294,7 +294,9 @@ def consent_redirect() -> ResponseType:
     # Get the form value for survey_assist_consent
     consent_response = request.form.get("survey-assist-consent")
 
-    logger.info(f"Consent response: {consent_response}")
+    logger.info(
+        f"person_id:{get_person_id()} consent response: {consent_response}"
+    )
 
     questions: list[dict[str, Any]] = survey_iteration["questions"]
 
@@ -346,17 +348,12 @@ def followup_redirect() -> ResponseType | str:
     # Get the current core question and list of interactions
     current_question = questions[session["current_question_index"]]
     interactions = survey_assist.get("interactions", [])
-    cqi = current_question.get("question_id")
-
-    debug_text = f"cq: {current_question} interactions: {interactions} len: {len(interactions)} cqi: {cqi}"  # pylint: disable=line-too-long
-    logger.debug(debug_text)
 
     # If the current question has an associated interaction and there
     # are interactions to process
     if len(interactions) > 0 and current_question.get("question_id") == interactions[
         0
     ].get("after_question_id"):
-        logger.debug(f"follow up length: {len(session.get('follow_up', []))}")
         # Check if the session has follow-up questions
         if "follow_up" in session and FOLLOW_UP_TYPE == "both":
             follow_up = session["follow_up"]
@@ -403,10 +400,13 @@ def followup_redirect() -> ResponseType | str:
                         question_dict=question_dict
                     )
 
+                    logger.info(
+                        f"person_id:{get_person_id()} - rendering follow-up question: {question_dict['question_name']}"  # pylint: disable=line-too-long
+                    )
                     return render_template("question_template.html", **question_dict)
                 else:
                     logger.error(
-                        f"Interaction {interactions[0].get("param")} is yet to be supported"
+                        f"person_id:{get_person_id()} - interaction {interactions[0].get("param")} is yet to be supported"  # pylint: disable=line-too-long
                     )
 
         # No more follow up questions, redirect to the next core question
@@ -453,7 +453,7 @@ def check_route_on_response(
         # Check for invalid configuration
         if expected_value not in valid_values:
             logger.error(
-                f"Invalid route_on_response: value '{expected_value}' not in response_options for question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
+                f"person_id:{get_person_id()} - invalid route_on_response: value '{expected_value}' not in response_options for question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
             )
             return current_route
 
@@ -467,7 +467,7 @@ def check_route_on_response(
                 return "survey.summary"
             else:
                 logger.error(
-                    f"Invalid route_on_response: route '{expected_route}' is not allowed for value '{expected_value}' on question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
+                    f"person_id:{get_person_id()} - invalid route_on_response: route '{expected_route}' is not allowed for value '{expected_value}' on question '{question.get("question_id")}'. Route unchanged."  # pylint: disable=line-too-long
                 )
                 return current_route
 

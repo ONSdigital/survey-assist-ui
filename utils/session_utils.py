@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Optional, TypeVar, Union
 
-from flask import current_app, session
+from flask import current_app, request, session
 from flask.sessions import SecureCookieSessionInterface
 from pydantic import BaseModel
 from survey_assist_utils.logging import get_logger
@@ -26,9 +26,52 @@ from utils.api_utils import map_to_lookup_response
 
 T = TypeVar("T", bound=BaseModel)
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
+
+
+def log_route(participant_override: str | None = None):
+    """Decorator to log request and response details for a Flask route.
+
+    Logs participant ID, HTTP method, route endpoint, and response status code.
+
+    Args:
+        participant_override (str | None): Optional value to override the participant ID.
+            Use this when the participant_id isn't yet available in session (e.g. /check_access).
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped_view(*args, **kwargs):
+            # Execute the actual route handler
+            response = view_func(*args, **kwargs)
+
+            # Resolve participant_id
+            participant_id = (
+                participant_override if participant_override else get_person_id()
+            )
+
+            # Extract route and status
+            route = request.path
+            method = request.method
+            status_code = (
+                response.status_code
+                if hasattr(response, "status_code")
+                else 200  # default
+            )
+
+            # Log in a consistent structured format
+            logger.info(
+                f"person_id={participant_id} method={method} "
+                f"route={route} status={status_code}"
+            )
+
+            return response
+
+        return wrapped_view
+
+    return decorator
 
 
 def session_debug(f: Callable) -> Callable:
@@ -209,13 +252,11 @@ def update_classify_end_time(response: GenericResponse) -> None:
         if not isinstance(interaction.response, list):
             continue
 
-        logger.info(f"Before update: {interaction.time_end} ")
         # Update the end_time associated with the classification
         # now that the user has answered questions.  The last time
         # this is accessed will be the time that the final
         # classification related question is answered.
         interaction.time_end = datetime.now(timezone.utc)
-        logger.info(f"After update: {interaction.time_end} ")
 
 
 def update_end_time_of_classify_result() -> None:
@@ -651,12 +692,13 @@ def _set_response_on_question_list(
     return False
 
 
-def get_person_id(default: str = "participant_session_error") -> str:
+def get_person_id(default: str = "participant_not_found") -> str:
     """Return the person ID from the session, or a default error string if missing.
 
     Retrieves the participant ID from the Flask session and appends '-01' to it.
-    If the participant ID is not found in the session, logs an error and returns
-    a default error string with '-01' appended.
+    If the participant ID is not found in the session, logs a warning and returns
+    a default string with '-01' appended. Note: This can occur if the participant
+    did not have employment and the survey rerouted them before feedback.
 
     Note: For the first iteration of the survey there will only ever be a single respondent,
     hence "-01".
@@ -670,7 +712,7 @@ def get_person_id(default: str = "participant_session_error") -> str:
     participant_id = session.get("participant_id")
 
     if participant_id is None:
-        logger.error("participant_id not found in session, defaulting")
+        logger.warning("participant_id not found in session, defaulting")
         return f"{default}-01"
 
     return f"{participant_id}-01"

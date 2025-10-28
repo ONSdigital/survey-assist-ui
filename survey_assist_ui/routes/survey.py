@@ -29,6 +29,7 @@ from utils.session_utils import (
     FIRST_QUESTION,
     add_follow_up_response_to_classify,
     get_person_id,
+    log_route,
     remove_access_from_session,
     save_model_to_session,
     session_debug,
@@ -47,10 +48,11 @@ survey_blueprint = Blueprint("survey", __name__)
 survey_blueprint.before_request(require_access)
 
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 @survey_blueprint.route("/intro", methods=["GET"])
+@log_route()
 def intro():
     """Handles displaying an intro page prior to the survey."""
     app = cast(SurveyAssistFlask, current_app)
@@ -60,6 +62,7 @@ def intro():
 # Generic route to handle survey questions
 @survey_blueprint.route("/survey", methods=["GET", "POST"])
 @session_debug
+@log_route()
 def survey() -> str:
     """Handles the generic survey question page for the Survey Assist UI.
 
@@ -145,6 +148,7 @@ def survey() -> str:
 # next question or interaction.
 @survey_blueprint.route("/save_response", methods=["POST"])
 @session_debug
+@log_route()
 def save_response() -> ResponseType | str | tuple[str, int]:
     """Saves the response to the current survey question or interaction and redirects appropriately.
 
@@ -168,23 +172,24 @@ def save_response() -> ResponseType | str | tuple[str, int]:
     }
 
     question = request.form.get("question_name")
+    question_name = question  # Store original question name for logs
     if question is None:
         raise ValueError("Missing form field: 'question_name'")
 
-    logger.debug(f"Question: {question}")
     # If the question is not consent or a follow up question from Survey Assist,
     # then get the routing for the normal survey question
     if question not in [
         "survey_assist_consent",
         "follow_up_question",
-        "survey_assist_followup",
+        "survey_assist_followup_1",
+        "survey_assist_followup_2",
     ]:
         routing = get_question_routing(question, questions)
         question = "core_question"
 
     # If the question is a follow up question from Survey Assist, then add
     # the user's response to the question to the session data
-    if question == "survey_assist_followup":
+    if question.startswith("survey_assist_followup"):
         # get survey data
         survey_data = session.get("survey_iteration")
         if survey_data is None:
@@ -198,10 +203,15 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         last_question["response"] = request.form.get(last_question["response_name"])
 
         user_id = get_person_id()
-        logger.info("Saving response against follow_up, questions")
         add_follow_up_response_to_classify(
             last_question["question_id"], last_question["response"], user_id
         )
+        # The followup questions perform the same action
+        question = "survey_assist_followup"
+
+    logger.info(
+        f"person_id:{get_person_id()} question: {question_name} action: {question}"
+    )
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})
@@ -215,6 +225,7 @@ def save_response() -> ResponseType | str | tuple[str, int]:
 
 @survey_blueprint.route("/survey_assist_consent")
 @session_debug
+@log_route()
 def survey_assist_consent() -> str:
     """Renders the Survey Assist consent page, replacing placeholders as needed.
 
@@ -264,6 +275,7 @@ def survey_assist_consent() -> str:
 # dictionary. The data is then displayed in a summary template
 @survey_blueprint.route("/summary")
 @session_debug
+@log_route()
 def summary():
     """Summarises the survey data entered by the user and displays it in a summary template.
 
@@ -271,12 +283,10 @@ def summary():
         str: Rendered HTML for the summary page.
     """
     survey_data = session.get("survey_iteration")
-    logger.warning(f"Survey iteration: {survey_data}")
     survey_questions = survey_data["questions"]
 
-    logger.debug(f"Survey Questions: {survey_questions}")
     if survey_data["time_start"] is None:
-        logger.warning("time_start is not set")
+        logger.warning(f"person_id:{get_person_id()} - time_start is not set")
 
     # Calculate the time_end based on the current timestamp
     survey_data["time_end"] = datetime.now(timezone.utc)
@@ -302,7 +312,6 @@ def summary():
 
     # If survey summary is not enabled then skip showing the summary page
     if current_app.survey_summary is False:
-        logger.debug("Survey summary disabled, redirecting to survey_result")
         return redirect(url_for("survey.survey_result"))
 
     return render_template("summary_template.html", questions=survey_questions)
@@ -312,6 +321,7 @@ def summary():
 # survey assist API.
 @survey_blueprint.route("/survey_result")
 @session_debug
+@log_route()
 def survey_result():
     """Maps the session result to the API result body and makes API request.
 
@@ -330,12 +340,13 @@ def survey_result():
     if response:
         return redirect(url_for("survey.thank_you"))
     else:
-        logger.error("Error saving survey result")
+        logger.error(f"person_id:{get_person_id()} error saving survey result")
         # Will add error splash in later PR
         return redirect(url_for("survey.thank_you"))
 
 
 @survey_blueprint.route("/thank_you")
+@log_route()
 def thank_you():
     """Render a thank you page to show results were submitted."""
     app = cast(SurveyAssistFlask, current_app)
@@ -343,6 +354,7 @@ def thank_you():
     if session.get("rerouted") is True:
         # Reroute before feedback, say thank you
         # and show incentive message
+        logger.info(f"person_id:{get_person_id()} - rerouted no employment, skip feedback")
         remove_access_from_session()
         session["rerouted"] = False
         session.modified = True

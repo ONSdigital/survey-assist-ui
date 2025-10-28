@@ -11,7 +11,7 @@ from survey_assist_utils.logging import get_logger
 from utils.access_utils import format_access_code, validate_access
 from utils.api_utils import mask_otp
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import session_debug
+from utils.session_utils import log_route, session_debug
 
 access_blueprint = Blueprint("access", __name__)
 
@@ -20,6 +20,7 @@ logger = get_logger(__name__, "DEBUG")
 
 @access_blueprint.route("/access", methods=["GET"])
 @session_debug
+@log_route(participant_override="unavailable")
 def access():
     """Renders the access page.
 
@@ -31,6 +32,7 @@ def access():
 
 
 @access_blueprint.route("/check_access", methods=["POST"])
+@log_route(participant_override="unavailable")
 def check_access():
     """Checks participant access credentials and redirects accordingly.
 
@@ -46,13 +48,15 @@ def check_access():
     participant_id = request.form.get("participant-id").upper()
     access_code = format_access_code(request.form.get("access-code"))
 
-    logger.debug(f"participant: {participant_id} access code:{mask_otp(access_code)}")
+    logger.debug(
+        f"participant_id:{participant_id} access code:{mask_otp(access_code)}"
+    )
     valid, error = validate_access(participant_id, access_code)
     if valid:
         session["participant_id"] = participant_id
         session["access_code"] = access_code
         session.modified = True
-        logger.info(f"id: {participant_id} survey accessed")
+        logger.info(f"participant_id:{participant_id} survey accessed")
         return redirect("/")
     else:
         return render_template(
