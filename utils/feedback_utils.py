@@ -14,8 +14,9 @@ from survey_assist_utils.logging import get_logger
 
 from models.feedback import FeedbackResult, FeedbackResultResponse
 from utils.app_types import SurveyAssistFlask
+from utils.session_utils import get_person_id
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 class FeedbackSession(TypedDict):
@@ -191,7 +192,6 @@ def init_feedback_session(
     ) and isinstance(raw.get("questions"), list):
         return cast(FeedbackSession, raw)
 
-    logger.debug("make session")
     fs = _make_feedback_session(case_id, person_id, survey_id, wave_id)
     session[key] = fs
     session.modified = True
@@ -260,7 +260,9 @@ def map_feedback_result_from_session() -> FeedbackResult | None:
     try:
         raw = cast(FeedbackSession, session["feedback_response"])
     except KeyError:
-        logger.error("feedback_response not found in session")
+        logger.error(
+            f"person_id:{get_person_id()} - feedback_response not found in session"
+        )
         # Not present in session
         return None
 
@@ -268,7 +270,7 @@ def map_feedback_result_from_session() -> FeedbackResult | None:
         return feedback_session_to_model(raw)
     except ValidationError as e:
         # Log and return None
-        logger.error(f"Invalid feedback session: {e}")
+        logger.error(f"person_id:{get_person_id()} - Invalid feedback session: {e}")
         return None
 
 
@@ -293,6 +295,9 @@ def send_feedback_result(result: FeedbackResult) -> FeedbackResultResponse | Non
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+    logger.info(
+        f"person_id:{get_person_id()} - send /feedback result"  # pylint: disable=line-too-long
+    )
     response = api_client.post(
         "/survey-assist/feedback",
         body=result.model_dump(mode="json"),
@@ -300,7 +305,21 @@ def send_feedback_result(result: FeedbackResult) -> FeedbackResultResponse | Non
 
     try:
         validated_response = FeedbackResultResponse.model_validate(response)
+
+        feedback_id = validated_response.feedback_id
+
+        if feedback_id:
+            logger.info(
+                f"person_id:{get_person_id()} - feedback result saved: {feedback_id}"  # pylint: disable=line-too-long
+            )
+        else:
+            logger.warning(
+                f"person_id:{get_person_id()} - Feedback response did not include a feedback_id."  # pylint: disable=line-too-long
+            )
         return validated_response
+
     except ValidationError as e:
-        logger.error(f"Validation error in result response: {e}")
+        logger.error(
+            f"person_id:{get_person_id()} - validation error in result response: {e}"
+        )
         return None

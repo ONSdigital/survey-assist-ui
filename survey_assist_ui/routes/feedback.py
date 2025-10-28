@@ -32,6 +32,8 @@ from utils.feedback_utils import (
 )
 from utils.session_utils import (
     FIRST_QUESTION,
+    get_person_id,
+    log_route,
     remove_access_from_session,
     remove_model_from_session,
     session_debug,
@@ -41,10 +43,11 @@ from utils.survey_utils import number_to_word
 feedback_blueprint = Blueprint("feedback", __name__)
 feedback_blueprint.before_request(require_access)
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 @feedback_blueprint.route("/feedback_intro", methods=["GET"])
+@log_route()
 def intro():
     """Handles displaying an intro page prior to the feedback."""
     app = cast(SurveyAssistFlask, current_app)
@@ -59,6 +62,7 @@ def intro():
 # Generic route to handle feedback questions
 @feedback_blueprint.route("/feedback", methods=["GET", "POST"])
 @session_debug
+@log_route()
 def feedback() -> str:
     """Handles the generic feedback question page for the Survey Assist UI.
 
@@ -80,7 +84,7 @@ def feedback() -> str:
             if responses:
                 person_id = responses[0].get("person_id", "error_person_id")
             else:
-                logger.error("Responses not found for feedback")
+                logger.error(f"_id: {get_person_id()} responses not found for feedback")
                 person_id = "error_responses"
 
             init_feedback_session(
@@ -90,7 +94,9 @@ def feedback() -> str:
                 wave_id=app.wave_id,
             )
         else:
-            logger.error("survey_result not found for feedback")
+            logger.error(
+                f"person_id:{get_person_id()} survey_result not found for feedback"
+            )
 
         # We need to clean the session
         # - copy any data from the survey section that is
@@ -127,6 +133,7 @@ def feedback() -> str:
 
 @feedback_blueprint.route("/feedback_response", methods=["POST"])
 @session_debug
+@log_route()
 def feedback_response() -> ResponseType | str | tuple[str, int]:
     """Saves the response to the current feedback question and redirects appropriately.
 
@@ -143,14 +150,18 @@ def feedback_response() -> ResponseType | str | tuple[str, int]:
     }
 
     question = request.form.get("question_name")
+    feedback_name = question  # Store original name for logs
     if question is None:
         raise ValueError("Missing form field: 'question_name'")
 
-    logger.debug(f"Feedback Question: {question}")
     value, route = get_feedback_routing(
         question_name=question, questions=feedback_data.get("questions", [])
     )
     question = "feedback_question"
+
+    logger.info(
+        f"person_id:{get_person_id()} feedback question: {feedback_name} action: {question}"
+    )
 
     if question in actions:
         return actions[question]()
@@ -239,16 +250,19 @@ def update_feedback_and_redirect(
     session["current_feedback_index"] = question_index + 1
     session.modified = True
 
+    logger.info(f"person_id:{get_person_id()} saved response for {response_name}")
+
     return redirect(url_for(route))
 
 
 @feedback_blueprint.route("/feedback_thank_you")
+@log_route("removed_access")
 def feedback_thank_you():
     """Send the feedback and render a thank you page to show results were submitted."""
     app = cast(SurveyAssistFlask, current_app)
     if not send_feedback():
         # Error sending feedback
-        logger.error("UI - error sending feedback")
+        logger.error(f"person_id:{get_person_id()} - error sending feedback")
         logger.warning("TBD - Error handling. Clean Feedback Session Data")
 
     remove_model_from_session("feedback_response")

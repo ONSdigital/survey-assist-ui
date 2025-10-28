@@ -19,7 +19,7 @@ from utils.api_utils import (
 )
 from utils.app_types import SurveyAssistFlask
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 FILENAME = "example_access.csv"
 
@@ -48,11 +48,11 @@ def validate_access(access_id: str, access_code: str) -> tuple[bool, str]:
             return True, ""
         else:
             logger.warning(
-                f"Validation unsuccessful for id: {access_id} - {verify_resp.message}"
+                f"Validation unsuccessful for participant_id:{access_id} - {verify_resp.message}"
             )
             return False, error_string
     except RuntimeError as e:
-        logger.warning(f"Error validating user: {e}")
+        logger.warning(f"participant_id:{access_id} error validating user: {e}")
     return False, "Error in validation module"
 
 
@@ -68,7 +68,7 @@ def delete_access(access_id: str) -> tuple[bool, str]:
     logger.debug(f"Delete access for {access_id}")
     error_string = f"Invalid id {access_id}. Not deleted."
     if not access_id:
-        logger.warning("Access id not set. Not deleted.")
+        logger.error("Access id not set. Not deleted.")
         return False, "ID not set in session"
     try:
         app = cast(SurveyAssistFlask, current_app)
@@ -76,15 +76,15 @@ def delete_access(access_id: str) -> tuple[bool, str]:
         delete_resp = verify_service.delete(id_str=access_id)
 
         if delete_resp.deleted is True:
-            logger.info(f"Access code deleted for id:{access_id}")
+            logger.info(f"Access code deleted for participant_id:{access_id}")
             return True, ""
         else:
             logger.warning(
-                f"Deletion unsuccessful for id: {access_id} - {delete_resp.message}"
+                f"Deletion unsuccessful for participant_id:{access_id} - {delete_resp.message}"
             )
             return False, error_string
     except RuntimeError as e:
-        logger.warning(f"Error deleting access: {e}")
+        logger.error(f"participant_id:{access_id} error deleting access: {e}")
     return False, "Error in validation module when deleting access code"
 
 

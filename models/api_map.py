@@ -12,7 +12,7 @@ from survey_assist_utils.logging import get_logger
 
 from utils.app_types import SurveyAssistFlask
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 def map_api_response_to_internal(api_response: dict) -> dict:
@@ -26,7 +26,11 @@ def map_api_response_to_internal(api_response: dict) -> dict:
     """
 
     def create_follow_up_question(
-        result: dict, q_id: str, response_type: str, select_options: list
+        result: dict,
+        q_id: str,
+        response_type: str,
+        select_options: list,
+        name: str = "survey_assist_followup",
     ) -> dict:
         """Creates a follow-up question dictionary for the internal model.
 
@@ -35,6 +39,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             q_id (str): The identifier for the follow-up question.
             response_type (str): The type of response expected (e.g., 'text', 'select', 'confirm').
             select_options (list): List of options for select-type questions.
+            name (str): Optional. The name to use for the question.
 
         Returns:
             dict: A dictionary representing the follow-up question.
@@ -53,7 +58,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         return {
             "follow_up_id": q_id,
             "question_text": question_text,
-            "question_name": "survey_assist_followup",
+            "question_name": name,
             "response_type": response_type,
             "select_options": select_options,
         }
@@ -87,25 +92,31 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         "follow_up": {"questions": []},
     }
 
-    logger.info(f"Classification response - classified: {results[0].get('classified')}")
     if results[0].get("classified") is not True:
         # There is a choice of classifications, create follow-up question
         # list which will be a text based question and a select based question
         if results[0].get("followup"):
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
-                create_follow_up_question(results[0], "f1.1", "text", [])
+                create_follow_up_question(
+                    results[0], "f1.1", "text", [], "survey_assist_followup_1"
+                )
             )
 
         # Create select follow-up question
         if candidates:
             select_options = [candidate["descriptive"] for candidate in candidates]
             if randomise_options:
-                logger.debug("Randomising follow-up select options")
                 random.shuffle(select_options)
             select_options.append("None of the above")
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
-                create_follow_up_question(results[0], "f1.2", "select", select_options)
+                create_follow_up_question(
+                    results[0],
+                    "f1.2",
+                    "select",
+                    select_options,
+                    "survey_assist_followup_2",
+                )
             )
     return internal_representation
