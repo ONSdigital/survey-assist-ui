@@ -4,6 +4,7 @@ This module contains tests for the API client, error handling, and HTTP request 
 """
 
 from http import HTTPStatus
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock, patch
 
@@ -349,6 +350,13 @@ def test_send_feedback_returns_none_when_no_body(client) -> None:
     assert out is None
 
 
+# pylint: disable=too-few-public-methods, disable=missing-class-docstring
+class DummyResponse(SimpleNamespace):
+    def model_dump(self, mode: str = "python") -> dict[str, str]:
+        """Return a dict representation (emulates pydantic)."""
+        return {"status": self.status, "feedback_id": self.feedback_id}
+
+
 @pytest.mark.utils
 def test_send_feedback_result_posts_model_dump_and_validates_response(
     client, fake_feedback_model: MagicMock
@@ -359,8 +367,8 @@ def test_send_feedback_result_posts_model_dump_and_validates_response(
         current_app, "api_client", MagicMock()
     ) as api_client, patch("utils.feedback_utils.FeedbackResultResponse") as FRR:
         # API returns raw dict; model_validate then transforms/returns object
-        api_client.post.return_value = {"status": "ok", "id": "fbk_123"}  # type: ignore[attr-defined]
-        FRR.model_validate.return_value = {"status": "ok", "id": "fbk_123"}  # type: ignore[attr-defined]
+        api_client.post.return_value = {"status": "ok", "feedback_id": "fbk_123"}  # type: ignore[attr-defined]
+        FRR.model_validate.return_value = DummyResponse(status="ok", feedback_id="fbk_123")  # type: ignore[attr-defined]
 
         out = send_feedback_result(fake_feedback_model)
 
@@ -368,8 +376,9 @@ def test_send_feedback_result_posts_model_dump_and_validates_response(
     api_client.post.assert_called_once_with(  # type: ignore[attr-defined]
         "/survey-assist/feedback", body={"score": 5, "comment": "great"}
     )
-    FRR.model_validate.assert_called_once_with({"status": "ok", "id": "fbk_123"})  # type: ignore[attr-defined]
-    assert out == {"status": "ok", "id": "fbk_123"}
+    FRR.model_validate.assert_called_once_with({"status": "ok", "feedback_id": "fbk_123"})  # type: ignore[attr-defined]
+    assert out.status == "ok"  # type: ignore[union-attr]
+    assert out.feedback_id == "fbk_123"  # type: ignore[union-attr]
 
 
 @pytest.mark.utils
@@ -430,7 +439,7 @@ def test_verify_success_posts_and_validates_response(
         endpoint="/otp/verify", body={"id": "abc", "otp": "123456"}, return_json=True
     )
     p_mask.assert_called_once_with("123456")
-    mock_api.logger_handle.info.assert_called()  # content checked implicitly by mask call
+    mock_api.logger_handle.debug.assert_called()  # content checked implicitly by mask call
     assert out == expected
 
 
@@ -504,7 +513,7 @@ def test_delete_success_posts_and_validates_response(
     mock_api.post.assert_called_once_with(
         endpoint="/otp/delete", body={"id": "abc"}, return_json=True
     )
-    mock_api.logger_handle.info.assert_called()  # ensures we logged the delete call
+    mock_api.logger_handle.debug.assert_called()  # ensures we logged the delete call
     assert out == {"status": "deleted"}
 
 

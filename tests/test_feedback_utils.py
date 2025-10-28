@@ -521,7 +521,6 @@ def test_creates_when_missing_key_sets_modified_and_stores_in_session(
     assert spy.calls == [("C-1", "P-1", "S-1", "W-1")]
     # Logging expectations
     assert any("init feedback_response in session" in msg for msg in log_capture.infos)
-    assert any("make session" in msg for msg in log_capture.debugs)
 
 
 @pytest.mark.utils
@@ -573,11 +572,6 @@ def test_creates_when_existing_is_invalid_shape(
     assert fake_sess["feedback_response"] == created
     assert fake_sess.modified is True
     assert spy.calls == [("c", "p", "s", "w")]
-
-    # Debug log asserted via the shared log_capture fixture
-    assert any(
-        "make session" in msg.lower() for msg in log_capture.debugs
-    ), "Expected a debug log indicating a new session was created."
 
 
 def test_custom_key_supported(

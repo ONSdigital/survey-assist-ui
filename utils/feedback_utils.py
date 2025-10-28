@@ -270,9 +270,7 @@ def map_feedback_result_from_session() -> FeedbackResult | None:
         return feedback_session_to_model(raw)
     except ValidationError as e:
         # Log and return None
-        logger.error(
-            f"person_id:{get_person_id()} - Invalid feedback session: {e}"
-        )
+        logger.error(f"person_id:{get_person_id()} - Invalid feedback session: {e}")
         return None
 
 

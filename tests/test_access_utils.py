@@ -135,7 +135,10 @@ def test_returns_invalid_credentials_when_verification_fails(client) -> None:
     assert result == (False, "Invalid credentials. Please try again.")
     mock_logger.warning.assert_called()  # type: ignore[attr-defined]
     args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
-    assert "Validation unsuccessful for id: ONS123 - invalid or expired code" in args[0]
+    assert (
+        "Validation unsuccessful for participant_id:ONS123 - invalid or expired code"
+        in args[0]
+    )
     service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
     svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="BADCODE")
 
@@ -158,7 +161,7 @@ def test_returns_module_error_when_service_raises_runtime_error(client) -> None:
     assert result == (False, "Error in validation module")
     mock_logger.warning.assert_called()  # type: ignore[attr-defined]
     args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
-    assert "Error validating user: boom" in args[0]
+    assert "participant_id:ONS123 error validating user: boom" in args[0]
     service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
     svc_inst.verify.assert_called_once_with(id_str="ONS123", otp="ANYCODE")
 
@@ -219,7 +222,10 @@ def test_delete_access_returns_invalid_id_when_service_reports_failure(client) -
     svc_inst.delete.assert_called_once_with(id_str="ONS999")
     mock_logger.warning.assert_called()  # type: ignore[attr-defined]
     args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
-    assert "Deletion unsuccessful for id: ONS999 - not found or expired" in args[0]
+    assert (
+        "Deletion unsuccessful for participant_id:ONS999 - not found or expired"
+        in args[0]
+    )
 
 
 @pytest.mark.utils
@@ -247,9 +253,9 @@ def test_delete_access_returns_module_error_when_service_raises_runtime_error(
     assert out == (False, "Error in validation module when deleting access code")
     service.assert_called_once_with(app.verify_api_client)  # type: ignore[attr-defined]
     svc_inst.delete.assert_called_once_with(id_str="ONS123")
-    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
-    args, _ = mock_logger.warning.call_args  # type: ignore[attr-defined]
-    assert "Error deleting access: boom" in args[0]
+    mock_logger.error.assert_called()  # type: ignore[attr-defined]
+    args, _ = mock_logger.error.call_args  # type: ignore[attr-defined]
+    assert "participant_id:ONS123 error deleting access: boom" in args[0]
 
 
 @pytest.mark.utils
@@ -265,4 +271,4 @@ def test_delete_access_returns_error_when_id_missing(client) -> None:
         out = delete_access(access_id="")
 
     assert out == (False, "ID not set in session")
-    mock_logger.warning.assert_called()  # type: ignore[attr-defined]
+    mock_logger.error.assert_called()  # type: ignore[attr-defined]

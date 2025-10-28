@@ -354,7 +354,9 @@ def thank_you():
     if session.get("rerouted") is True:
         # Reroute before feedback, say thank you
         # and show incentive message
-        logger.info(f"person_id:{get_person_id()} - rerouted no employment, skip feedback")
+        logger.info(
+            f"person_id:{get_person_id()} - rerouted no employment, skip feedback"
+        )
         remove_access_from_session()
         session["rerouted"] = False
         session.modified = True

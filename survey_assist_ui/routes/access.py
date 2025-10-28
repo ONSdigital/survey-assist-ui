@@ -48,9 +48,7 @@ def check_access():
     participant_id = request.form.get("participant-id").upper()
     access_code = format_access_code(request.form.get("access-code"))
 
-    logger.debug(
-        f"participant_id:{participant_id} access code:{mask_otp(access_code)}"
-    )
+    logger.debug(f"participant_id:{participant_id} access code:{mask_otp(access_code)}")
     valid, error = validate_access(participant_id, access_code)
     if valid:
         session["participant_id"] = participant_id

@@ -11,7 +11,6 @@ from flask import current_app
 from survey_assist_utils.logging import get_logger
 
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import get_person_id
 
 logger = get_logger(__name__, level="INFO")
 

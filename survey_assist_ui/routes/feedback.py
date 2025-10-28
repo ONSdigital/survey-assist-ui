@@ -84,9 +84,7 @@ def feedback() -> str:
             if responses:
                 person_id = responses[0].get("person_id", "error_person_id")
             else:
-                logger.error(
-                    f"_id: {get_person_id()} responses not found for feedback"
-                )
+                logger.error(f"_id: {get_person_id()} responses not found for feedback")
                 person_id = "error_responses"
 
             init_feedback_session(
@@ -152,7 +150,7 @@ def feedback_response() -> ResponseType | str | tuple[str, int]:
     }
 
     question = request.form.get("question_name")
-    feedback_name = question # Store original name for logs
+    feedback_name = question  # Store original name for logs
     if question is None:
         raise ValueError("Missing form field: 'question_name'")
 

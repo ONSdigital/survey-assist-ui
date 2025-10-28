@@ -171,6 +171,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                 logger.debug(
                     f"Survey Assist interaction found for question {question_id} and {after_id}",
                 )
+                code = None
 
                 perform_classification = True
                 if matching_interaction.get("type") == "lookup_classification":
@@ -200,6 +201,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                     if lookup_response and lookup_response.get("code"):
                         # If the SIC lookup returns a code skip
                         # classification
+                        code = lookup_response.get("code")
                         perform_classification = False
 
                 if perform_classification:
@@ -218,7 +220,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                         return redirect(url_for("survey_assist.survey_assist"))
                 else:
                     logger.info(
-                        f"person_id:{get_person_id()} - /sic-lookup match, skip classification. code:{lookup_response.get('code')}"  # pylint: disable=line-too-long
+                        f"person_id:{get_person_id()} - /sic-lookup match, skip classification. code:{code}"  # pylint: disable=line-too-long
                     )
                     survey_iteration["survey_assist_time_end"] = datetime.now(
                         timezone.utc
@@ -294,9 +296,7 @@ def consent_redirect() -> ResponseType:
     # Get the form value for survey_assist_consent
     consent_response = request.form.get("survey-assist-consent")
 
-    logger.info(
-        f"person_id:{get_person_id()} consent response: {consent_response}"
-    )
+    logger.info(f"person_id:{get_person_id()} consent response: {consent_response}")
 
     questions: list[dict[str, Any]] = survey_iteration["questions"]
 

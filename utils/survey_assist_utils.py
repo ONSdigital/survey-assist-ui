@@ -287,9 +287,7 @@ def classify_and_handle_followup(
 
     if classification is None:
         # TODO: Handle the error case appropriately, for now skip to next question #pylint: disable=fixme
-        logger.error(
-            f"person_id:{get_person_id()} - classification response was None."
-        )
+        logger.error(f"person_id:{get_person_id()} - classification response was None.")
         return redirect(url_for("survey.question_template"))
 
     mapped_api_response = map_api_response_to_internal(classification.model_dump())
