@@ -355,6 +355,56 @@ def test_thank_you_route(granted_access) -> None:
 
 
 @pytest.mark.route
+def test_cookies_route(granted_access) -> None:
+    """Tests that the cookies route contains survey title and returns a 200 OK response.
+
+    Args:
+        granted_access: Flask test client fixture.
+    """
+    response = granted_access.get("/cookies")
+    expected_text = "Strictly necessary cookies"
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Cookies page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Cookies route should return 200 OK"
+
+
+@pytest.mark.route
+def test_accessibility_route(granted_access) -> None:
+    """Tests that the accessibility route contains survey title and returns a 200 OK response.
+
+    Args:
+        granted_access: Flask test client fixture.
+    """
+    response = granted_access.get("/accessibility")
+    expected_text = "Enforcement procedure"
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Accessibility page should contain '{expected_text}'"
+    assert (
+        response.status_code == HTTPStatus.OK
+    ), "Accessibility route should return 200 OK"
+
+
+@pytest.mark.route
+def test_privacy_route(granted_access) -> None:
+    """Tests that the privacy route contains survey title and returns a 200 OK response.
+
+    Args:
+        granted_access: Flask test client fixture.
+    """
+    response = granted_access.get("/privacy")
+    expected_text = "Following a link to another website"
+
+    assert (
+        expected_text.encode() in response.data
+    ), f"Cookies page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Cookies route should return 200 OK"
+
+
+@pytest.mark.route
 def test_feedback_intro_route(granted_access) -> None:
     """Tests that the feedback intro route contains survey title and returns a 200 OK response.
 
