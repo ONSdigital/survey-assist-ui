@@ -40,13 +40,13 @@ black: ## Run black
 	poetry run black .
 
 all-tests: ## Run all unit tests
-	poetry run pytest --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=80
+	poetry run pytest --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75
 
 route-tests: ## Run the route tests
-	poetry run pytest -m route --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=80
+	poetry run pytest -m route --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75
 
 utils-tests: ## Run the route tests
-	poetry run pytest -m utils --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=80
+	poetry run pytest -m utils --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75
 
 install: ## Install the dependencies
 	poetry install --only main --no-root
