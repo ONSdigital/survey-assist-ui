@@ -653,7 +653,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915, PLR0911
                 )
                 logger.debug(f"{api_response.model_dump()}")
             except ApiException as e:
-                logger.debug(f"Exception when calling GeneralApi->root_get: {e}\n")
+                logger.error(f"Exception when calling GeneralApi->root_get: {e}\n")
         return
 
     if args.action == "delete-otp":

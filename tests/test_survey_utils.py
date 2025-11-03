@@ -393,77 +393,88 @@ def test_routes_to_summary_when_rule_matches_allowed_route(app) -> None:
 
 @pytest.mark.utils
 def test_logs_error_and_returns_current_when_rule_value_not_in_options(
-    log_capture: LogCapture, patch_module_logger
+    app, log_capture: LogCapture, patch_module_logger
 ) -> None:
     """It logs an error and leaves the route unchanged for an invalid rule value."""
-    patch_module_logger(sut, log_capture)
+    with app.app_context():
+        session["participant_id"] = "ONS123"
+        session.modified = True
+        patch_module_logger(sut, log_capture)
 
-    question = _make_question(
-        question_id="eligibility",
-        response_options=[{"value": "yes"}, {"value": "no"}],
-        route_on_response=[{"value": "maybe", "route": "survey.summary"}],
-    )
-    current_route = "survey.eligibility"
+        question = _make_question(
+            question_id="eligibility",
+            response_options=[{"value": "yes"}, {"value": "no"}],
+            route_on_response=[{"value": "maybe", "route": "survey.summary"}],
+        )
+        current_route = "survey.eligibility"
 
-    result = check_route_on_response(
-        question, user_value="maybe", current_route=current_route
-    )
+        result = check_route_on_response(
+            question, user_value="maybe", current_route=current_route
+        )
 
-    assert result == current_route
-    assert any(
-        "value 'maybe' not in response_options for question 'eligibility'. Route unchanged."
-        in msg
-        for msg in log_capture.errors
-    ), "Expected an error log for invalid rule value."
+        assert result == current_route
+        assert any(
+            "value 'maybe' not in response_options for question 'eligibility'. Route unchanged."
+            in msg
+            for msg in log_capture.errors
+        ), "Expected an error log for invalid rule value."
 
 
 @pytest.mark.utils
 def test_logs_error_and_returns_current_when_route_not_allowed(
-    log_capture: LogCapture, patch_module_logger
+    app, log_capture: LogCapture, patch_module_logger
 ) -> None:
     """It logs an error and leaves the route unchanged for a disallowed route."""
-    patch_module_logger(sut, log_capture)
+    with app.app_context():
+        session["participant_id"] = "ONS123"
+        session.modified = True
+        patch_module_logger(sut, log_capture)
 
-    question = _make_question(
-        question_id="finish",
-        route_on_response=[{"value": "yes", "route": "survey.end"}],  # not permitted
-    )
-    current_route = "survey.review"
+        question = _make_question(
+            question_id="finish",
+            route_on_response=[
+                {"value": "yes", "route": "survey.end"}
+            ],  # not permitted
+        )
+        current_route = "survey.review"
 
-    result = check_route_on_response(
-        question, user_value="yes", current_route=current_route
-    )
+        result = check_route_on_response(
+            question, user_value="yes", current_route=current_route
+        )
 
-    assert result == current_route
-    assert any(
-        "route 'survey.end' is not allowed for value 'yes' on question 'finish'. Route unchanged."
-        in msg
-        for msg in log_capture.errors
-    ), "Expected an error log for disallowed route."
+        assert result == current_route
+        assert any(
+            "route 'survey.end' is not allowed for value 'yes' on question 'finish'. Route unchanged."  # pylint: disable=line-too-long
+            in msg
+            for msg in log_capture.errors
+        ), "Expected an error log for disallowed route."
 
 
 @pytest.mark.utils
 def test_early_exit_on_first_invalid_rule_even_if_later_valid(
-    log_capture: LogCapture, patch_module_logger
+    app, log_capture: LogCapture, patch_module_logger
 ) -> None:
     """It returns immediately on the first invalid rule and does not apply later valid ones."""
-    patch_module_logger(sut, log_capture)
+    with app.app_context():
+        session["participant_id"] = "ONS123"
+        session.modified = True
+        patch_module_logger(sut, log_capture)
 
-    question = _make_question(
-        question_id="q-mixed",
-        response_options=[{"value": "yes"}, {"value": "no"}],
-        route_on_response=[
-            {"value": "maybe", "route": "survey.summary"},  # invalid first
-            {"value": "yes", "route": "survey.summary"},  # would be valid
-        ],
-    )
-    current_route = "survey.section-a"
+        question = _make_question(
+            question_id="q-mixed",
+            response_options=[{"value": "yes"}, {"value": "no"}],
+            route_on_response=[
+                {"value": "maybe", "route": "survey.summary"},  # invalid first
+                {"value": "yes", "route": "survey.summary"},  # would be valid
+            ],
+        )
+        current_route = "survey.section-a"
 
-    result = check_route_on_response(
-        question, user_value="yes", current_route=current_route
-    )
+        result = check_route_on_response(
+            question, user_value="yes", current_route=current_route
+        )
 
-    assert result == current_route
-    assert any(
-        "value 'maybe' not in response_options" in msg for msg in log_capture.errors
-    ), "Expected an error log for the first invalid rule."
+        assert result == current_route
+        assert any(
+            "value 'maybe' not in response_options" in msg for msg in log_capture.errors
+        ), "Expected an error log for the first invalid rule."

@@ -52,6 +52,9 @@ def classify(
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
     start_time = datetime.now(timezone.utc)
+    logger.info(
+        f"person_id:{get_person_id()} send /classify request"  # pylint: disable=line-too-long
+    )
     response = api_client.post(
         "/survey-assist/classify",
         body={
@@ -65,11 +68,22 @@ def classify(
 
     try:
         validated_response = GenericClassificationResponse.model_validate(response)
-        logger.info(f"Classification type {classification_type}.")
-        logger.info(f"Followup question: {validated_response.results[0].followup}")
+
+        if validated_response.results:
+            if validated_response.results[0].classified:
+                logger.info(
+                    f"person_id:{get_person_id()} classified unambiguously, code {validated_response.results[0].code}"  # pylint: disable=line-too-long
+                )
+            else:
+                logger.info(
+                    f"person_id:{get_person_id()} not classified, followup question: {validated_response.results[0].followup}"  # pylint: disable=line-too-long
+                )
+
         return validated_response, start_time
     except ValidationError as e:
-        logger.error(f"Validation error in classification response: {e}")
+        logger.error(
+            f"person_id:{get_person_id()} validation error in classification response: {e}"
+        )
         return None, start_time
 
 
@@ -85,17 +99,33 @@ def result_sic_only(result: SurveyAssistResult) -> ResultResponse | None:
     """
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
+
+    logger.info(f"person_id:{get_person_id()} - send survey /result")
     response = api_client.post(
         "/survey-assist/result",
         body=result.model_dump(mode="json"),
     )
 
+    # pylint: disable=duplicate-code
     try:
         validated_response = ResultResponse.model_validate(response)
+        result_id = validated_response.result_id
+
+        if result_id:
+            logger.info(
+                f"person_id:{get_person_id()} - survey result saved: {result_id}"  # pylint: disable=line-too-long
+            )
+        else:
+            logger.warning(
+                f"person_id:{get_person_id()} - survey result response did not include a result_id."  # pylint: disable=line-too-long
+            )
         return validated_response
     except ValidationError as e:
-        logger.error(f"Validation error in result response: {e}")
+        logger.error(
+            f"person_id:{get_person_id()} - validation error in result response: {e}"
+        )
         return None
+    # pylint: enable=duplicate-code
 
 
 def get_next_followup(
@@ -118,8 +148,6 @@ def get_next_followup(
         tuple[str, dict] | None: A tuple containing the question text and full question dictionary,
         or None if no questions are available or the order is invalid.
     """
-    logger.debug(f"Follow-up questions: {followup_questions}")
-
     if "follow_up" not in session:
         session["follow_up"] = []
 
@@ -140,7 +168,6 @@ def get_next_followup(
         return None
 
     session["follow_up"] = followup_list
-    logger.debug(f"Updated follow-up list: {session['follow_up']}")
     session.modified = True
 
     question_text = question_data.get("question_text", "")
@@ -205,9 +232,11 @@ def perform_sic_lookup(org_description: str) -> tuple[dict, datetime, datetime]:
     api_client = app.api_client
     start_time = datetime.now(timezone.utc)
     api_url = f"/survey-assist/sic-lookup?description={org_description}&similarity=true"
+    logger.info(
+        f"person_id:{get_person_id()} send /sic-lookup request"  # pylint: disable=line-too-long
+    )
     response = api_client.get(endpoint=api_url)
     end_time = datetime.now(timezone.utc)
-    logger.debug(f"SIC lookup response: {response}")
     session.modified = True
     return response, start_time, end_time
 
@@ -258,7 +287,7 @@ def classify_and_handle_followup(
 
     if classification is None:
         # TODO: Handle the error case appropriately, for now skip to next question #pylint: disable=fixme
-        logger.error("Classification response was None.")
+        logger.error(f"person_id:{get_person_id()} - classification response was None.")
         return redirect(url_for("survey.question_template"))
 
     mapped_api_response = map_api_response_to_internal(classification.model_dump())
@@ -280,7 +309,9 @@ def classify_and_handle_followup(
     )
 
     if not followup_questions:
-        logger.info("Classified without requiring follow-up, dynamic questions skipped")
+        logger.info(
+            f"person_id:{get_person_id()} classified unambiguously - dynamic questions skipped"  # pylint: disable=line-too-long
+        )
         update_end_time_of_classify_result()
 
         # Increment to the next question
@@ -290,7 +321,9 @@ def classify_and_handle_followup(
 
     question = get_next_followup(followup_questions, FOLLOW_UP_TYPE)
     if not question:
-        logger.warning("No follow-up question found, skip to core questions.")
+        logger.warning(
+            f"person_id:{get_person_id()} no follow-up question found, skip to core questions."  # pylint: disable=line-too-long
+        )
         # Increment to the next question
         session["current_question_index"] += 1
         session.modified = True
@@ -358,8 +391,6 @@ def add_question_justifcation_guidance(question_dict: dict) -> dict:
     j_text = consent.get("justification_text", "<p>Placeholder text</p>")
     g_enabled = survey_assist.get("guidance_enabled", False)
     g_text = survey_assist.get("guidance_text", "Question asked by Survey Assist")
-
-    logger.info(f"Guidance: {g_enabled} Text: {g_text}")
 
     question_dict.update(
         justification_enabled=j_enabled,

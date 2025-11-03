@@ -35,7 +35,7 @@ from models.result import (
 )
 
 API_TIMER_SEC = 20
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 # Disabling pylint warning for too many arguments/locals in APIClient class
@@ -158,11 +158,11 @@ class APIClient:
         if logger_handle is None:
             logger_handle = self.logger_handle
 
-        logger_handle.info(f"Sending {method} request to {url}")
+        logger_handle.debug(f"Sending {method} request to {url}")
 
         # GET requests don't contain a body
         if body is not None:
-            logger_handle.info(body)
+            logger_handle.debug(body)
         data = None
         error = None
         status_code = HTTPStatus.INTERNAL_SERVER_ERROR
@@ -181,8 +181,8 @@ class APIClient:
 
             response.raise_for_status()
             data = response.json() if return_json else response.text
-            logger_handle.info(f"Received response from {url}")
-            logger_handle.info(data)
+            logger_handle.debug(f"Received response from {url}")
+            logger_handle.debug(data)
 
         except requests.exceptions.Timeout:
             logger_handle.error(
@@ -288,7 +288,7 @@ class OTPVerificationService:  # pylint: disable=too-few-public-methods
         body: dict[str, Any] = req.model_dump(by_alias=True)
 
         # Do NOT log raw OTPs
-        self._api.logger_handle.info(
+        self._api.logger_handle.debug(
             f"Calling OTP verify id={id_str} otp={mask_otp(otp)}"
         )
 
@@ -335,7 +335,7 @@ class OTPVerificationService:  # pylint: disable=too-few-public-methods
         body: dict[str, Any] = req.model_dump(by_alias=True)
 
         # Do NOT log raw OTPs
-        self._api.logger_handle.info(f"Calling OTP delete id={id_str}")
+        self._api.logger_handle.debug(f"Calling OTP delete id={id_str}")
 
         raw = self._api.post(endpoint=endpoint, body=body, return_json=True)
 
