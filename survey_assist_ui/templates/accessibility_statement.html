@@ -1,0 +1,36 @@
+{%- extends "core.html" -%}
+{%- set page_title = 'Accessibility Statement' -%}
+{%- set mainCols=8 -%}
+
+{%- set breadcrumbs = {
+"id":"breadcrumbs",
+"ariaLabel":"breadcrumbs",
+"itemsList":[
+  {
+    "url": url_for("main.index"),
+    "id": "home",
+    "text": 'Home',
+  }
+]
+} -%}
+
+
+{%- from "components/list/_macro.njk" import onsList -%}
+{%- block main -%}
+<div id="accessibility-statement-content">
+    <h1 id="main-title" class="ons-u-fs-xxl">Accessibility Statement</h1>
+    <p>This accessibility statement applies to the Office for National Statistics (ONS) public beta test survey prototype. </p>
+    <p>We want as many people as possible to be able to use the website.</p>
+    <p>If you have a disability, <a href="https://mcmw.abilitynet.org.uk/">AbilityNet</a> has advice on making your device easier to use.</p>
+    <h2>How accessible the website is</h2>
+    <p>We are aware that some parts of this website are not fully accessible, and we are working to improve this.</p>
+    <h2>Enforcement procedure</h2>
+    <p>The Equality and Human Rights Commission (EHRC) is responsible for enforcing the Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018 (the “accessibility regulations”). If you contact us with a complaint and you are not happy with our response contact the <a href="https://www.equalityadvisoryservice.com/">Equality Advisory and Support Service (EASS)</a>.</p>
+    <h2>Technical information about the website’s accessibility</h2>
+    <p>The ONS is committed to making this portal accessible, in accordance with the <a href="https://www.legislation.gov.uk/uksi/2018/952/made">Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018</a>.</p>
+    <h2>What we’re doing to improve accessibility</h2>
+    <p>We are committed to making sure our online services are accessible to all users and comply with level AA of the Web Content Accessibility Guidelines – WCAG 2.2 in line with the Public Sector Bodies (Websites and Mobile Applications) (No.2) Accessibility regulations 2018.</p>
+    <p>In order to make sure our online services are accessible to all users, we are working with <a href="http://www.digitalaccessibilitycentre.org/">The Digital Accessibility Centre (DAC)</a> to carry out WCAG 2.2 AA level technical compliance audits, which will also include testing by users with a wide range of disabilities.</p>
+    <h2>Preparation of this accessibility statement</h2>
+    <p>This statement was prepared on 4 November 2025.</p>
+{% endblock main -%}
