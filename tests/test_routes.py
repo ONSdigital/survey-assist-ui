@@ -400,8 +400,8 @@ def test_privacy_route(granted_access) -> None:
 
     assert (
         expected_text.encode() in response.data
-    ), f"Cookies page should contain '{expected_text}'"
-    assert response.status_code == HTTPStatus.OK, "Cookies route should return 200 OK"
+    ), f"Privacy page should contain '{expected_text}'"
+    assert response.status_code == HTTPStatus.OK, "Privacy route should return 200 OK"
 
 
 @pytest.mark.route
