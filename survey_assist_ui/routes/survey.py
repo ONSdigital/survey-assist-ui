@@ -139,8 +139,14 @@ def survey() -> str:
             current_question["question_text"] = current_question[
                 "question_text"
             ].replace("PLACEHOLDER_TEXT", session["response"][placeholder_field])
+    
+    if current_question["response_type"] == "textarea":
+        # Get limit or default to 150
+        limit = current_question.get("char_limit", 150)
+    else:
+        limit = None
 
-    return render_template("question_template.html", **current_question)
+    return render_template("question_template.html", limit=limit, **current_question)
 
 
 # Route called after each question (or interaction) to save response to session data.
