@@ -29,7 +29,7 @@ steps:
 
         poetry version -s > /workspace/version.txt
 
-        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
+        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg GUNICORN_WORKERS=$_GUNICORN_WORKERS -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
 
         docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
         docker push $_GAR_IMAGE:latest
