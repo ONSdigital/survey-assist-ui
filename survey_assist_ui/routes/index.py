@@ -50,3 +50,36 @@ def index() -> ResponseReturnValue:
     return render_template(
         "index.html", survey_title=app.survey_title, show_intro=app.survey_intro
     )
+
+
+@main_blueprint.route("/cookies", methods=["GET"])
+@log_route()
+def cookies() -> ResponseReturnValue:
+    """Renders the cookies information page.
+
+    Returns:
+        str: Rendered HTML for cookies information page.
+    """
+    return render_template("cookies.html")
+
+
+@main_blueprint.route("/accessibility", methods=["GET"])
+@log_route()
+def accessibility() -> ResponseReturnValue:
+    """Renders the Accessibility Statement page.
+
+    Returns:
+        str: Rendered HTML for Accessibility Statement page.
+    """
+    return render_template("accessibility_statement.html")
+
+
+@main_blueprint.route("/privacy", methods=["GET"])
+@log_route()
+def privacy() -> ResponseReturnValue:
+    """Renders the Privacy and Data Protection page.
+
+    Returns:
+        str: Rendered HTML for Privacy and Data Protection page.
+    """
+    return render_template("privacy.html")
