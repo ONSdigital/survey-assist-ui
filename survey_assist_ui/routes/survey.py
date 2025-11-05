@@ -145,8 +145,8 @@ def survey() -> str:
         limit = current_question.get("char_limit", 150)
     else:
         limit = None
-
-    return render_template("question_template.html", limit=limit, **current_question)
+    
+    return render_template("question_template.html", limit=limit, rows=4, **current_question)
 
 
 # Route called after each question (or interaction) to save response to session data.
@@ -218,6 +218,8 @@ def save_response() -> ResponseType | str | tuple[str, int]:
     logger.info(
         f"person_id:{get_person_id()} question: {question_name} action: {question}"
     )
+
+    logger.info(f"person_id:{get_person_id()}response list: {session.get('response')}")
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})
