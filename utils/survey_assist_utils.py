@@ -30,7 +30,7 @@ from utils.session_utils import (
 # This is temporary, will be changed to configurable in the future
 FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 def classify(

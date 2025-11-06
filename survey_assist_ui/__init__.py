@@ -24,7 +24,7 @@ from utils.app_utils import load_survey_definition
 
 from .versioning import get_app_version
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__, level="INFO")
 
 
 def create_app(test_config: dict | None = None) -> SurveyAssistFlask:

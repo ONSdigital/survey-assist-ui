@@ -15,7 +15,7 @@ from utils.session_utils import log_route, session_debug
 
 access_blueprint = Blueprint("access", __name__)
 
-logger = get_logger(__name__, "DEBUG")
+logger = get_logger(__name__, "INFO")
 
 
 @access_blueprint.route("/access", methods=["GET"])
