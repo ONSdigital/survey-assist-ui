@@ -15,7 +15,7 @@ from utils.session_utils import log_route, session_debug
 
 access_blueprint = Blueprint("access", __name__)
 
-logger = get_logger(__name__, "DEBUG")
+logger = get_logger(__name__, "INFO")
 
 
 @access_blueprint.route("/access", methods=["GET"])
@@ -52,7 +52,7 @@ def check_access():
     valid, error = validate_access(participant_id, access_code)
     if valid:
         session["participant_id"] = participant_id
-        session["access_code"] = access_code
+        session["access_code"] = mask_otp(access_code)
         session.modified = True
         logger.info(f"participant_id:{participant_id} survey accessed")
         return redirect("/")

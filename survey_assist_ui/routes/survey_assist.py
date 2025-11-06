@@ -37,4 +37,37 @@ def survey_assist() -> ResponseType | str:
     job_title = session.get("response", {}).get("job_title")
     org_description = session.get("response", {}).get("organisation_activity")
 
-    return classify_and_handle_followup(job_title, job_description, org_description)
+    # Retrieve the survey data from the session
+    survey_iteration = session.get("survey_iteration", {})
+    questions = survey_iteration.get("questions", [])
+
+    # Create a lookup for the response_name values to extract
+    target_fields = {
+        "job-description": None,
+        "job-title": None,
+        "organisation-activity": None,
+    }
+
+    # Iterate over all questions and capture matching responses
+    for q in questions:
+        response_name = q.get("response_name")
+        if response_name in target_fields:
+            target_fields[response_name] = q.get("response")
+
+    # Use the information from the survey_iteration as
+    # these values are sanitized.
+    job_description = target_fields["job-description"]
+    job_title = target_fields["job-title"]
+    org_description = target_fields["organisation-activity"]
+
+    # Keep the responses list to a minimum as the data is stored in
+    # survey_iteration from here on in.
+    # REFACTOR: The response dictionary should be retired entirely in favour of
+    # survey_iteration but this is a larger change.
+    for key in ("job_title", "job_description", "organisation_activity"):
+        if key in session["response"] and isinstance(session["response"][key], str):
+            session["response"][key] = session["response"][key][:10]
+
+    return classify_and_handle_followup(
+        job_title, job_description, org_description  # type: ignore[arg-type]
+    )

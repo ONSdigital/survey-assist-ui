@@ -23,12 +23,16 @@ from models.result import (
     InputField,
 )
 from utils.api_utils import map_to_lookup_response
+from utils.input_utils import PromptInjectionFilter, SafeInputFilter
 
 T = TypeVar("T", bound=BaseModel)
 
 logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
+
+prompt_injection_filter = PromptInjectionFilter()
+safe_input_filter = SafeInputFilter()
 
 
 def log_route(participant_override: str | None = None):
@@ -198,6 +202,22 @@ def add_question_to_survey(
     ):
         raise KeyError("Session does not contain a valid 'survey_iteration' structure.")
 
+    # Check for prompt injection in user response
+    detected, reason = prompt_injection_filter.detect_injection(user_response)
+    if detected:
+        logger.warning(
+            f"person_id:{get_person_id()} potential prompt injection. Sanitize input for {question['response_name']}. Reason: {reason}"  # pylint: disable=line-too-long
+        )
+        user_response = prompt_injection_filter.sanitize_input(user_response)
+
+    # Ensure the remaining input is safe
+    clean_user_response = safe_input_filter.sanitize_input(user_response)
+
+    if clean_user_response != user_response:
+        logger.info(
+            f"person_id:{get_person_id()} sanitized user response: {clean_user_response}"
+        )
+
     # Append the new question response block
     session["survey_iteration"]["questions"].append(
         {
@@ -206,7 +226,7 @@ def add_question_to_survey(
             "response_type": question["response_type"],
             "response_options": question.get("response_options", []),
             "response_name": question["response_name"],
-            "response": user_response,
+            "response": clean_user_response,
             "used_for_classifications": question.get("used_for_classifications", []),
         }
     )

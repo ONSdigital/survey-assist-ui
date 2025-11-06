@@ -153,7 +153,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
     )
 
     # If route is unchanged continue with core processing
-    if next_route == route:
+    if next_route == route:  # pylint: disable=too-many-nested-blocks
         # If survey assist is enabled and the current question has an interaction
         # then redirect to the consent page to ask the user if they want to
         # continue with the Survey Assist interaction
@@ -179,6 +179,14 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                     org_description = session["response"].get(
                         "organisation_activity", ""
                     )
+                    survey_iteration = session.get("survey_iteration") or {}
+                    questions = survey_iteration.get("questions", [])
+
+                    for q in questions:
+                        response_name = q.get("response_name")
+                        if response_name == "organisation-activity":
+                            org_description = q.get("response")
+
                     if org_description:
                         lookup_response, start_time, end_time = perform_sic_lookup(
                             org_description
@@ -403,7 +411,9 @@ def followup_redirect() -> ResponseType | str:
                     logger.info(
                         f"person_id:{get_person_id()} - rendering follow-up question: {question_dict['question_name']}"  # pylint: disable=line-too-long
                     )
-                    return render_template("question_template.html", **question_dict)
+                    return render_template(
+                        "question_template.html", limit=500, rows=4, **question_dict
+                    )
                 else:
                     logger.error(
                         f"person_id:{get_person_id()} - interaction {interactions[0].get("param")} is yet to be supported"  # pylint: disable=line-too-long

@@ -297,14 +297,16 @@ def test_classify_and_handle_followup_redirects_on_none_classification(app):
     with patch(
         "utils.survey_assist_utils.classify", return_value=(None, datetime(2024, 1, 1))
     ), patch("utils.survey_assist_utils.url_for") as mock_url_for:
-        mock_url_for.return_value = "/survey/question-template"
+        mock_url_for.return_value = "/survey/survey"
 
         with app.test_request_context():
+            session["current_question_index"] = 0
+            session.modified = True
             response = classify_and_handle_followup("Dev", "Builds tools", "Gov")
 
-        mock_url_for.assert_called_once_with("survey.question_template")
+        mock_url_for.assert_called_once_with("survey.survey")
         assert response.status_code == HTTPStatus.FOUND
-        assert response.location == "/survey/question-template"
+        assert response.location == "/survey/survey"
 
 
 # Need to rework tests following classify updates and survey_results

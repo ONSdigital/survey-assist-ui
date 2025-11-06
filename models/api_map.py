@@ -51,7 +51,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         else:
             question_text = (
                 result.get("followup", "")
-                if response_type == "text"
+                if response_type in ("text", "textarea")
                 else "Which of these best describes your organisation's activities?"
             )
 
@@ -99,7 +99,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
             follow_up = internal_representation["follow_up"]
             follow_up["questions"].append(
                 create_follow_up_question(
-                    results[0], "f1.1", "text", [], "survey_assist_followup_1"
+                    results[0], "f1.1", "textarea", [], "survey_assist_followup_1"
                 )
             )
 
