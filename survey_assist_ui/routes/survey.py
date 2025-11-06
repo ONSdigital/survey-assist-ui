@@ -225,7 +225,9 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         f"person_id:{get_person_id()} question: {question_name} action: {question}"
     )
 
-    logger.debug(f"person_id:{get_person_id()} response list: {session.get('response')}")
+    logger.debug(
+        f"person_id:{get_person_id()} response list: {session.get('response')}"
+    )
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})

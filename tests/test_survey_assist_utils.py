@@ -300,7 +300,7 @@ def test_classify_and_handle_followup_redirects_on_none_classification(app):
         mock_url_for.return_value = "/survey/survey"
 
         with app.test_request_context():
-            session["current_question_index"] = 0 
+            session["current_question_index"] = 0
             session.modified = True
             response = classify_and_handle_followup("Dev", "Builds tools", "Gov")
 

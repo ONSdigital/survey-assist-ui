@@ -1,13 +1,21 @@
+"""Unit tests for input_utils module.
+
+This module contains tests for input sanitisation and prompt injection filtering utilities
+defined in utils/input_utils.py. It verifies detection and cleaning of dangerous or malformed
+user input, ensuring robust handling of untrusted data for AI and web applications.
+"""
+
+# ruff: noqa: PLR1714, PLR2004, RUF001
+# pylint: disable=protected-access disable=redefined-outer-name disable=consider-using-in
+
 from __future__ import annotations
 
-import logging
 import pytest
-import re
-from typing import Generator
-from tests.conftest import LogCapture
 
 import utils.input_utils as iut
-from utils.input_utils import MIN_WORD_LEN, PromptInjectionFilter, SafeInputFilter
+from tests.conftest import LogCapture
+from utils.input_utils import PromptInjectionFilter, SafeInputFilter
+
 
 @pytest.fixture()
 def inj_filter() -> PromptInjectionFilter:
@@ -24,6 +32,7 @@ def safe_filter() -> SafeInputFilter:
 # -------------------------
 # PromptInjectionFilter.detect_injection
 # -------------------------
+
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
@@ -45,6 +54,7 @@ def test_detect_injection_matches_dangerous_regex(
     assert reason is not None
     assert "Matched dangerous regex pattern:" in reason
     assert expected_reason_pattern in reason
+
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
@@ -85,12 +95,12 @@ def test_detect_injection_none_or_harmless_returns_false(
 @pytest.mark.parametrize(
     ("word", "target", "expected"),
     [
-        (None, "ignore", False),         # None is never similar
-        ("ignroe", "ignore", True),      # typoglycaemia variant, same length
-        ("ignore", "ignore", True),      # exact match still passes similarity check
-        ("ignroes", "ignore", False),    # different length
-        ("inorqe", "ignore", False),     # wrong letters internally
-        ("ign", "ignore", False),        # below MIN_WORD_LEN guard or length mismatch
+        (None, "ignore", False),  # None is never similar
+        ("ignroe", "ignore", True),  # typoglycaemia variant, same length
+        ("ignore", "ignore", True),  # exact match still passes similarity check
+        ("ignroes", "ignore", False),  # different length
+        ("inorqe", "ignore", False),  # wrong letters internally
+        ("ign", "ignore", False),  # below MIN_WORD_LEN guard or length mismatch
     ],
 )
 def test_is_similar_word_private_contract(
@@ -98,13 +108,16 @@ def test_is_similar_word_private_contract(
 ) -> None:
     """It respects typoglycaemia similarity rules including length and character set."""
     # Access the private method intentionally to assert its contract is stable.
-    result = inj_filter._is_similar_word(word, target)  # pylint: disable=protected-access
+    result = inj_filter._is_similar_word(
+        word, target
+    )  # pylint: disable=protected-access
     assert result is expected
 
 
 # -------------------------
 # PromptInjectionFilter.sanitize_input
 # -------------------------
+
 
 @pytest.mark.utils
 def test_sanitize_input_normalises_and_squashes_repeats(
@@ -114,7 +127,9 @@ def test_sanitize_input_normalises_and_squashes_repeats(
     text = "heellooooo     worllllll  d!!!!"
     out = inj_filter.sanitize_input(text)
     # "ooooo" -> "o"; "lllll" -> "l"; "!!!!" -> "!"
-    assert out == "heello worl d!" or out == "heello worl d!"  # tolerate double 'e' boundary
+    assert (
+        out == "heello worl d!" or out == "heello worl d!"
+    )  # tolerate double 'e' boundary
 
 
 @pytest.mark.utils
@@ -147,6 +162,7 @@ def test_sanitize_input_none_returns_empty(inj_filter: PromptInjectionFilter) ->
 # SafeInputFilter.sanitize_input
 # -------------------------
 
+
 @pytest.mark.utils
 def test_safe_input_filter_replaces_smart_quotes_and_logs(
     safe_filter: SafeInputFilter, log_capture: LogCapture, patch_module_logger
@@ -159,9 +175,9 @@ def test_safe_input_filter_replaces_smart_quotes_and_logs(
     assert out.count('"') >= 2
     assert "'" in out
     assert any(
-        "Input sanitized by SafeInputFilter." in msg
-        for msg in log_capture.infos
+        "Input sanitized by SafeInputFilter." in msg for msg in log_capture.infos
     ), "No INFO log captured for logger"
+
 
 @pytest.mark.utils
 def test_safe_input_filter_removes_control_and_invisible_chars(
@@ -173,9 +189,9 @@ def test_safe_input_filter_removes_control_and_invisible_chars(
     out = safe_filter.sanitize_input(text)
     assert out == "Hi there!"
     assert any(
-        "Input sanitized by SafeInputFilter." in msg
-        for msg in log_capture.infos
+        "Input sanitized by SafeInputFilter." in msg for msg in log_capture.infos
     ), "No INFO log captured for logger"
+
 
 @pytest.mark.utils
 @pytest.mark.parametrize(
@@ -208,7 +224,12 @@ def test_safe_input_filter_removes_control_and_invisible_chars(
         # XSS-ish input: angle brackets (<, >) are disallowed and should be removed
         (
             "<script>alert(1)</script>",
-            ["script", "alert", "1", "script"],  # note: brackets removed but text remains
+            [
+                "script",
+                "alert",
+                "1",
+                "script",
+            ],  # note: brackets removed but text remains
             ["<", ">"],
         ),
         # emoji + hash-only case
@@ -223,15 +244,16 @@ def test_safe_input_filter_removes_control_and_invisible_chars(
         (
             "password); EXEC xp_cmdshell --",
             ["password", "EXEC", "xpcmdshell", ";", ")"],
-            ["\x00","_"],  # control char not present but must not be introduced
+            ["\x00", "_"],  # control char not present but must not be introduced
         ),
     ],
 )
-
-
 @pytest.mark.utils
 def test_safe_input_filter_various_injection_like_strings(
-    safe_filter: SafeInputFilter, text: str, must_contain: list[str], must_not_contain: list[str]
+    safe_filter: SafeInputFilter,
+    text: str,
+    must_contain: list[str],
+    must_not_contain: list[str],
 ) -> None:
     """Parameterised examples: ensure unsafe characters are removed and allowed tokens remain.
 
@@ -247,7 +269,9 @@ def test_safe_input_filter_various_injection_like_strings(
 
     # Assert disallowed characters are removed (or at least not present)
     for forbidden in must_not_contain:
-        assert forbidden not in out, f"Did not expect '{forbidden}' to be present in: {out!r}"
+        assert (
+            forbidden not in out
+        ), f"Did not expect '{forbidden}' to be present in: {out!r}"
 
 
 @pytest.mark.utils
