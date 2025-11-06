@@ -365,7 +365,7 @@ def classify_and_handle_followup(
     question_dict = add_question_justifcation_guidance(question_dict=question_dict)
     return render_template(
         "question_template.html",
-        limit=150,
+        limit=500,
         rows=4,
         **question_dict,
     )
