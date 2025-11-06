@@ -210,10 +210,12 @@ def add_question_to_survey(
         )
         user_response = prompt_injection_filter.sanitize_input(user_response)
 
-        # Ensure the remaining input is safe
-        user_response = safe_input_filter.sanitize_input(user_response)
+    # Ensure the remaining input is safe
+    clean_user_response = safe_input_filter.sanitize_input(user_response)
+
+    if clean_user_response != user_response:
         logger.info(
-            f"person_id:{get_person_id()} sanitized user response: {user_response}"
+            f"person_id:{get_person_id()} sanitized user response: {clean_user_response}"
         )
 
     # Append the new question response block
@@ -224,7 +226,7 @@ def add_question_to_survey(
             "response_type": question["response_type"],
             "response_options": question.get("response_options", []),
             "response_name": question["response_name"],
-            "response": user_response,
+            "response": clean_user_response,
             "used_for_classifications": question.get("used_for_classifications", []),
         }
     )

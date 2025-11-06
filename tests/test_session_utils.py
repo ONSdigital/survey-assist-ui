@@ -229,7 +229,7 @@ def test_add_question_user_response_none_success(
         assert len(session["survey_iteration"]["questions"]) == 1
         added = session["survey_iteration"]["questions"][0]
         assert added["question_id"] == "q1"
-        assert added["response"] is None
+        assert added["response"] is ""
         assert added["used_for_classifications"] == ["sic", "soc"]
         assert session.modified is True
 
