@@ -107,6 +107,7 @@ EXPOSE 8000
 ARG VERSION
 ARG GIT_SHA
 ARG BUILD_DATE
+ARG GUNICORN_WORKERS
 ENV APP_VERSION=$VERSION APP_GIT_SHA=$GIT_SHA APP_BUILD_DATE=$BUILD_DATE
 LABEL org.opencontainers.image.version=$VERSION \
       org.opencontainers.image.revision=$GIT_SHA \
@@ -120,5 +121,5 @@ LABEL org.opencontainers.image.version=$VERSION \
 # Production WSGI server (configure via env if you prefer)
 # GUNICORN_WORKERS default is single CPU (worker) and single thread
 # App code would need some work to enable multi-process/worker processing
-ENV GUNICORN_WORKERS=1 GUNICORN_THREADS=1 GUNICORN_BIND=0.0.0.0:8000
+ENV GUNICORN_WORKERS=$GUNICORN_WORKERS GUNICORN_THREADS=1 GUNICORN_BIND=0.0.0.0:8000
 CMD ["/bin/sh","-c","exec /opt/venv/bin/gunicorn -w ${GUNICORN_WORKERS:-1} --threads ${GUNICORN_THREADS:-1} -b ${GUNICORN_BIND:-0.0.0.0:8000} main:app"]
