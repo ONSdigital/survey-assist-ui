@@ -16,7 +16,7 @@ from models.feedback import FeedbackResult, FeedbackResultResponse
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import get_person_id
 
-logger = get_logger(__name__, level="INFO")
+logger = get_logger(__name__, level="DEBUG")
 
 
 class FeedbackSession(TypedDict):

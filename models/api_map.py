@@ -51,7 +51,7 @@ def map_api_response_to_internal(api_response: dict) -> dict:
         else:
             question_text = (
                 result.get("followup", "")
-                if response_type == "text" or response_type == "textarea"
+                if response_type in ("text", "textarea")
                 else "Which of these best describes your organisation's activities?"
             )
 

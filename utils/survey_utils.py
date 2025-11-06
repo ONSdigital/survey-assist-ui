@@ -403,7 +403,9 @@ def followup_redirect() -> ResponseType | str:
                     logger.info(
                         f"person_id:{get_person_id()} - rendering follow-up question: {question_dict['question_name']}"  # pylint: disable=line-too-long
                     )
-                    return render_template("question_template.html", limit=150, **question_dict)
+                    return render_template(
+                        "question_template.html", limit=500, rows=4, **question_dict
+                    )
                 else:
                     logger.error(
                         f"person_id:{get_person_id()} - interaction {interactions[0].get("param")} is yet to be supported"  # pylint: disable=line-too-long

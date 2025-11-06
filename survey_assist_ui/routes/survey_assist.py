@@ -37,4 +37,12 @@ def survey_assist() -> ResponseType | str:
     job_title = session.get("response", {}).get("job_title")
     org_description = session.get("response", {}).get("organisation_activity")
 
+    # Keep the responses list to a minimum as the data is stored in
+    # survey_iteration from here on in.
+    # REFACTOR: The response dictionary should be retired entirely in favour of
+    # survey_iteration but this is a larger change.
+    for key in ("job_title", "job_description", "organisation_activity"):
+        if key in session["response"] and isinstance(session["response"][key], str):
+            session["response"][key] = session["response"][key][:10]
+
     return classify_and_handle_followup(job_title, job_description, org_description)

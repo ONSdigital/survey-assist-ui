@@ -30,7 +30,7 @@ from utils.session_utils import (
 # This is temporary, will be changed to configurable in the future
 FOLLOW_UP_TYPE = "both"  # Options: open, closed, both
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level="DEBUG")
 
 
 def classify(
@@ -286,9 +286,11 @@ def classify_and_handle_followup(
     )
 
     if classification is None:
-        # TODO: Handle the error case appropriately, for now skip to next question #pylint: disable=fixme
         logger.error(f"person_id:{get_person_id()} - classification response was None.")
-        return redirect(url_for("survey.question_template"))
+        # Increment to the next question
+        session["current_question_index"] += 1
+        session.modified = True
+        return redirect(url_for("survey.survey"))
 
     mapped_api_response = map_api_response_to_internal(classification.model_dump())
 

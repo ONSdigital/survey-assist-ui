@@ -52,7 +52,7 @@ def check_access():
     valid, error = validate_access(participant_id, access_code)
     if valid:
         session["participant_id"] = participant_id
-        session["access_code"] = access_code
+        session["access_code"] = mask_otp(access_code)
         session.modified = True
         logger.info(f"participant_id:{participant_id} survey accessed")
         return redirect("/")

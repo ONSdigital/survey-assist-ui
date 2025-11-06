@@ -139,14 +139,16 @@ def survey() -> str:
             current_question["question_text"] = current_question[
                 "question_text"
             ].replace("PLACEHOLDER_TEXT", session["response"][placeholder_field])
-    
-    if current_question["response_type"] == "textarea":
-        # Get limit or default to 150
-        limit = current_question.get("char_limit", 150)
-    else:
-        limit = None
-    
-    return render_template("question_template.html", limit=limit, rows=4, **current_question)
+
+    limit = (
+        current_question.get("char_limit", 150)
+        if current_question["response_type"] == "textarea"
+        else None
+    )
+
+    return render_template(
+        "question_template.html", limit=limit, rows=4, **current_question
+    )
 
 
 # Route called after each question (or interaction) to save response to session data.
@@ -178,6 +180,7 @@ def save_response() -> ResponseType | str | tuple[str, int]:
     }
 
     question = request.form.get("question_name")
+
     question_name = question  # Store original question name for logs
     if question is None:
         raise ValueError("Missing form field: 'question_name'")
@@ -191,6 +194,9 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         "survey_assist_followup_2",
     ]:
         routing = get_question_routing(question, questions)
+        logger.debug(
+            f"person_id:{get_person_id()} question: {question} ans: {request.form.get(routing[0])}"
+        )
         question = "core_question"
 
     # If the question is a follow up question from Survey Assist, then add
@@ -219,7 +225,7 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         f"person_id:{get_person_id()} question: {question_name} action: {question}"
     )
 
-    logger.info(f"person_id:{get_person_id()}response list: {session.get('response')}")
+    logger.debug(f"person_id:{get_person_id()} response list: {session.get('response')}")
 
     if question in actions:
         iteration_data = session.get("survey_iteration", {})
