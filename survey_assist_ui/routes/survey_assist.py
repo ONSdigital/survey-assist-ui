@@ -68,4 +68,6 @@ def survey_assist() -> ResponseType | str:
         if key in session["response"] and isinstance(session["response"][key], str):
             session["response"][key] = session["response"][key][:10]
 
-    return classify_and_handle_followup(job_title, job_description, org_description)
+    return classify_and_handle_followup(
+        job_title, job_description, org_description  # type: ignore[arg-type]
+    )
