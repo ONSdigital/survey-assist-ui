@@ -15,9 +15,8 @@ from survey_assist_utils.logging import get_logger
 from models.feedback import FeedbackResult, FeedbackResultResponse
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
+    clean_text,
     get_person_id,
-    prompt_injection_filter,
-    safe_input_filter,
 )
 
 logger = get_logger(__name__, level="INFO")
@@ -285,27 +284,18 @@ def send_feedback() -> FeedbackResultResponse | None:
 
     # Sanitize potential prompt injection in 'other-feedback' field
     other_feedback = None
+    clean_user_response = None
     for q in feedback.get("questions", []):
         if q.get("response_name") == "other-feedback":
             other_feedback = q.get("response")
             break
 
     if other_feedback:
-        # Apply input sanitization to other-feedback field
-        detected, reason = prompt_injection_filter.detect_injection(other_feedback)
-        if detected:
-            logger.warning(
-                f"person_id:{get_person_id()} potential prompt injection (feedback). Sanitize input for other-feedback. Reason: {reason}"  # pylint: disable=line-too-long
-            )
-            other_feedback = prompt_injection_filter.sanitize_input(other_feedback)
-
-    # Ensure the remaining input is safe
-    clean_user_response = safe_input_filter.sanitize_input(other_feedback)
+        clean_user_response = clean_text(
+            other_feedback, "other-feedback", get_person_id()
+        )
 
     if clean_user_response != other_feedback:
-        logger.info(
-            f"person_id:{get_person_id()} sanitized user response: {clean_user_response}"
-        )
         # Update the feedback in session
         for q in feedback.get("questions", []):
             if q.get("response_name") == "other-feedback":

@@ -28,6 +28,7 @@ from utils.map_results_utils import translate_session_to_model
 from utils.session_utils import (
     FIRST_QUESTION,
     add_follow_up_response_to_classify,
+    clean_text,
     get_person_id,
     log_route,
     remove_access_from_session,
@@ -214,7 +215,14 @@ def save_response() -> ResponseType | str | tuple[str, int]:
         last_question = survey_questions[-1]
         last_question["response"] = request.form.get(last_question["response_name"])
 
+        response_type = last_question.get("response_type", "none")
+
         user_id = get_person_id()
+        if response_type in ("textarea", "text"):
+            last_question["response"] = clean_text(
+                last_question["response"], last_question["response_name"], user_id
+            )
+
         add_follow_up_response_to_classify(
             last_question["question_id"], last_question["response"], user_id
         )
