@@ -14,7 +14,10 @@ from survey_assist_utils.logging import get_logger
 
 from models.feedback import FeedbackResult, FeedbackResultResponse
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import get_person_id
+from utils.session_utils import (
+    clean_text,
+    get_person_id,
+)
 
 logger = get_logger(__name__, level="INFO")
 
@@ -277,6 +280,32 @@ def map_feedback_result_from_session() -> FeedbackResult | None:
 def send_feedback() -> FeedbackResultResponse | None:
     """Maps the session feedback to a pydantic model and send to the API."""
     response = None
+    feedback = session.get("feedback_response", {})
+
+    # Sanitize potential prompt injection in 'other-feedback' field
+    other_feedback = None
+    clean_user_response = None
+    for q in feedback.get("questions", []):
+        if q.get("response_name") == "other-feedback":
+            other_feedback = q.get("response")
+            break
+
+    if other_feedback:
+        clean_user_response = clean_text(
+            other_feedback, "other-feedback", get_person_id()
+        )
+
+    if clean_user_response != other_feedback:
+        # Update the feedback in session
+        for q in feedback.get("questions", []):
+            if q.get("response_name") == "other-feedback":
+                logger.warning(
+                    f"person_id:{get_person_id()} updating sanitized input for {q['response_name']}."  # pylint: disable=line-too-long
+                )
+                q["response"] = clean_user_response
+                break
+        session.modified = True
+
     feedback_body = map_feedback_result_from_session()
     if feedback_body:
         response = send_feedback_result(feedback_body)

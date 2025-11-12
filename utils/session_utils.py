@@ -736,3 +736,35 @@ def get_person_id(default: str = "participant_not_found") -> str:
         return f"{default}-01"
 
     return f"{participant_id}-01"
+
+
+# This should really go in input_utils but circular dependencies make this difficult for now.
+def clean_text(input_text: str | None, response_name: str, person_id: str) -> str:
+    """Sanitise and clean user input for survey responses.
+
+    Checks the input text for prompt injection attempts and sanitises it using the
+    PromptInjectionFilter. Then applies further cleaning and normalisation using the
+    SafeInputFilter. Logs any detected prompt injection and sanitisation actions.
+
+    Args:
+        input_text (str | None): The user input text to clean.
+        response_name (str): The name of the response field being processed.
+        person_id (str): The person ID associated with the response.
+
+    Returns:
+        str: The cleaned and sanitised user input.
+    """
+    # Check for prompt injection in user response
+    detected, reason = prompt_injection_filter.detect_injection(input_text)
+    if detected:
+        logger.warning(
+            f"person_id:{person_id} potential prompt injection. Sanitize input for {response_name}. Reason: {reason}"  # pylint: disable=line-too-long
+        )
+        input_text = prompt_injection_filter.sanitize_input(input_text)
+
+    # Ensure the remaining input is safe
+    cleaned_text = safe_input_filter.sanitize_input(input_text)
+
+    if cleaned_text != input_text:
+        logger.info(f"person_id:{person_id} sanitized user response: {cleaned_text}")
+    return cleaned_text

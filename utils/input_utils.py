@@ -148,3 +148,25 @@ class SafeInputFilter(PromptInjectionFilter):
 
         # Cap length
         return text[:max_len]
+
+
+def replace_if_no_letters(person_id, text):
+    """Replace input with 'NO LEGIBLE ANSWER' if it contains no alphabetic characters.
+
+    Checks if the input text contains at least one alphabetic character (A-Z or a-z).
+    If not, replaces the input with the string 'NO LEGIBLE ANSWER' and logs the action.
+
+    Args:
+        person_id: The identifier of the person providing the input.
+        text: The input to check, typically a string or value convertible to string.
+
+    Returns:
+        str: The original text if it contains letters, otherwise 'NO LEGIBLE ANSWER'.
+    """
+    # Check if there's at least one alphabetic character
+    if not re.search(r"[A-Za-z]", str(text)):
+        logger.info(
+            f"person_id:{person_id} Input replaced with 'NO LEGIBLE ANSWER' due to lack of letters."
+        )
+        return "NO LEGIBLE ANSWER"
+    return text

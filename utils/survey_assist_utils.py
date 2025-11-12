@@ -19,6 +19,7 @@ from models.question import Question
 from models.result import FollowUpQuestion
 from models.result_sic_only import ResultResponse, SurveyAssistResult
 from utils.app_types import SurveyAssistFlask
+from utils.input_utils import replace_if_no_letters
 from utils.session_utils import (
     add_classify_interaction,
     add_follow_up_to_latest_classify,
@@ -231,6 +232,9 @@ def perform_sic_lookup(org_description: str) -> tuple[dict, datetime, datetime]:
     app = cast(SurveyAssistFlask, current_app)
     api_client = app.api_client
     start_time = datetime.now(timezone.utc)
+
+    # Check org desc has alphabetic characters
+    org_description = replace_if_no_letters(get_person_id(), org_description)
     api_url = f"/survey-assist/sic-lookup?description={org_description}&similarity=true"
     logger.info(
         f"person_id:{get_person_id()} send /sic-lookup request"  # pylint: disable=line-too-long
