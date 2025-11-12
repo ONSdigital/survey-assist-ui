@@ -136,10 +136,15 @@ def survey() -> str:
 
         placeholder_field = current_question["placeholder_field"]
 
+        replacement_text = session["response"].get(placeholder_field)
+        replacement_text = clean_text(
+            replacement_text, "placeholder_text", get_person_id()
+        )
+
         if placeholder_field is not None:
             current_question["question_text"] = current_question[
                 "question_text"
-            ].replace("PLACEHOLDER_TEXT", session["response"][placeholder_field])
+            ].replace("PLACEHOLDER_TEXT", replacement_text)
 
     limit = (
         current_question.get("char_limit", 150)
