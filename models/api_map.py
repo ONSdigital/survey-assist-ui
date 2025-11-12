@@ -11,6 +11,7 @@ from flask import current_app
 from survey_assist_utils.logging import get_logger
 
 from utils.app_types import SurveyAssistFlask
+from utils.session_utils import clean_text, get_person_id
 
 logger = get_logger(__name__, level="INFO")
 
@@ -54,6 +55,9 @@ def map_api_response_to_internal(api_response: dict) -> dict:
                 if response_type in ("text", "textarea")
                 else "Which of these best describes your organisation's activities?"
             )
+
+        if response_type in ("text", "textarea"):
+            question_text = clean_text(question_text, q_id, get_person_id())
 
         return {
             "follow_up_id": q_id,

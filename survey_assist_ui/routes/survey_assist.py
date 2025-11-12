@@ -11,7 +11,8 @@ from survey_assist_utils.logging import get_logger
 
 from utils.access_utils import require_access
 from utils.app_types import ResponseType
-from utils.session_utils import log_route, session_debug
+from utils.input_utils import replace_if_no_letters
+from utils.session_utils import get_person_id, log_route, session_debug
 from utils.survey_assist_utils import classify_and_handle_followup
 
 survey_assist_blueprint = Blueprint("survey_assist", __name__)
@@ -55,10 +56,13 @@ def survey_assist() -> ResponseType | str:
             target_fields[response_name] = q.get("response")
 
     # Use the information from the survey_iteration as
-    # these values are sanitized.
-    job_description = target_fields["job-description"]
-    job_title = target_fields["job-title"]
-    org_description = target_fields["organisation-activity"]
+    # these values are sanitized, check for input that contains no letters
+    person_id = get_person_id()
+    job_description = replace_if_no_letters(person_id, target_fields["job-description"])
+    job_title = replace_if_no_letters(person_id, target_fields["job-title"])
+    org_description = replace_if_no_letters(
+        person_id, target_fields["organisation-activity"]
+    )
 
     # Keep the responses list to a minimum as the data is stored in
     # survey_iteration from here on in.

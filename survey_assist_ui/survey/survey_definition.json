@@ -105,7 +105,7 @@
       "question_name": "job_title_question",
       "title": "Job Title",
       "question_text": "What is the exact job title for your main job or business?",
-      "question_description": "<p>For example, elderly residential care, food and beverage manufacturing or primary education</p>",
+      "question_description": "<p>For example, office cleaner, district nurse or primary school teacher</p>",
       "response_type": "textarea",
       "char_limit": 150,
       "response_name": "job-title",

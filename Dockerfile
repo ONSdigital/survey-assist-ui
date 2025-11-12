@@ -120,6 +120,7 @@ LABEL org.opencontainers.image.version=$VERSION \
 
 # Production WSGI server (configure via env if you prefer)
 # GUNICORN_WORKERS default is single CPU (worker) and single thread
+# Timeout is set to 60s to allow for any long classify requests
 # App code would need some work to enable multi-process/worker processing
 ENV GUNICORN_WORKERS=$GUNICORN_WORKERS GUNICORN_THREADS=1 GUNICORN_BIND=0.0.0.0:8000
-CMD ["/bin/sh","-c","exec /opt/venv/bin/gunicorn -w ${GUNICORN_WORKERS:-1} --threads ${GUNICORN_THREADS:-1} -b ${GUNICORN_BIND:-0.0.0.0:8000} main:app"]
+CMD ["/bin/sh","-c","exec /opt/venv/bin/gunicorn -w ${GUNICORN_WORKERS:-1} --threads ${GUNICORN_THREADS:-1} --timeout 60 -b ${GUNICORN_BIND:-0.0.0.0:8000} main:app"]
