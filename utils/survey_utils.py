@@ -183,6 +183,7 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                     questions = survey_iteration.get("questions", [])
 
                     # Collect all three TLFS responses from survey_iteration
+                    # pylint: disable=duplicate-code
                     target_fields = {
                         "job-title": None,
                         "job-description": None,
