@@ -182,22 +182,38 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                     survey_iteration = session.get("survey_iteration") or {}
                     questions = survey_iteration.get("questions", [])
 
+                    # Collect all three TLFS responses from survey_iteration
+                    target_fields = {
+                        "job-title": None,
+                        "job-description": None,
+                        "organisation-activity": None,
+                    }
+
                     for q in questions:
                         response_name = q.get("response_name")
-                        if response_name == "organisation-activity":
-                            org_description = q.get("response")
+                        if response_name in target_fields:
+                            target_fields[response_name] = q.get("response")
+
+                    org_description = target_fields["organisation-activity"]
+                    job_title = target_fields["job-title"]
+                    job_description = target_fields["job-description"]
 
                     if org_description:
                         lookup_response, start_time, end_time = perform_sic_lookup(
                             org_description
                         )
 
-                        # Add response to survey_result
+                        # Add response to survey_result with all three TLFS input fields
+                        inputs_dict = {
+                            "job_title": job_title or "",
+                            "job_description": job_description or "",
+                            "org_description": org_description,
+                        }
                         add_sic_lookup_interaction(
                             lookup_response,
                             start_time,
                             end_time,
-                            {"org_description": org_description},
+                            inputs_dict,
                         )
 
                     else:
