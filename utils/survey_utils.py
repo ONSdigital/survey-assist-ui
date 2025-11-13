@@ -176,39 +176,33 @@ def update_session_and_redirect(  # noqa: C901, PLR0912, PLR0915
                 perform_classification = True
                 if matching_interaction.get("type") == "lookup_classification":
                     # Make the sic lookup request
-                    org_description = session["response"].get(
-                        "organisation_activity", ""
-                    )
                     survey_iteration = session.get("survey_iteration") or {}
                     questions = survey_iteration.get("questions", [])
 
                     # Collect all three TLFS responses from survey_iteration
-                    # pylint: disable=duplicate-code
-                    target_fields = {
-                        "job-title": None,
-                        "job-description": None,
-                        "organisation-activity": None,
+                    target_fields: dict[str, str] = {
+                        "job-title": "",
+                        "job-description": "",
+                        "organisation-activity": "",
                     }
 
                     for q in questions:
                         response_name = q.get("response_name")
                         if response_name in target_fields:
-                            target_fields[response_name] = q.get("response")
+                            response_value = q.get("response")
+                            if response_value:
+                                target_fields[response_name] = str(response_value)
 
-                    org_description = target_fields["organisation-activity"]
-                    job_title = target_fields["job-title"]
-                    job_description = target_fields["job-description"]
-
-                    if org_description:
+                    if target_fields["organisation-activity"]:
                         lookup_response, start_time, end_time = perform_sic_lookup(
-                            org_description
+                            target_fields["organisation-activity"]
                         )
 
                         # Add response to survey_result with all three TLFS input fields
                         inputs_dict = {
-                            "job_title": job_title or "",
-                            "job_description": job_description or "",
-                            "org_description": org_description,
+                            "job_title": target_fields["job-title"],
+                            "job_description": target_fields["job-description"],
+                            "org_description": target_fields["organisation-activity"],
                         }
                         add_sic_lookup_interaction(
                             lookup_response,
