@@ -48,6 +48,8 @@ def index() -> ResponseReturnValue:
         logger.warning(
             f"person_id: {get_person_id()} Reset question index from {session['current_question_index']}"  # pylint: disable=line-too-long
         )
+        # Reset follow-up questions and current question index
+        session["follow_up"] = []
         session["current_question_index"] = 0
 
     # Remove the survey_result if it exists
