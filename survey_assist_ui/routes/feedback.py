@@ -84,7 +84,9 @@ def feedback() -> str:
             if responses:
                 person_id = responses[0].get("person_id", "error_person_id")
             else:
-                logger.error(f"_id: {get_person_id()} responses not found for feedback")
+                logger.error(
+                    f"person_id: {get_person_id()} responses not found for feedback"
+                )
                 person_id = "error_responses"
 
             init_feedback_session(

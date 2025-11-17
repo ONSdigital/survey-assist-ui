@@ -102,4 +102,23 @@
             }) 
         }}
     </form>
+    <script>
+      // Mitigate against a user clicking back button, 
+      // which may cause loss of data in this beta survey.  
+      // Push a new history state so the first Back press stays on this page
+      window.history.pushState({ page: "question" }, "", window.location.href);
+
+      window.addEventListener("popstate", function (event) {
+        const ok = window.confirm(
+          "Going back is not supported in this beta survey, continuing may lose your answers. Do you still want to go back?"
+        );
+
+        if (!ok) {
+          // User cancelled: push state again so Back keeps them on this page
+          window.history.pushState({ page: "question" }, "", window.location.href);
+        }
+        // If they clicked OK, do nothing:
+        // the browser will continue navigating back normally.
+      });
+    </script>
 {% endblock %}

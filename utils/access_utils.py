@@ -65,7 +65,7 @@ def delete_access(access_id: str) -> tuple[bool, str]:
     Returns:
         tuple[bool, str]: Tuple of (True, "") if valid, or (False, error message) if not.
     """
-    logger.debug(f"Delete access for {access_id}")
+    logger.info(f"Delete access for {access_id}")
     error_string = f"Invalid id {access_id}. Not deleted."
     if not access_id:
         logger.error("Access id not set. Not deleted.")
