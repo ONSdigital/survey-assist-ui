@@ -11,7 +11,12 @@ from survey_assist_utils.logging import get_logger
 
 from utils.access_utils import require_access
 from utils.app_types import SurveyAssistFlask
-from utils.session_utils import log_route, remove_model_from_session, session_debug
+from utils.session_utils import (
+    get_person_id,
+    log_route,
+    remove_model_from_session,
+    session_debug,
+)
 
 main_blueprint = Blueprint("main", __name__)
 main_blueprint.before_request(require_access)
@@ -37,7 +42,12 @@ def index() -> ResponseReturnValue:
         return redirect("/access")
 
     # Reset the current question index in the session
+    # This should ensure that if a user returns to the index page
+    # any in-progress survey is reset
     if "current_question_index" in session:
+        logger.warning(
+            f"person_id: {get_person_id()} Reset question index from {session['current_question_index']}"  # pylint: disable=line-too-long
+        )
         session["current_question_index"] = 0
 
     # Remove the survey_result if it exists
