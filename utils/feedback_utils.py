@@ -295,7 +295,7 @@ def send_feedback() -> FeedbackResultResponse | None:
             other_feedback, "other-feedback", get_person_id()
         )
 
-    if clean_user_response != other_feedback:
+    if clean_user_response is not None and clean_user_response != other_feedback:
         # Update the feedback in session
         for q in feedback.get("questions", []):
             if q.get("response_name") == "other-feedback":
