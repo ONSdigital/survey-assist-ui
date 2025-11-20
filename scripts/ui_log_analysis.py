@@ -9,7 +9,7 @@ It reads lines from a log file (or stdin), finds patterns such as:
 - "match, skip classification" / "NOT matched, classify" (SIC lookup status)
 - "classified unambiguously" / "not classified, followup" (classification status)
 - "rerouted no employment" (not in employment routing)
-- "survey result saved" / "feedback result saved" (persistence events)
+- "survey result saved: <id>" / "feedback result saved: <id>" (persistence events)
 
 It can:
 - Stream individual events as JSONL (default)
@@ -43,6 +43,10 @@ REROUTED_NO_EMPLOYMENT_TOKEN = "rerouted no employment"
 SURVEY_RESULT_SAVED_TOKEN = "survey result saved"
 FEEDBACK_RESULT_SAVED_TOKEN = "feedback result saved"
 
+# Regexes to capture document IDs after "saved: <id>".
+SURVEY_RESULT_SAVED_RE = re.compile(r"survey result saved:\s*([\w-]+)")
+FEEDBACK_RESULT_SAVED_RE = re.compile(r"feedback result saved:\s*([\w-]+)")
+
 EventKind = Literal[
     "core",
     "dynamic",
@@ -68,6 +72,9 @@ class Event:
         status: Status label for non-question events (for example,
             "match_skip_classification", "classified_unambiguously").
             May be None for question-based events.
+        document_id: Identifier of a saved survey/feedback document, when
+            applicable. None for events that do not represent a persisted
+            document.
         raw: Original log line.
     """
 
@@ -75,6 +82,7 @@ class Event:
     kind: EventKind
     question: str | None
     status: str | None
+    document_id: str | None
     raw: str
 
     def to_dict(self) -> dict[str, object]:
@@ -88,6 +96,7 @@ class Event:
             "kind": self.kind,
             "question": self.question,
             "status": self.status,
+            "document_id": self.document_id,
             "raw": self.raw,
         }
 
@@ -106,6 +115,8 @@ class PersonSummary:
             was seen for this person.
         survey_results_saved: Count of "survey result saved" events.
         feedback_results_saved: Count of "feedback result saved" events.
+        survey_result_ids: List of survey result document identifiers.
+        feedback_result_ids: List of feedback result document identifiers.
     """
 
     person_id: str
@@ -116,6 +127,8 @@ class PersonSummary:
     rerouted_no_employment: bool
     survey_results_saved: int
     feedback_results_saved: int
+    survey_result_ids: list[str]
+    feedback_result_ids: list[str]
 
 
 def parse_line(line: str) -> Event | None:
@@ -136,8 +149,8 @@ def parse_line(line: str) -> Event | None:
         - `not classified, followup`
     - routing and persistence:
         - `rerouted no employment`
-        - `survey result saved`
-        - `feedback result saved`
+        - `survey result saved: <id>`
+        - `feedback result saved: <id>`
 
     Args:
         line: A single log line.
@@ -162,6 +175,7 @@ def parse_line(line: str) -> Event | None:
             kind="core",
             question=question,
             status=None,
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -172,6 +186,7 @@ def parse_line(line: str) -> Event | None:
             kind="core",
             question="organisation_activity_question",
             status=None,
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -184,6 +199,7 @@ def parse_line(line: str) -> Event | None:
             kind="dynamic",
             question=question,
             status=None,
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -194,6 +210,7 @@ def parse_line(line: str) -> Event | None:
             kind="sic_lookup",
             question=None,
             status="match_skip_classification",
+            document_id=None,
             raw=stripped_raw,
         )
     if SIC_NOT_MATCHED_CLASSIFY_TOKEN in line:
@@ -202,6 +219,7 @@ def parse_line(line: str) -> Event | None:
             kind="sic_lookup",
             question=None,
             status="not_matched_classify",
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -212,6 +230,7 @@ def parse_line(line: str) -> Event | None:
             kind="classification",
             question=None,
             status="classified_unambiguously",
+            document_id=None,
             raw=stripped_raw,
         )
     if NOT_CLASSIFIED_FOLLOWUP_TOKEN in line:
@@ -220,6 +239,7 @@ def parse_line(line: str) -> Event | None:
             kind="classification",
             question=None,
             status="not_classified_followup",
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -230,24 +250,53 @@ def parse_line(line: str) -> Event | None:
             kind="routing",
             question=None,
             status="rerouted_no_employment",
+            document_id=None,
             raw=stripped_raw,
         )
 
-    # Persistence: survey/feedback saved.
-    if SURVEY_RESULT_SAVED_TOKEN in line:
+    # Persistence: survey result saved (with optional document ID).
+    survey_match = SURVEY_RESULT_SAVED_RE.search(line)
+    if survey_match is not None:
+        document_id = survey_match.group(1)
         return Event(
             person_id=person_id,
             kind="survey_saved",
             question=None,
             status="survey_result_saved",
+            document_id=document_id,
             raw=stripped_raw,
         )
-    if FEEDBACK_RESULT_SAVED_TOKEN in line:
+    if SURVEY_RESULT_SAVED_TOKEN in line:
+        # Fallback in case older logs do not include an ID.
+        return Event(
+            person_id=person_id,
+            kind="survey_saved",
+            question=None,
+            status="survey_result_saved",
+            document_id=None,
+            raw=stripped_raw,
+        )
+
+    # Persistence: feedback result saved (with optional document ID).
+    feedback_match = FEEDBACK_RESULT_SAVED_RE.search(line)
+    if feedback_match is not None:
+        document_id = feedback_match.group(1)
         return Event(
             person_id=person_id,
             kind="feedback_saved",
             question=None,
             status="feedback_result_saved",
+            document_id=document_id,
+            raw=stripped_raw,
+        )
+    if FEEDBACK_RESULT_SAVED_TOKEN in line:
+        # Fallback for logs without IDs.
+        return Event(
+            person_id=person_id,
+            kind="feedback_saved",
+            question=None,
+            status="feedback_result_saved",
+            document_id=None,
             raw=stripped_raw,
         )
 
@@ -289,6 +338,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         - rerouted_no_employment: boolean flag
         - survey_results_saved: count of survey save events
         - feedback_results_saved: count of feedback save events
+        - survey_result_ids: list of survey result document IDs
+        - feedback_result_ids: list of feedback result document IDs
     """
     summary: dict[str, PersonSummary] = {}
 
@@ -304,6 +355,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 rerouted_no_employment=False,
                 survey_results_saved=0,
                 feedback_results_saved=0,
+                survey_result_ids=[],
+                feedback_result_ids=[],
             )
             summary[event.person_id] = person_summary
 
@@ -322,8 +375,12 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
             )
         elif event.kind == "survey_saved":
             person_summary.survey_results_saved += 1
+            if event.document_id is not None:
+                person_summary.survey_result_ids.append(event.document_id)
         elif event.kind == "feedback_saved":
             person_summary.feedback_results_saved += 1
+            if event.document_id is not None:
+                person_summary.feedback_result_ids.append(event.document_id)
 
     serialisable: list[dict[str, object]] = []
     for person_summary in summary.values():
@@ -339,6 +396,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 "rerouted_no_employment": person_summary.rerouted_no_employment,
                 "survey_results_saved": person_summary.survey_results_saved,
                 "feedback_results_saved": person_summary.feedback_results_saved,
+                "survey_result_ids": person_summary.survey_result_ids,
+                "feedback_result_ids": person_summary.feedback_result_ids,
             },
         )
 
@@ -398,4 +457,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
