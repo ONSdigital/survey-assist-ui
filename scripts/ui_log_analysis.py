@@ -47,6 +47,11 @@ FEEDBACK_RESULT_SAVED_TOKEN = "feedback result saved"
 SURVEY_RESULT_SAVED_RE = re.compile(r"survey result saved:\s*([\w-]+)")
 FEEDBACK_RESULT_SAVED_RE = re.compile(r"feedback result saved:\s*([\w-]+)")
 
+# Regex to capture follow-up question from classification logs.
+FOLLOWUP_QUESTION_RE = re.compile(
+    r"not classified, followup question:\s*(.+)"
+)
+
 EventKind = Literal[
     "core",
     "dynamic",
@@ -117,6 +122,8 @@ class PersonSummary:
         feedback_results_saved: Count of "feedback result saved" events.
         survey_result_ids: List of survey result document identifiers.
         feedback_result_ids: List of feedback result document identifiers.
+        dynamic_question_texts: List of dynamic follow-up question texts
+            shown to this person.
     """
 
     person_id: str
@@ -129,6 +136,7 @@ class PersonSummary:
     feedback_results_saved: int
     survey_result_ids: list[str]
     feedback_result_ids: list[str]
+    dynamic_question_texts: list[str]
 
 
 def parse_line(line: str) -> Event | None:
@@ -159,15 +167,27 @@ def parse_line(line: str) -> Event | None:
         An Event instance if the line contains a recognised pattern,
         otherwise None.
     """
-    person_match = PERSON_ID_RE.search(line)
+
+    stripped_raw = line.rstrip("\n")
+    text_for_matching = line
+
+    # Try to decode JSON and use the "message" field if present.
+    try:
+        payload = json.loads(line)
+        if isinstance(payload, dict) and "message" in payload:
+            text_for_matching = str(payload["message"])
+    except json.JSONDecodeError:
+        # Not JSON, fall back to the raw line.
+        text_for_matching = line
+
+    person_match = PERSON_ID_RE.search(text_for_matching)
     if person_match is None:
         return None
 
     person_id = person_match.group(1)
-    stripped_raw = line.rstrip("\n")
 
     # Core question answered via "saved response for <question>".
-    core_match = CORE_Q_RE.search(line)
+    core_match = CORE_Q_RE.search(text_for_matching)
     if core_match is not None:
         question = core_match.group(1)
         return Event(
@@ -180,7 +200,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Core question answered via "question: organisation_activity_question".
-    if ORG_ACTIVITY_Q_TOKEN in line:
+    if ORG_ACTIVITY_Q_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="core",
@@ -191,7 +211,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Dynamic follow-up questions.
-    dyn_match = DYNAMIC_Q_RE.search(line)
+    dyn_match = DYNAMIC_Q_RE.search(text_for_matching)
     if dyn_match is not None:
         question = dyn_match.group(1)
         return Event(
@@ -204,7 +224,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # SIC lookup statuses.
-    if SIC_MATCH_SKIP_TOKEN in line:
+    if SIC_MATCH_SKIP_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="sic_lookup",
@@ -213,7 +233,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             raw=stripped_raw,
         )
-    if SIC_NOT_MATCHED_CLASSIFY_TOKEN in line:
+    if SIC_NOT_MATCHED_CLASSIFY_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="sic_lookup",
@@ -224,7 +244,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Classification statuses.
-    if CLASSIFIED_UNAMBIGUOUSLY_TOKEN in line:
+    if CLASSIFIED_UNAMBIGUOUSLY_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="classification",
@@ -233,7 +253,20 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             raw=stripped_raw,
         )
-    if NOT_CLASSIFIED_FOLLOWUP_TOKEN in line:
+    
+    followup_q_match = FOLLOWUP_QUESTION_RE.search(text_for_matching)
+    if followup_q_match is not None:
+        question_text = followup_q_match.group(1)
+        return Event(
+            person_id=person_id,
+            kind="classification",
+            question=question_text,
+            status="not_classified_followup",
+            document_id=None,
+            raw=stripped_raw,
+        )
+    
+    if NOT_CLASSIFIED_FOLLOWUP_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="classification",
@@ -244,7 +277,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Routing.
-    if REROUTED_NO_EMPLOYMENT_TOKEN in line:
+    if REROUTED_NO_EMPLOYMENT_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
             kind="routing",
@@ -255,7 +288,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Persistence: survey result saved (with optional document ID).
-    survey_match = SURVEY_RESULT_SAVED_RE.search(line)
+    survey_match = SURVEY_RESULT_SAVED_RE.search(text_for_matching)
     if survey_match is not None:
         document_id = survey_match.group(1)
         return Event(
@@ -266,7 +299,7 @@ def parse_line(line: str) -> Event | None:
             document_id=document_id,
             raw=stripped_raw,
         )
-    if SURVEY_RESULT_SAVED_TOKEN in line:
+    if SURVEY_RESULT_SAVED_TOKEN in text_for_matching:
         # Fallback in case older logs do not include an ID.
         return Event(
             person_id=person_id,
@@ -278,7 +311,7 @@ def parse_line(line: str) -> Event | None:
         )
 
     # Persistence: feedback result saved (with optional document ID).
-    feedback_match = FEEDBACK_RESULT_SAVED_RE.search(line)
+    feedback_match = FEEDBACK_RESULT_SAVED_RE.search(text_for_matching)
     if feedback_match is not None:
         document_id = feedback_match.group(1)
         return Event(
@@ -289,7 +322,7 @@ def parse_line(line: str) -> Event | None:
             document_id=document_id,
             raw=stripped_raw,
         )
-    if FEEDBACK_RESULT_SAVED_TOKEN in line:
+    if FEEDBACK_RESULT_SAVED_TOKEN in text_for_matching:
         # Fallback for logs without IDs.
         return Event(
             person_id=person_id,
@@ -340,6 +373,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         - feedback_results_saved: count of feedback save events
         - survey_result_ids: list of survey result document IDs
         - feedback_result_ids: list of feedback result document IDs
+        - dynamic_question_texts: list of dynamic follow-up question texts
+            shown to this person.
     """
     summary: dict[str, PersonSummary] = {}
 
@@ -357,6 +392,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 feedback_results_saved=0,
                 survey_result_ids=[],
                 feedback_result_ids=[],
+                dynamic_question_texts=[],
             )
             summary[event.person_id] = person_summary
 
@@ -368,6 +404,12 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
             person_summary.sic_lookup_statuses.add(event.status)
         elif event.kind == "classification" and event.status is not None:
             person_summary.classification_statuses.add(event.status)
+            # Add follow-up question text if available.
+            if (
+                event.status == "not_classified_followup"
+                and event.question is not None
+                ):
+                    person_summary.dynamic_question_texts.append(event.question)
         elif event.kind == "routing":
             person_summary.rerouted_no_employment = (
                 person_summary.rerouted_no_employment
@@ -398,6 +440,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 "feedback_results_saved": person_summary.feedback_results_saved,
                 "survey_result_ids": person_summary.survey_result_ids,
                 "feedback_result_ids": person_summary.feedback_result_ids,
+                "dynamic_question_texts": person_summary.dynamic_question_texts,
             },
         )
 
