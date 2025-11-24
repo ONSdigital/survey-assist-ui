@@ -52,6 +52,10 @@ FOLLOWUP_QUESTION_RE = re.compile(
     r"not classified, followup question:\s*(.+)"
 )
 
+# Regex to capture SIC code from classification logs.
+SIC_CODE_RE = re.compile(r"code[:\s]+([0-9]{4,5})")
+
+
 EventKind = Literal[
     "core",
     "dynamic",
@@ -88,6 +92,7 @@ class Event:
     question: str | None
     status: str | None
     document_id: str | None
+    classification_code: str | None
     raw: str
 
     def to_dict(self) -> dict[str, object]:
@@ -102,6 +107,7 @@ class Event:
             "question": self.question,
             "status": self.status,
             "document_id": self.document_id,
+            "classification_code": self.classification_code,
             "raw": self.raw,
         }
 
@@ -116,6 +122,7 @@ class PersonSummary:
         dynamic_questions: Set of dynamic question identifiers.
         sic_lookup_statuses: Set of SIC lookup status labels.
         classification_statuses: Set of classification status labels.
+        classification_code: The SIC classification code if available.
         rerouted_no_employment: Whether a "rerouted no employment" event
             was seen for this person.
         survey_results_saved: Count of "survey result saved" events.
@@ -131,6 +138,7 @@ class PersonSummary:
     dynamic_questions: set[str]
     sic_lookup_statuses: set[str]
     classification_statuses: set[str]
+    classification_code: str
     rerouted_no_employment: bool
     survey_results_saved: int
     feedback_results_saved: int
@@ -196,6 +204,7 @@ def parse_line(line: str) -> Event | None:
             question=question,
             status=None,
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
@@ -207,6 +216,7 @@ def parse_line(line: str) -> Event | None:
             question="organisation_activity_question",
             status=None,
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
@@ -220,17 +230,24 @@ def parse_line(line: str) -> Event | None:
             question=question,
             status=None,
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
     # SIC lookup statuses.
     if SIC_MATCH_SKIP_TOKEN in text_for_matching:
+        sic_code = None
+        code_match = SIC_CODE_RE.search(text_for_matching)
+        if code_match:
+            sic_code = code_match.group(1)
+
         return Event(
             person_id=person_id,
             kind="sic_lookup",
             question=None,
             status="match_skip_classification",
             document_id=None,
+            classification_code=sic_code,
             raw=stripped_raw,
         )
     if SIC_NOT_MATCHED_CLASSIFY_TOKEN in text_for_matching:
@@ -240,17 +257,24 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="not_matched_classify",
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
     # Classification statuses.
     if CLASSIFIED_UNAMBIGUOUSLY_TOKEN in text_for_matching:
+        sic_code = None
+        code_match = SIC_CODE_RE.search(text_for_matching)
+        if code_match:
+            sic_code = code_match.group(1)
+
         return Event(
             person_id=person_id,
             kind="classification",
             question=None,
             status="classified_unambiguously",
             document_id=None,
+            classification_code=sic_code,
             raw=stripped_raw,
         )
     
@@ -263,6 +287,7 @@ def parse_line(line: str) -> Event | None:
             question=question_text,
             status="not_classified_followup",
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
     
@@ -284,6 +309,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="rerouted_no_employment",
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
@@ -297,6 +323,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="survey_result_saved",
             document_id=document_id,
+            classification_code=None,
             raw=stripped_raw,
         )
     if SURVEY_RESULT_SAVED_TOKEN in text_for_matching:
@@ -307,6 +334,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="survey_result_saved",
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
@@ -320,6 +348,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="feedback_result_saved",
             document_id=document_id,
+            classification_code=None,
             raw=stripped_raw,
         )
     if FEEDBACK_RESULT_SAVED_TOKEN in text_for_matching:
@@ -330,6 +359,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="feedback_result_saved",
             document_id=None,
+            classification_code=None,
             raw=stripped_raw,
         )
 
@@ -393,6 +423,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 survey_result_ids=[],
                 feedback_result_ids=[],
                 dynamic_question_texts=[],
+                classification_code="",
             )
             summary[event.person_id] = person_summary
 
@@ -402,6 +433,11 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
             person_summary.dynamic_questions.add(event.question)
         elif event.kind == "sic_lookup" and event.status is not None:
             person_summary.sic_lookup_statuses.add(event.status)
+            if (event.status == "match_skip_classification"
+                and
+                event.classification_code is not None
+                ):
+                    person_summary.classification_code = event.classification_code
         elif event.kind == "classification" and event.status is not None:
             person_summary.classification_statuses.add(event.status)
             # Add follow-up question text if available.
@@ -410,6 +446,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 and event.question is not None
                 ):
                     person_summary.dynamic_question_texts.append(event.question)
+            if event.classification_code is not None:
+                person_summary.classification_code = event.classification_code
         elif event.kind == "routing":
             person_summary.rerouted_no_employment = (
                 person_summary.rerouted_no_employment
@@ -441,6 +479,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 "survey_result_ids": person_summary.survey_result_ids,
                 "feedback_result_ids": person_summary.feedback_result_ids,
                 "dynamic_question_texts": person_summary.dynamic_question_texts,
+                "classification_code": person_summary.classification_code,
             },
         )
 
