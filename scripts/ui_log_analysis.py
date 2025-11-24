@@ -91,6 +91,7 @@ class Event:
             document.
         classification_code: SIC classification code where applicable. None if not present.
         access_time: Timestamp of access event.
+        timestamp: Timestamp string when the event occurred.
         raw: Original log line.
     """
 
@@ -101,6 +102,7 @@ class Event:
     document_id: str | None
     classification_code: str | None
     access_time: str | None
+    timestamp: str | None
     raw: str
 
     def to_dict(self) -> dict[str, object]:
@@ -117,6 +119,7 @@ class Event:
             "document_id": self.document_id,
             "classification_code": self.classification_code,
             "access_time": self.access_time,
+            "timestamp": self.timestamp,
             "raw": self.raw,
         }
 
@@ -127,35 +130,35 @@ class PersonSummary:
 
     Attributes:
         person_id: Identifier of the person.
-        core_questions: Set of core question identifiers.
-        dynamic_questions: Set of dynamic question identifiers.
-        sic_lookup_statuses: Set of SIC lookup status labels.
-        classification_statuses: Set of classification status labels.
+        core_questions: Mapping from core question identifier to its timestamp.
+        dynamic_questions: Mapping from dynamic question identifier to timestamp.
+        sic_lookup_statuses: Mapping from SIC lookup status label to timestamp.
+        classification_statuses: Mapping from classification status label
+            to timestamp.
         classification_code: The SIC classification code if available.
         rerouted_no_employment: Whether a "rerouted no employment" event
             was seen for this person.
         survey_results_saved: Count of "survey result saved" events.
         feedback_results_saved: Count of "feedback result saved" events.
-        survey_result_ids: List of survey result document identifiers.
-        feedback_result_ids: List of feedback result document identifiers.
-        dynamic_question_texts: List of dynamic follow-up question texts
-            shown to this person.
+        survey_result_ids: Mapping from survey result document ID to timestamp.
+        feedback_result_ids: Mapping from feedback result document ID to timestamp.
+        dynamic_question_texts: Mapping from follow-up question text to timestamp.
         access_time: Timestamp string of when the survey was first accessed
-            for this person, or an empty string if not known
+            for this person, or an empty string if not known.
     """
 
     person_id: str
-    core_questions: set[str]
-    dynamic_questions: set[str]
-    sic_lookup_statuses: set[str]
-    classification_statuses: set[str]
+    core_questions: dict[str, str]
+    dynamic_questions: dict[str, str]
+    sic_lookup_statuses: dict[str, str]
+    classification_statuses: dict[str, str]
     classification_code: str
     rerouted_no_employment: bool
     survey_results_saved: int
     feedback_results_saved: int
-    survey_result_ids: list[str]
-    feedback_result_ids: list[str]
-    dynamic_question_texts: list[str]
+    survey_result_ids: dict[str, str]
+    feedback_result_ids: dict[str, str]
+    dynamic_question_texts: dict[str, str]
     access_time: str
 
 
@@ -190,6 +193,9 @@ def parse_line(line: str) -> Event | None:
 
     stripped_raw = line.rstrip("\n")
     text_for_matching = stripped_raw
+
+    timestamp_match = ACCESS_TIME_RE.match(stripped_raw)
+    event_timestamp = timestamp_match.group(1) if timestamp_match else None
 
     # Try to isolate JSON (after timestamp, if present) and use the "message" field.
     json_part = stripped_raw
@@ -227,6 +233,7 @@ def parse_line(line: str) -> Event | None:
                 document_id=None,
                 classification_code=None,
                 access_time=access_time,
+                timestamp=event_timestamp,
                 raw=stripped_raw,
             )
 
@@ -248,6 +255,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -261,6 +269,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -276,6 +285,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -294,6 +304,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=sic_code,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
     if SIC_NOT_MATCHED_CLASSIFY_TOKEN in text_for_matching:
@@ -305,6 +316,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -323,6 +335,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=sic_code,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
     
@@ -337,6 +350,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
     
@@ -348,6 +362,7 @@ def parse_line(line: str) -> Event | None:
             status="not_classified_followup",
             document_id=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -361,6 +376,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -376,6 +392,7 @@ def parse_line(line: str) -> Event | None:
             document_id=document_id,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
     if SURVEY_RESULT_SAVED_TOKEN in text_for_matching:
@@ -388,6 +405,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -403,6 +421,7 @@ def parse_line(line: str) -> Event | None:
             document_id=document_id,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
     if FEEDBACK_RESULT_SAVED_TOKEN in text_for_matching:
@@ -415,6 +434,7 @@ def parse_line(line: str) -> Event | None:
             document_id=None,
             classification_code=None,
             access_time=None,
+            timestamp=event_timestamp,
             raw=stripped_raw,
         )
 
@@ -471,44 +491,47 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         if person_summary is None:
             person_summary = PersonSummary(
                 person_id=event.person_id,
-                core_questions=set(),
-                dynamic_questions=set(),
-                sic_lookup_statuses=set(),
-                classification_statuses=set(),
+                core_questions={},
+                dynamic_questions={},
+                sic_lookup_statuses={},
+                classification_statuses={},
                 rerouted_no_employment=False,
                 survey_results_saved=0,
                 feedback_results_saved=0,
-                survey_result_ids=[],
-                feedback_result_ids=[],
-                dynamic_question_texts=[],
+                survey_result_ids={},
+                feedback_result_ids={},
+                dynamic_question_texts={},
                 classification_code="",
                 access_time="",
             )
             summary[event.person_id] = person_summary
 
         if event.kind == "core" and event.question is not None:
-            person_summary.core_questions.add(event.question)
+            person_summary.core_questions[event.question] = event.timestamp or ""
         elif event.kind == "access":
             # Only set the access time once; keep the first seen.
             if event.access_time is not None and person_summary.access_time == "":
                 person_summary.access_time = event.access_time
         elif event.kind == "dynamic" and event.question is not None:
-            person_summary.dynamic_questions.add(event.question)
+            person_summary.dynamic_questions[event.question] = event.timestamp or ""
         elif event.kind == "sic_lookup" and event.status is not None:
-            person_summary.sic_lookup_statuses.add(event.status)
-            if (event.status == "match_skip_classification"
-                and
-                event.classification_code is not None
-                ):
-                    person_summary.classification_code = event.classification_code
+            person_summary.sic_lookup_statuses[event.status] = event.timestamp or ""
+            if (
+                event.status == "match_skip_classification"
+                and event.classification_code is not None
+            ):
+                person_summary.classification_code = event.classification_code
         elif event.kind == "classification" and event.status is not None:
-            person_summary.classification_statuses.add(event.status)
-            # Add follow-up question text if available.
+            person_summary.classification_statuses[event.status] = (
+                event.timestamp or ""
+            )
             if (
                 event.status == "not_classified_followup"
                 and event.question is not None
-                ):
-                    person_summary.dynamic_question_texts.append(event.question)
+            ):
+                person_summary.dynamic_question_texts[event.question] = (
+                    event.timestamp or ""
+                )
             if event.classification_code is not None:
                 person_summary.classification_code = event.classification_code
         elif event.kind == "routing":
@@ -519,33 +542,55 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         elif event.kind == "survey_saved":
             person_summary.survey_results_saved += 1
             if event.document_id is not None:
-                person_summary.survey_result_ids.append(event.document_id)
+                person_summary.survey_result_ids[event.document_id] = (
+                    event.timestamp or ""
+                )
         elif event.kind == "feedback_saved":
             person_summary.feedback_results_saved += 1
             if event.document_id is not None:
-                person_summary.feedback_result_ids.append(event.document_id)
-
+                person_summary.feedback_result_ids[event.document_id] = (
+                    event.timestamp or ""
+                )
     serialisable: list[dict[str, object]] = []
     for person_summary in summary.values():
         serialisable.append(
-            {
-                "person_id": person_summary.person_id,
-                "access_time": person_summary.access_time,
-                "core_questions": sorted(person_summary.core_questions),
-                "dynamic_questions": sorted(person_summary.dynamic_questions),
-                "sic_lookup_statuses": sorted(person_summary.sic_lookup_statuses),
-                "classification_statuses": sorted(
-                    person_summary.classification_statuses,
-                ),
-                "rerouted_no_employment": person_summary.rerouted_no_employment,
-                "survey_results_saved": person_summary.survey_results_saved,
-                "feedback_results_saved": person_summary.feedback_results_saved,
-                "survey_result_ids": person_summary.survey_result_ids,
-                "feedback_result_ids": person_summary.feedback_result_ids,
-                "dynamic_question_texts": person_summary.dynamic_question_texts,
-                "classification_code": person_summary.classification_code,
-            },
-        )
+        {
+            "person_id": person_summary.person_id,
+            "access_time": person_summary.access_time,
+            "core_questions": [
+                {"question": q, "timestamp": t}
+                for q, t in sorted(person_summary.core_questions.items())
+            ],
+            "dynamic_questions": [
+                {"question": q, "timestamp": t}
+                for q, t in sorted(person_summary.dynamic_questions.items())
+            ],
+            "sic_lookup_statuses": [
+                {"status": s, "timestamp": t}
+                for s, t in sorted(person_summary.sic_lookup_statuses.items())
+            ],
+            "classification_statuses": [
+                {"status": s, "timestamp": t}
+                for s, t in sorted(person_summary.classification_statuses.items())
+            ],
+            "rerouted_no_employment": person_summary.rerouted_no_employment,
+            "survey_results_saved": person_summary.survey_results_saved,
+            "feedback_results_saved": person_summary.feedback_results_saved,
+            "survey_result_ids": [
+                {"id": doc_id, "timestamp": t}
+                for doc_id, t in person_summary.survey_result_ids.items()
+            ],
+            "feedback_result_ids": [
+                {"id": doc_id, "timestamp": t}
+                for doc_id, t in person_summary.feedback_result_ids.items()
+            ],
+            "dynamic_question_texts": [
+                {"question": q, "timestamp": t}
+                for q, t in person_summary.dynamic_question_texts.items()
+            ],
+            "classification_code": person_summary.classification_code,
+        },
+    )
 
     return serialisable
 
