@@ -27,6 +27,10 @@ from typing import Iterable, Iterator, Literal
 
 # Core/dynamic question patterns.
 PERSON_ID_RE = re.compile(r"person_id:([A-Za-z0-9_-]+)")
+PARTICIPANT_ID_RE = re.compile(r"participant_id:([A-Za-z0-9_-]+)")
+ACCESS_TIME_RE = ACCESS_TIME_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)"
+)
 CORE_Q_RE = re.compile(r"saved response for\s+([A-Za-z0-9_-]+)")
 DYNAMIC_Q_RE = re.compile(r"(survey_assist_followup_[0-9]+)")
 ORG_ACTIVITY_Q_TOKEN = "question: organisation_activity_question"
@@ -57,6 +61,7 @@ SIC_CODE_RE = re.compile(r"code[:\s]+([0-9]{4,5})")
 
 
 EventKind = Literal[
+    "access",
     "core",
     "dynamic",
     "sic_lookup",
@@ -84,6 +89,8 @@ class Event:
         document_id: Identifier of a saved survey/feedback document, when
             applicable. None for events that do not represent a persisted
             document.
+        classification_code: SIC classification code where applicable. None if not present.
+        access_time: Timestamp of access event.
         raw: Original log line.
     """
 
@@ -93,6 +100,7 @@ class Event:
     status: str | None
     document_id: str | None
     classification_code: str | None
+    access_time: str | None
     raw: str
 
     def to_dict(self) -> dict[str, object]:
@@ -108,6 +116,7 @@ class Event:
             "status": self.status,
             "document_id": self.document_id,
             "classification_code": self.classification_code,
+            "access_time": self.access_time,
             "raw": self.raw,
         }
 
@@ -131,6 +140,8 @@ class PersonSummary:
         feedback_result_ids: List of feedback result document identifiers.
         dynamic_question_texts: List of dynamic follow-up question texts
             shown to this person.
+        access_time: Timestamp string of when the survey was first accessed
+            for this person, or an empty string if not known
     """
 
     person_id: str
@@ -145,6 +156,7 @@ class PersonSummary:
     survey_result_ids: list[str]
     feedback_result_ids: list[str]
     dynamic_question_texts: list[str]
+    access_time: str
 
 
 def parse_line(line: str) -> Event | None:
@@ -177,16 +189,46 @@ def parse_line(line: str) -> Event | None:
     """
 
     stripped_raw = line.rstrip("\n")
-    text_for_matching = line
+    text_for_matching = stripped_raw
 
-    # Try to decode JSON and use the "message" field if present.
+    # Try to isolate JSON (after timestamp, if present) and use the "message" field.
+    json_part = stripped_raw
+    json_start = stripped_raw.find("{")
+    if json_start != -1:
+        json_part = stripped_raw[json_start:]
+
     try:
-        payload = json.loads(line)
+        payload = json.loads(json_part)
         if isinstance(payload, dict) and "message" in payload:
+            # Only run regexes against the message text, not the whole JSON line.
             text_for_matching = str(payload["message"])
+        else:
+            text_for_matching = json_part
     except json.JSONDecodeError:
         # Not JSON, fall back to the raw line.
-        text_for_matching = line
+        text_for_matching = stripped_raw
+
+    if "survey accessed" in text_for_matching:
+        participant_match = PARTICIPANT_ID_RE.search(text_for_matching)
+        if participant_match is not None:
+            participant_id = participant_match.group(1)
+
+            # Map participant_id -> person_id; assumption: STP01 -> STP01-01
+            person_id_access = f"{participant_id}-01"
+
+            timestamp_match = ACCESS_TIME_RE.match(stripped_raw)
+            access_time = timestamp_match.group(1) if timestamp_match else None
+
+            return Event(
+                person_id=person_id_access,
+                kind="access",
+                question=None,
+                status="survey_accessed",
+                document_id=None,
+                classification_code=None,
+                access_time=access_time,
+                raw=stripped_raw,
+            )
 
     person_match = PERSON_ID_RE.search(text_for_matching)
     if person_match is None:
@@ -205,6 +247,7 @@ def parse_line(line: str) -> Event | None:
             status=None,
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -217,6 +260,7 @@ def parse_line(line: str) -> Event | None:
             status=None,
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -231,6 +275,7 @@ def parse_line(line: str) -> Event | None:
             status=None,
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -248,6 +293,7 @@ def parse_line(line: str) -> Event | None:
             status="match_skip_classification",
             document_id=None,
             classification_code=sic_code,
+            access_time=None,
             raw=stripped_raw,
         )
     if SIC_NOT_MATCHED_CLASSIFY_TOKEN in text_for_matching:
@@ -258,6 +304,7 @@ def parse_line(line: str) -> Event | None:
             status="not_matched_classify",
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -275,6 +322,7 @@ def parse_line(line: str) -> Event | None:
             status="classified_unambiguously",
             document_id=None,
             classification_code=sic_code,
+            access_time=None,
             raw=stripped_raw,
         )
     
@@ -288,6 +336,7 @@ def parse_line(line: str) -> Event | None:
             status="not_classified_followup",
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
     
@@ -298,6 +347,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="not_classified_followup",
             document_id=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -310,6 +360,7 @@ def parse_line(line: str) -> Event | None:
             status="rerouted_no_employment",
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -324,6 +375,7 @@ def parse_line(line: str) -> Event | None:
             status="survey_result_saved",
             document_id=document_id,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
     if SURVEY_RESULT_SAVED_TOKEN in text_for_matching:
@@ -335,6 +387,7 @@ def parse_line(line: str) -> Event | None:
             status="survey_result_saved",
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -349,6 +402,7 @@ def parse_line(line: str) -> Event | None:
             status="feedback_result_saved",
             document_id=document_id,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
     if FEEDBACK_RESULT_SAVED_TOKEN in text_for_matching:
@@ -360,6 +414,7 @@ def parse_line(line: str) -> Event | None:
             status="feedback_result_saved",
             document_id=None,
             classification_code=None,
+            access_time=None,
             raw=stripped_raw,
         )
 
@@ -405,6 +460,9 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         - feedback_result_ids: list of feedback result document IDs
         - dynamic_question_texts: list of dynamic follow-up question texts
             shown to this person.
+        - classification_code: SIC classification code if available
+        - access_time: Timestamp string of when the survey was first accessed
+            for this person, or an empty string if not known
     """
     summary: dict[str, PersonSummary] = {}
 
@@ -424,11 +482,16 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 feedback_result_ids=[],
                 dynamic_question_texts=[],
                 classification_code="",
+                access_time="",
             )
             summary[event.person_id] = person_summary
 
         if event.kind == "core" and event.question is not None:
             person_summary.core_questions.add(event.question)
+        elif event.kind == "access":
+            # Only set the access time once; keep the first seen.
+            if event.access_time is not None and person_summary.access_time == "":
+                person_summary.access_time = event.access_time
         elif event.kind == "dynamic" and event.question is not None:
             person_summary.dynamic_questions.add(event.question)
         elif event.kind == "sic_lookup" and event.status is not None:
@@ -467,6 +530,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         serialisable.append(
             {
                 "person_id": person_summary.person_id,
+                "access_time": person_summary.access_time,
                 "core_questions": sorted(person_summary.core_questions),
                 "dynamic_questions": sorted(person_summary.dynamic_questions),
                 "sic_lookup_statuses": sorted(person_summary.sic_lookup_statuses),
