@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
 """
-Compute total survey time per person from survey log summary JSON.
+Compute total survey time and journey type per person from survey log summary JSON.
 
 This script expects as input a JSON array of per-person summary objects,
 such as those produced by the UI log analysis script. For each person_id,
@@ -24,6 +24,13 @@ where the end timestamp is derived using the following precedence:
        - dynamic_question_texts
      - Take the maximum timestamp among these.
 
+It also determines the journey type:
+
+- "full_journey": user saved both survey result and feedback
+- "survey_only": user saved survey result but did not save feedback
+- "abandoned": user did not save a survey result; the end time is the
+  last point we have in the log for that user (as per the rules above)
+
 If access_time or an end timestamp cannot be determined, the total survey
 time is returned as an empty string.
 
@@ -33,7 +40,8 @@ The output is a JSON array where each element contains:
       "person_id": "...",
       "access_time": "...",
       "end_time": "...",
-      "total_survey_time": "HH:MM:SS"
+      "total_survey_time": "HH:MM:SS",
+      "journey_type": "full_journey|survey_only|abandoned"
     }
 
 Usage:
@@ -111,7 +119,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         description=(
-            "Compute total survey time per person from survey summary JSON."
+            "Compute total survey time and journey type per person "
+            "from survey summary JSON."
         ),
     )
     parser.add_argument(
@@ -138,8 +147,6 @@ def parse_timestamp(value: str) -> Optional[datetime]:
     if not value:
         return None
 
-    # Normalise: remove trailing 'Z', trim fractional seconds to at most 6
-    # digits (Python's datetime supports microseconds), then re-add 'Z'.
     try:
         if value.endswith("Z"):
             core = value[:-1]
@@ -215,8 +222,6 @@ def compute_end_time(summary: PersonSummary) -> Optional[str]:
     if not candidate_ts:
         return None
 
-    # Timestamps are ISO-like strings; max() works lexicographically for
-    # ISO 8601 in the same timezone, but to be safe we sort by parsed datetime.
     latest_ts = max(
         candidate_ts,
         key=lambda s: parse_timestamp(s) or datetime.min,
@@ -257,6 +262,85 @@ def compute_total_survey_time(summary: PersonSummary) -> tuple[str, str]:
     hms = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
     return end_ts_str, hms
+
+
+def compute_journey_type(summary: PersonSummary) -> str:
+    """Determine the journey type for a person's survey.
+
+    Journey types:
+    - "full_journey": user saved survey result and saved feedback result.
+    - "survey_only": user saved survey result but did not save feedback.
+    - "abandoned": user did not save the survey result; the end_time is
+      the last point we have in the log for that user.
+
+    Args:
+        summary: PersonSummary instance.
+
+    Returns:
+        Journey type as a string.
+    """
+    if summary.survey_results_saved > 0 and summary.feedback_results_saved > 0:
+        return "full_journey"
+    if summary.survey_results_saved > 0 and summary.feedback_results_saved == 0:
+        return "survey_only"
+    return "abandoned"
+
+
+def compute_overview(summary: PersonSummary, journey_type: str) -> str:
+    """Determine the overview label for a person's survey journey.
+
+    Overview values:
+    - "not_in_employment" when rerouted_no_employment is True.
+    - "sic_lookup_success" when sic_lookup_statuses contains
+      "match_skip_classification".
+    - "unambiguous_classification" when classification_statuses contains
+      "classified_unambiguously".
+    - "dynamic_question_needed" when classification_statuses contains
+      "not_classified_followup".
+    - "did_not_reach_classification" when the user abandons
+      (journey_type == "abandoned") and none of the above statuses apply.
+
+    Args:
+        summary: PersonSummary instance.
+        journey_type: Journey type string as returned by compute_journey_type().
+
+    Returns:
+        Overview label as a string, or an empty string if no label applies.
+    """
+    # 1. Not in employment always wins.
+    if summary.rerouted_no_employment:
+        return "not_in_employment"
+
+    # Gather status strings from the summary.
+    sic_statuses = {
+        str(entry.get("status", ""))
+        for entry in summary.sic_lookup_statuses
+        if isinstance(entry, dict)
+    }
+    classification_statuses = {
+        str(entry.get("status", ""))
+        for entry in summary.classification_statuses
+        if isinstance(entry, dict)
+    }
+
+    # 2. SIC lookup success.
+    if "match_skip_classification" in sic_statuses:
+        return "sic_lookup_success"
+
+    # 3. Unambiguous classification.
+    if "classified_unambiguously" in classification_statuses:
+        return "unambiguous_classification"
+
+    # 4. Dynamic question needed.
+    if "not_classified_followup" in classification_statuses:
+        return "dynamic_question_needed"
+
+    # 5. Did not reach classification (abandoned with no classification outcome).
+    if journey_type == "abandoned":
+        return "did_not_reach_classification"
+
+    # Fallback: no overview label.
+    return ""
 
 
 def load_input(path: str) -> list[PersonSummary]:
@@ -312,8 +396,8 @@ def main() -> None:
     """Entry point for the CLI tool.
 
     Reads a JSON array of per-person survey summaries and prints a JSON
-    array of objects containing person_id, access_time, end_time, and
-    total_survey_time in HH:MM:SS.
+    array of objects containing person_id, access_time, end_time,
+    total_survey_time in HH:MM:SS, and journey_type.
     """
     args = parse_args()
     summaries = load_input(args.input)
@@ -321,12 +405,16 @@ def main() -> None:
     results: list[dict[str, str]] = []
     for summary in summaries:
         end_time, total_time = compute_total_survey_time(summary)
+        journey_type = compute_journey_type(summary)
+        overview = compute_overview(summary, journey_type)
         results.append(
             {
                 "person_id": summary.person_id,
                 "access_time": summary.access_time,
                 "end_time": end_time,
                 "total_survey_time": total_time,
+                "journey_type": journey_type,
+                "overview": overview,
             },
         )
 
