@@ -174,3 +174,6 @@ cython_debug/
 survey_assist_ui/templates/components
 survey_assist_ui/templates/layout
 .vscode/
+
+# ignore JSON files
+*.json
