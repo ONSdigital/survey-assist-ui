@@ -229,6 +229,78 @@ def compute_end_time(summary: PersonSummary) -> Optional[str]:
     return latest_ts
 
 
+def compute_last_event(summary: PersonSummary) -> tuple[str, str]:
+    """Determine the event label that corresponds to the computed end time.
+
+    This function uses the same precedence as compute_last_time:
+
+    1. If feedback_results_saved > 0 and end_time matches a feedback_result_ids
+       entry, the event is "feedback_result_saved".
+    2. Else if survey_results_saved > 0 and end_time matches a survey_result_ids
+       entry, the event is "survey_result_saved".
+    3. Else, the end_time must come from the final answered question. We look
+       for a matching timestamp in:
+       - core_questions
+       - dynamic_questions
+       - dynamic_question_texts
+
+       For core_questions and dynamic_questions, the event label is the
+       "question" value (for example "survey_assist_followup_2").
+       For dynamic_question_texts, the event label is the question text.
+
+    Args:
+        summary: PersonSummary instance.
+
+    Returns:
+        A tuple of (end_timestamp_string, event_label). If the end time
+        cannot be determined or no matching event is found, both elements
+        are returned as empty strings.
+    """
+    end_ts = compute_end_time(summary)
+    if end_ts is None:
+        return "", ""
+
+    # 1. Feedback result.
+    if summary.feedback_results_saved > 0 and summary.feedback_result_ids:
+        for entry in summary.feedback_result_ids:
+            ts = entry.get("timestamp")
+            if isinstance(ts, str) and ts == end_ts:
+                return end_ts, "feedback_result_saved"
+
+    # 2. Survey result.
+    if summary.survey_results_saved > 0 and summary.survey_result_ids:
+        for entry in summary.survey_result_ids:
+            ts = entry.get("timestamp")
+            if isinstance(ts, str) and ts == end_ts:
+                return end_ts, "survey_result_saved"
+
+    # 3. Final question answered.
+
+    # core_questions
+    for entry in summary.core_questions:
+        ts = entry.get("timestamp")
+        if isinstance(ts, str) and ts == end_ts:
+            label = str(entry.get("question", ""))
+            return end_ts, label
+
+    # dynamic_questions
+    for entry in summary.dynamic_questions:
+        ts = entry.get("timestamp")
+        if isinstance(ts, str) and ts == end_ts:
+            label = str(entry.get("question", ""))
+            return end_ts, label
+
+    # dynamic_question_texts (use the full question text as label)
+    for entry in summary.dynamic_question_texts:
+        ts = entry.get("timestamp")
+        if isinstance(ts, str) and ts == end_ts:
+            label = str(entry.get("question", ""))
+            return end_ts, label
+
+    # Fallback: end_ts known but no matching event; return with empty label.
+    return end_ts, ""
+
+
 def compute_total_survey_time(summary: PersonSummary) -> tuple[str, str]:
     """Compute total survey time in HH:MM:SS and return also the end timestamp.
 
@@ -407,6 +479,10 @@ def main() -> None:
         end_time, total_time = compute_total_survey_time(summary)
         journey_type = compute_journey_type(summary)
         overview = compute_overview(summary, journey_type)
+        end_ts_from_event, last_event = compute_last_event(summary)
+
+        # Prefer the same end_time you already computed; end_ts_from_event is a
+        # safety check but should always match end_time when both are set.
         results.append(
             {
                 "person_id": summary.person_id,
@@ -415,6 +491,7 @@ def main() -> None:
                 "total_survey_time": total_time,
                 "journey_type": journey_type,
                 "overview": overview,
+                "last_event": last_event,
             },
         )
 
