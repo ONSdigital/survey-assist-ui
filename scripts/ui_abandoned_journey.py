@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
-"""
-Identify abandoned survey journeys from journey summary JSON.
+# pylint: disable=duplicate-code
+"""Identify abandoned survey journeys from journey summary JSON.
 
 This script expects as input a JSON array of journey objects, such as those
 produced by `calc_survey_time.py`. Each object is expected to contain:
@@ -45,11 +45,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Optional
+from typing import Any
 
 
-def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments.
 
     Args:
@@ -59,9 +60,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         Parsed argparse.Namespace containing CLI options.
     """
     parser = argparse.ArgumentParser(
-        description=(
-            "Identify abandoned survey journeys from journey summary JSON."
-        ),
+        description=("Identify abandoned survey journeys from journey summary JSON."),
     )
     parser.add_argument(
         "input",
@@ -70,7 +69,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
-def parse_timestamp(value: str) -> Optional[datetime]:
+def parse_timestamp(value: str) -> datetime | None:
     """Parse a timestamp string into a datetime object.
 
     The expected format is an ISO 8601 string with a trailing 'Z' and
@@ -115,7 +114,7 @@ def load_journeys(path: str) -> list[dict[str, Any]]:
     if path == "-":
         data = json.load(sys.stdin)
     else:
-        with open(path, "r", encoding="utf-8") as file:
+        with open(path, encoding="utf-8") as file:
             data = json.load(file)
 
     if not isinstance(data, list):
@@ -129,7 +128,7 @@ def load_journeys(path: str) -> list[dict[str, Any]]:
     return journeys
 
 
-def find_latest_end_time(journeys: list[dict[str, Any]]) -> Optional[datetime]:
+def find_latest_end_time(journeys: list[dict[str, Any]]) -> datetime | None:
     """Find the latest end_time across all journeys.
 
     Args:
@@ -138,7 +137,7 @@ def find_latest_end_time(journeys: list[dict[str, Any]]) -> Optional[datetime]:
     Returns:
         The latest end_time as a datetime object, or None if none can be parsed.
     """
-    latest: Optional[datetime] = None
+    latest: datetime | None = None
 
     for journey in journeys:
         end_time_value = journey.get("end_time")

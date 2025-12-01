@@ -273,7 +273,7 @@ jq '[
     | {
         count: ($matches | length),
         users: $matches
-      }' ui-log-DD-MM-HH:MM-access-added.json > ui-log-DD-MM-HH:MM-access-issues-saved-result.json
+      }' ui-log-DD-MM-HH:MM.json > ui-log-DD-MM-HH:MM-access-issues-saved-result.json
 ```
 
 Users that had access issues, managed to access the survey but abandoned after being asked a question:

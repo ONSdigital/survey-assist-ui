@@ -1,6 +1,5 @@
 #!/usr/bin/env python3.12
-"""
-Plot survey access timeseries from a JSON file.
+"""Plot survey access timeseries from a JSON file.
 
 Supports JSON in either format:
 
@@ -14,15 +13,27 @@ or
 """
 
 from __future__ import annotations
+
 import argparse
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import matplotlib.pyplot as plt
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for plotting survey access timeseries.
+
+    Args:
+        argv (Iterable[str] | None): Optional iterable of argument strings. If None,
+            `sys.argv` is used.
+
+    Returns:
+        argparse.Namespace: Parsed CLI options including input JSON file path, chart title,
+        and optional output filename.
+    """
     parser = argparse.ArgumentParser(
         description="Plot survey timeseries (total, full_journey, survey_only).",
     )
@@ -51,10 +62,7 @@ def load_timeseries(path: str) -> list[dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    if isinstance(data, dict) and "timeseries" in data:
-        ts = data["timeseries"]
-    else:
-        ts = data
+    ts = data["timeseries"] if isinstance(data, dict) and "timeseries" in data else data
 
     if not isinstance(ts, list):
         raise ValueError("Expected a list of timeseries entries.")
@@ -88,6 +96,7 @@ def plot_timeseries(timeseries: list[dict[str, Any]], title: str) -> plt.Figure:
 
 
 def main() -> None:
+    """Main function to parse arguments, load data, plot chart, and save/show it."""
     args = parse_args()
     ts = load_timeseries(args.json_file)
 

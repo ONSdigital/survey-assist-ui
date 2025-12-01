@@ -1,6 +1,5 @@
 #!/usr/bin/env python3.12
-"""
-CLI tool to analyse survey logs for core, dynamic, and classification-related events.
+"""CLI tool to analyse survey logs for core, dynamic, and classification-related events.
 
 It reads lines from a log file (or stdin), finds patterns such as:
 - "saved response for <question_name>" (core questions)
@@ -22,43 +21,48 @@ import argparse
 import json
 import re
 import sys
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Literal
+from typing import Literal
+
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-return-statements
 
 # Core/dynamic question patterns.
 PERSON_ID_RE = re.compile(r"person_id:([A-Za-z0-9_-]+)")
 PARTICIPANT_ID_RE = re.compile(r"participant_id:([A-Za-z0-9_-]+)")
-ACCESS_TIME_RE = ACCESS_TIME_RE = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)"
-)
+ACCESS_TIME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)")
 
 # unsuccessful access
-UNSUCCESSFUL_ACCESS_TOKEN = "Validation unsuccessful for participant_id"
+UNSUCCESSFUL_ACCESS_TOKEN = (
+    "Validation unsuccessful for participant_id"  # noqa: S105 # nosec B105
+)
 
 CORE_Q_RE = re.compile(r"saved response for\s+([A-Za-z0-9_-]+)")
 DYNAMIC_Q_RE = re.compile(r"(survey_assist_followup_[0-9]+)")
-ORG_ACTIVITY_Q_TOKEN = "question: organisation_activity_question"
+ORG_ACTIVITY_Q_TOKEN = (
+    "question: organisation_activity_question"  # noqa: S105 # nosec B105
+)
 
 # Status tokens derived from your grep command.
-SIC_MATCH_SKIP_TOKEN = "match, skip classification"
-SIC_NOT_MATCHED_CLASSIFY_TOKEN = "NOT matched, classify"
+SIC_MATCH_SKIP_TOKEN = "match, skip classification"  # noqa: S105 # nosec B105
+SIC_NOT_MATCHED_CLASSIFY_TOKEN = "NOT matched, classify"  # noqa: S105 # nosec B105
 
-CLASSIFIED_UNAMBIGUOUSLY_TOKEN = "classified unambiguously"
-NOT_CLASSIFIED_FOLLOWUP_TOKEN = "not classified, followup"
+CLASSIFIED_UNAMBIGUOUSLY_TOKEN = "classified unambiguously"  # noqa: S105 # nosec B105
+NOT_CLASSIFIED_FOLLOWUP_TOKEN = "not classified, followup"  # noqa: S105 # nosec B105
+REROUTED_NO_EMPLOYMENT_TOKEN = "rerouted no employment"  # noqa: S105 # nosec B105
 
-REROUTED_NO_EMPLOYMENT_TOKEN = "rerouted no employment"
-
-SURVEY_RESULT_SAVED_TOKEN = "survey result saved"
-FEEDBACK_RESULT_SAVED_TOKEN = "feedback result saved"
-
+SURVEY_RESULT_SAVED_TOKEN = "survey result saved"  # noqa: S105 # nosec B105
+FEEDBACK_RESULT_SAVED_TOKEN = "feedback result saved"  # noqa: S105 # nosec B105
 # Regexes to capture document IDs after "saved: <id>".
 SURVEY_RESULT_SAVED_RE = re.compile(r"survey result saved:\s*([\w-]+)")
 FEEDBACK_RESULT_SAVED_RE = re.compile(r"feedback result saved:\s*([\w-]+)")
 
 # Regex to capture follow-up question from classification logs.
-FOLLOWUP_QUESTION_RE = re.compile(
-    r"not classified, followup question:\s*(.+)"
-)
+FOLLOWUP_QUESTION_RE = re.compile(r"not classified, followup question:\s*(.+)")
 
 # Regex to capture SIC code from classification logs.
 SIC_CODE_RE = re.compile(r"code[:\s]+([0-9]{4,5})")
@@ -169,7 +173,7 @@ class PersonSummary:
     unsuccessful_access: bool
 
 
-def parse_line(line: str) -> Event | None:
+def parse_line(line: str) -> Event | None:  # noqa C901, PLR0911, PLR0912, PLR0915
     """Parse a single log line and extract an Event if relevant.
 
     The function looks for:
@@ -197,7 +201,6 @@ def parse_line(line: str) -> Event | None:
         An Event instance if the line contains a recognised pattern,
         otherwise None.
     """
-
     stripped_raw = line.rstrip("\n")
     text_for_matching = stripped_raw
 
@@ -212,11 +215,11 @@ def parse_line(line: str) -> Event | None:
 
     try:
         payload = json.loads(json_part)
-        if isinstance(payload, dict) and "message" in payload:
-            # Only run regexes against the message text, not the whole JSON line.
-            text_for_matching = str(payload["message"])
-        else:
-            text_for_matching = json_part
+        text_for_matching = (
+            str(payload["message"])
+            if isinstance(payload, dict) and "message" in payload
+            else json_part
+        )
     except json.JSONDecodeError:
         # Not JSON, fall back to the raw line.
         text_for_matching = stripped_raw
@@ -363,7 +366,7 @@ def parse_line(line: str) -> Event | None:
             timestamp=event_timestamp,
             raw=stripped_raw,
         )
-    
+
     followup_q_match = FOLLOWUP_QUESTION_RE.search(text_for_matching)
     if followup_q_match is not None:
         question_text = followup_q_match.group(1)
@@ -378,7 +381,7 @@ def parse_line(line: str) -> Event | None:
             timestamp=event_timestamp,
             raw=stripped_raw,
         )
-    
+
     if NOT_CLASSIFIED_FOLLOWUP_TOKEN in text_for_matching:
         return Event(
             person_id=person_id,
@@ -386,6 +389,7 @@ def parse_line(line: str) -> Event | None:
             question=None,
             status="not_classified_followup",
             document_id=None,
+            classification_code=None,
             access_time=None,
             timestamp=event_timestamp,
             raw=stripped_raw,
@@ -476,16 +480,16 @@ def iter_lines(source: str) -> Iterator[str]:
         Lines from the given source, one by one.
     """
     if source == "-":
-        for line in sys.stdin:
-            yield line
+        yield from sys.stdin
         return
 
-    with open(source, "r", encoding="utf-8") as file:
-        for line in file:
-            yield line
+    with open(source, encoding="utf-8") as file:
+        yield from file
 
 
-def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
+def build_summary(  # noqa: C901, PLR0912
+    events: Iterable[Event],
+) -> list[dict[str, object]]:
     """Build a per-person summary from a sequence of events.
 
     Args:
@@ -554,13 +558,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
             ):
                 person_summary.classification_code = event.classification_code
         elif event.kind == "classification" and event.status is not None:
-            person_summary.classification_statuses[event.status] = (
-                event.timestamp or ""
-            )
-            if (
-                event.status == "not_classified_followup"
-                and event.question is not None
-            ):
+            person_summary.classification_statuses[event.status] = event.timestamp or ""
+            if event.status == "not_classified_followup" and event.question is not None:
                 person_summary.dynamic_question_texts[event.question] = (
                     event.timestamp or ""
                 )
@@ -586,44 +585,44 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
     serialisable: list[dict[str, object]] = []
     for person_summary in summary.values():
         serialisable.append(
-        {
-            "person_id": person_summary.person_id,
-            "access_time": person_summary.access_time,
-            "core_questions": [
-                {"question": q, "timestamp": t}
-                for q, t in sorted(person_summary.core_questions.items())
-            ],
-            "dynamic_questions": [
-                {"question": q, "timestamp": t}
-                for q, t in sorted(person_summary.dynamic_questions.items())
-            ],
-            "sic_lookup_statuses": [
-                {"status": s, "timestamp": t}
-                for s, t in sorted(person_summary.sic_lookup_statuses.items())
-            ],
-            "classification_statuses": [
-                {"status": s, "timestamp": t}
-                for s, t in sorted(person_summary.classification_statuses.items())
-            ],
-            "rerouted_no_employment": person_summary.rerouted_no_employment,
-            "survey_results_saved": person_summary.survey_results_saved,
-            "feedback_results_saved": person_summary.feedback_results_saved,
-            "survey_result_ids": [
-                {"id": doc_id, "timestamp": t}
-                for doc_id, t in person_summary.survey_result_ids.items()
-            ],
-            "feedback_result_ids": [
-                {"id": doc_id, "timestamp": t}
-                for doc_id, t in person_summary.feedback_result_ids.items()
-            ],
-            "dynamic_question_texts": [
-                {"question": q, "timestamp": t}
-                for q, t in person_summary.dynamic_question_texts.items()
-            ],
-            "classification_code": person_summary.classification_code,
-            "unsuccessful_access": person_summary.unsuccessful_access,
-        },
-    )
+            {
+                "person_id": person_summary.person_id,
+                "access_time": person_summary.access_time,
+                "core_questions": [
+                    {"question": q, "timestamp": t}
+                    for q, t in sorted(person_summary.core_questions.items())
+                ],
+                "dynamic_questions": [
+                    {"question": q, "timestamp": t}
+                    for q, t in sorted(person_summary.dynamic_questions.items())
+                ],
+                "sic_lookup_statuses": [
+                    {"status": s, "timestamp": t}
+                    for s, t in sorted(person_summary.sic_lookup_statuses.items())
+                ],
+                "classification_statuses": [
+                    {"status": s, "timestamp": t}
+                    for s, t in sorted(person_summary.classification_statuses.items())
+                ],
+                "rerouted_no_employment": person_summary.rerouted_no_employment,
+                "survey_results_saved": person_summary.survey_results_saved,
+                "feedback_results_saved": person_summary.feedback_results_saved,
+                "survey_result_ids": [
+                    {"id": doc_id, "timestamp": t}
+                    for doc_id, t in person_summary.survey_result_ids.items()
+                ],
+                "feedback_result_ids": [
+                    {"id": doc_id, "timestamp": t}
+                    for doc_id, t in person_summary.feedback_result_ids.items()
+                ],
+                "dynamic_question_texts": [
+                    {"question": q, "timestamp": t}
+                    for q, t in person_summary.dynamic_question_texts.items()
+                ],
+                "classification_code": person_summary.classification_code,
+                "unsuccessful_access": person_summary.unsuccessful_access,
+            },
+        )
 
     return serialisable
 

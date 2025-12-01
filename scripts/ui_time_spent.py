@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
-"""
-Compute total survey time and journey type per person from survey log summary JSON.
+# pylint: disable=duplicate-code
+"""Compute total survey time and journey type per person from survey log summary JSON.
 
 This script expects as input a JSON array of per-person summary objects,
 such as those produced by the UI log analysis script. For each person_id,
@@ -57,9 +57,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable, List, Optional
+from typing import Any
+
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-return-statements
 
 
 @dataclass(slots=True)
@@ -96,19 +102,19 @@ class PersonSummary:
 
     person_id: str
     access_time: str
-    core_questions: List[dict[str, Any]]
-    dynamic_questions: List[dict[str, Any]]
-    sic_lookup_statuses: List[dict[str, Any]]
-    classification_statuses: List[dict[str, Any]]
+    core_questions: list[dict[str, Any]]
+    dynamic_questions: list[dict[str, Any]]
+    sic_lookup_statuses: list[dict[str, Any]]
+    classification_statuses: list[dict[str, Any]]
     rerouted_no_employment: bool
     survey_results_saved: int
     feedback_results_saved: int
-    survey_result_ids: List[dict[str, Any]]
-    feedback_result_ids: List[dict[str, Any]]
-    dynamic_question_texts: List[dict[str, Any]]
+    survey_result_ids: list[dict[str, Any]]
+    feedback_result_ids: list[dict[str, Any]]
+    dynamic_question_texts: list[dict[str, Any]]
 
 
-def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments.
 
     Args:
@@ -130,7 +136,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
-def parse_timestamp(value: str) -> Optional[datetime]:
+def parse_timestamp(value: str) -> datetime | None:
     """Parse a timestamp string into a datetime object.
 
     The expected format is an ISO 8601 string with a trailing 'Z' and
@@ -163,7 +169,7 @@ def parse_timestamp(value: str) -> Optional[datetime]:
         return None
 
 
-def compute_end_time(summary: PersonSummary) -> Optional[str]:
+def compute_end_time(summary: PersonSummary) -> str | None:  # noqa: C901
     """Compute the end timestamp string for a person's survey.
 
     The precedence is:
@@ -229,7 +235,9 @@ def compute_end_time(summary: PersonSummary) -> Optional[str]:
     return latest_ts
 
 
-def compute_last_event(summary: PersonSummary) -> tuple[str, str]:
+def compute_last_event(  # noqa: C901, PLR0911, PLR0912
+    summary: PersonSummary,
+) -> tuple[str, str]:
     """Determine the event label that corresponds to the computed end time.
 
     This function uses the same precedence as compute_last_time:
@@ -427,7 +435,7 @@ def load_input(path: str) -> list[PersonSummary]:
     if path == "-":
         data = json.load(sys.stdin)
     else:
-        with open(path, "r", encoding="utf-8") as file:
+        with open(path, encoding="utf-8") as file:
             data = json.load(file)
 
     if not isinstance(data, list):
@@ -479,7 +487,7 @@ def main() -> None:
         end_time, total_time = compute_total_survey_time(summary)
         journey_type = compute_journey_type(summary)
         overview = compute_overview(summary, journey_type)
-        end_ts_from_event, last_event = compute_last_event(summary)
+        _end_ts_from_event, last_event = compute_last_event(summary)
 
         # Prefer the same end_time you already computed; end_ts_from_event is a
         # safety check but should always match end_time when both are set.

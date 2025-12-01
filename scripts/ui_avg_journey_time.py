@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
-"""
-Compute average, longest, and shortest total survey time per journey type
+# pylint: disable=duplicate-code
+"""Compute average, longest, and shortest total survey time per journey type
 from journeys JSON, and produce a per-calendar-hour access time series.
 
 Input JSON format (array):
@@ -49,9 +49,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -74,7 +75,7 @@ class JourneyRecord:
     access_time: str
 
 
-def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
         description=(
@@ -89,12 +90,12 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
-def hms_to_seconds(value: str) -> Optional[int]:
+def hms_to_seconds(value: str) -> int | None:
     """Convert HH:MM:SS string to total seconds."""
     if not value:
         return None
     parts = value.split(":")
-    if len(parts) != 3:
+    if len(parts) != 3:  # noqa: PLR2004
         return None
     try:
         hours = int(parts[0])
@@ -102,7 +103,7 @@ def hms_to_seconds(value: str) -> Optional[int]:
         seconds = int(parts[2])
     except ValueError:
         return None
-    if minutes < 0 or minutes >= 60 or seconds < 0 or seconds >= 60:
+    if minutes < 0 or minutes >= 60 or seconds < 0 or seconds >= 60:  # noqa: PLR2004
         return None
     return hours * 3600 + minutes * 60 + seconds
 
@@ -116,7 +117,7 @@ def seconds_to_hms(total_seconds: int) -> str:
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
-def parse_access_datetime(access_time: str) -> Optional[datetime]:
+def parse_access_datetime(access_time: str) -> datetime | None:
     """Parse access_time into a datetime.
 
     Expected format: ISO 8601 with trailing 'Z' and possibly >6 fractional
@@ -145,7 +146,7 @@ def load_journeys(path: str) -> list[JourneyRecord]:
     if path == "-":
         data = json.load(sys.stdin)
     else:
-        with open(path, "r", encoding="utf-8") as file:
+        with open(path, encoding="utf-8") as file:
             data = json.load(file)
 
     if not isinstance(data, list):
@@ -169,9 +170,7 @@ def load_journeys(path: str) -> list[JourneyRecord]:
 def stats_for_type(
     journeys: list[JourneyRecord],
     journey_type: str,
-) -> Tuple[
-    Optional[int], Optional[int], Optional[str], Optional[int], Optional[str]
-]:
+) -> tuple[int | None, int | None, str | None, int | None, str | None]:
     """Compute average, longest, and shortest durations for a journey type."""
     durations: list[tuple[int, str]] = []
 
@@ -200,7 +199,7 @@ def stats_for_type(
     )
 
 
-def assemble(journey_name: str, stats: Tuple[Any, ...]) -> dict[str, Any]:
+def assemble(journey_name: str, stats: tuple[Any, ...]) -> dict[str, Any]:
     """Assemble journey stats into the desired nested JSON structure."""
     (
         avg,
@@ -218,27 +217,19 @@ def assemble(journey_name: str, stats: Tuple[Any, ...]) -> dict[str, Any]:
             },
             "longest": {
                 "seconds": longest,
-                "hms": (
-                    seconds_to_hms(longest)
-                    if longest is not None
-                    else ""
-                ),
+                "hms": (seconds_to_hms(longest) if longest is not None else ""),
                 "person_id": longest_pid,
             },
             "shortest": {
                 "seconds": shortest,
-                "hms": (
-                    seconds_to_hms(shortest)
-                    if shortest is not None
-                    else ""
-                ),
+                "hms": (seconds_to_hms(shortest) if shortest is not None else ""),
                 "person_id": shortest_pid,
             },
         },
     }
 
 
-def build_timeseries(journeys: list[JourneyRecord]) -> list[dict[str, int]]:
+def build_timeseries(journeys: list[JourneyRecord]) -> list[dict[str, Any]]:
     """Build a per-calendar-hour access time series from journeys.
 
     Each entry in the returned list has the form:
@@ -280,8 +271,8 @@ def build_timeseries(journeys: list[JourneyRecord]) -> list[dict[str, int]]:
         elif record.journey_type == "survey_only":
             bucket["survey_only_count"] += 1
 
-    timeseries: list[dict[str, int]] = []
-    for (date_str, hour) in sorted(buckets.keys()):
+    timeseries: list[dict[str, Any]] = []
+    for date_str, hour in sorted(buckets.keys()):
         bucket = buckets[(date_str, hour)]
         timeseries.append(
             {
