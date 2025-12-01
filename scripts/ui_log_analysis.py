@@ -31,6 +31,10 @@ PARTICIPANT_ID_RE = re.compile(r"participant_id:([A-Za-z0-9_-]+)")
 ACCESS_TIME_RE = ACCESS_TIME_RE = re.compile(
     r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)"
 )
+
+# unsuccessful access
+UNSUCCESSFUL_ACCESS_TOKEN = "Validation unsuccessful for participant_id"
+
 CORE_Q_RE = re.compile(r"saved response for\s+([A-Za-z0-9_-]+)")
 DYNAMIC_Q_RE = re.compile(r"(survey_assist_followup_[0-9]+)")
 ORG_ACTIVITY_Q_TOKEN = "question: organisation_activity_question"
@@ -145,6 +149,8 @@ class PersonSummary:
         dynamic_question_texts: Mapping from follow-up question text to timestamp.
         access_time: Timestamp string of when the survey was first accessed
             for this person, or an empty string if not known.
+        unsuccessful_access: Whether an unsuccessful access attempt was logged
+            for this participant.
     """
 
     person_id: str
@@ -160,6 +166,7 @@ class PersonSummary:
     feedback_result_ids: dict[str, str]
     dynamic_question_texts: dict[str, str]
     access_time: str
+    unsuccessful_access: bool
 
 
 def parse_line(line: str) -> Event | None:
@@ -233,6 +240,24 @@ def parse_line(line: str) -> Event | None:
                 document_id=None,
                 classification_code=None,
                 access_time=access_time,
+                timestamp=event_timestamp,
+                raw=stripped_raw,
+            )
+
+    if UNSUCCESSFUL_ACCESS_TOKEN in text_for_matching:
+        participant_match = PARTICIPANT_ID_RE.search(text_for_matching)
+        if participant_match is not None:
+            participant_id = participant_match.group(1)
+            person_id_access = f"{participant_id}-01"
+
+            return Event(
+                person_id=person_id_access,
+                kind="access",
+                question=None,
+                status="unsuccessful_access",
+                document_id=None,
+                classification_code=None,
+                access_time=None,
                 timestamp=event_timestamp,
                 raw=stripped_raw,
             )
@@ -483,6 +508,8 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
         - classification_code: SIC classification code if available
         - access_time: Timestamp string of when the survey was first accessed
             for this person, or an empty string if not known
+        - unsuccessful_access: Whether an unsuccessful access attempt was logged
+            for this participant.
     """
     summary: dict[str, PersonSummary] = {}
 
@@ -503,6 +530,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 dynamic_question_texts={},
                 classification_code="",
                 access_time="",
+                unsuccessful_access=False,
             )
             summary[event.person_id] = person_summary
 
@@ -510,8 +538,12 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
             person_summary.core_questions[event.question] = event.timestamp or ""
         elif event.kind == "access":
             # Only set the access time once; keep the first seen.
-            if event.access_time is not None and person_summary.access_time == "":
-                person_summary.access_time = event.access_time
+            if event.status == "survey_accessed":
+                # Only set the access time once; keep the first seen.
+                if event.access_time is not None and person_summary.access_time == "":
+                    person_summary.access_time = event.access_time
+            elif event.status == "unsuccessful_access":
+                person_summary.unsuccessful_access = True
         elif event.kind == "dynamic" and event.question is not None:
             person_summary.dynamic_questions[event.question] = event.timestamp or ""
         elif event.kind == "sic_lookup" and event.status is not None:
@@ -589,6 +621,7 @@ def build_summary(events: Iterable[Event]) -> list[dict[str, object]]:
                 for q, t in person_summary.dynamic_question_texts.items()
             ],
             "classification_code": person_summary.classification_code,
+            "unsuccessful_access": person_summary.unsuccessful_access,
         },
     )
 
