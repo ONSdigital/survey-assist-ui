@@ -1,6 +1,5 @@
 #!/usr/bin/env python3.12
-"""
-Find users who accessed the survey more than once.
+"""Find users who accessed the survey more than once.
 
 Reads a log file containing lines such as:
     2025-11-24T15:46:49Z {"message": "participant_id:STP05087 survey accessed", ...}
@@ -21,14 +20,14 @@ import argparse
 import json
 import re
 from collections import Counter
-from typing import Iterable
-
+from collections.abc import Iterable
 
 ACCESS_RE = re.compile(r"participant_id:([A-Za-z0-9_-]+)")
-SURVEY_ACCESSED_TOKEN = "survey accessed"
+SURVEY_ACCESSED_TOKEN = "survey accessed"  # noqa: S105 # nosec B105
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for log file and output format."""
     parser = argparse.ArgumentParser(
         description="Detect repeated survey access attempts.",
     )
@@ -44,11 +43,11 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
-def find_multiple_accesses(path: str) -> tuple[list[dict[str, int]], int]:
+def find_multiple_accesses(path: str) -> tuple[list[dict[str, object]], int]:
     """Scan the log file and find repeat accesses."""
     counts: Counter[str] = Counter()
 
-    with open(path, "r", encoding="utf-8") as file:
+    with open(path, encoding="utf-8") as file:
         for line in file:
             if SURVEY_ACCESSED_TOKEN not in line:
                 continue
@@ -72,19 +71,22 @@ def find_multiple_accesses(path: str) -> tuple[list[dict[str, int]], int]:
 
 
 def main() -> None:
+    """Main entry point."""
     args = parse_args()
     repeated, extra = find_multiple_accesses(args.logfile)
 
     if args.json:
-        print(json.dumps(
-            {
-                "duplicate_accesses": repeated,
-                "duplicate_user_count": len(repeated),
-                "extra_access_attempts": extra,
-            },
-            indent=2,
-            ensure_ascii=False,
-        ))
+        print(
+            json.dumps(
+                {
+                    "duplicate_accesses": repeated,
+                    "duplicate_user_count": len(repeated),
+                    "extra_access_attempts": extra,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(f"Users accessing more than once: {len(repeated)}")
         print(f"Extra access attempts: {extra}\n")

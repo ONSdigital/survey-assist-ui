@@ -36,14 +36,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Any
-
+from typing import Any
 
 # -------------------------------------------------------------------
 # Dataclasses
 # -------------------------------------------------------------------
+
 
 @dataclass(slots=True)
 class CoreQuestion:
@@ -82,6 +83,7 @@ class PersonRecord:
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
+
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
@@ -176,10 +178,7 @@ def load_people(path: str) -> list[PersonRecord]:
 
 def has_status(person: PersonRecord, status: str) -> bool:
     """Check if the user has the given classification status."""
-    return any(
-        s.status == status
-        for s in person.classification_statuses
-    )
+    return any(s.status == status for s in person.classification_statuses)
 
 
 def get_core_timestamp(person: PersonRecord, name: str) -> str | None:
@@ -208,6 +207,7 @@ def earliest_dynamic_timestamp(person: PersonRecord) -> str | None:
 # -------------------------------------------------------------------
 # Core computation
 # -------------------------------------------------------------------
+
 
 def compute_results_for_status(
     people: list[PersonRecord],
@@ -289,7 +289,7 @@ def summarise(values: list[int]) -> dict[str, int]:
     longest = max(values)
     shortest = min(values)
 
-    if count > 2:
+    if count > 2:  # noqa: PLR2004
         sorted_vals = sorted(values)
         trimmed = sorted_vals[1:-1]
         trimmed_avg = sum(trimmed) // len(trimmed)
@@ -309,7 +309,9 @@ def summarise(values: list[int]) -> dict[str, int]:
 # Entry point
 # -------------------------------------------------------------------
 
+
 def main() -> None:
+    """Main entry point."""
     args = parse_args()
     people = load_people(args.input)
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate a stacked bar chart showing which issued IDs engaged, failed access,
+"""Generate a stacked bar chart showing which issued IDs engaged, failed access,
 or never attempted to access the survey system.
 
 Usage
@@ -8,7 +7,7 @@ Usage
 python engagement_blocks.py input.json [output.png]
 
 The script:
-1. Generates the full issued ID list (STP00001–STP24800)
+1. Generates the full issued ID list (STP00001-STP24800)
 2. Joins with the JSON file that contains access attempts
 3. Classifies each ID into:
    - engaged        → access_time is non-empty
@@ -26,7 +25,6 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
-
 
 # -------- Configuration --------
 
@@ -92,7 +90,7 @@ def classify_status(all_ids: list[str], attempts_df: pd.DataFrame) -> pd.DataFra
 
 
 def id_to_block_label(person_id: str) -> str:
-    """Convert an ID like STP00038 → STP00001–STP02500."""
+    """Convert an ID like STP00038 → STP00001-STP02500."""
     numeric = int("".join(c for c in person_id if c.isdigit()))
     block_idx = (numeric - 1) // BLOCK_SIZE
 
@@ -108,8 +106,8 @@ def summarise_blocks(df: pd.DataFrame) -> pd.DataFrame:
 
     summary = (
         df.groupby(["block", "status"])
-        .size()
-        .reset_index(name="count")
+        .agg(count=("status", "size"))
+        .reset_index()
         .pivot(index="block", columns="status", values="count")
         .fillna(0)
     )

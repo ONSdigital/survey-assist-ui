@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""
-Generate a heatmap of user access by ID blocks and day.
+"""Generate a heatmap of user access by ID blocks and day.
 
 This script reads a JSON file with user access records, groups users into
-numeric ID blocks (e.g. STP00001–STP02500), aggregates counts by date and
+numeric ID blocks (e.g. STP00001 - STP02500), aggregates counts by date and
 block, and outputs a heatmap as a PNG image.
 
-Example
+Example:
 -------
 python user_block_heatmap.py input.json output.png
 
@@ -30,7 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +37,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import BoundaryNorm
-
 
 BLOCK_SIZE = 2500
 
@@ -220,8 +218,8 @@ def pivot_counts(df: pd.DataFrame) -> pd.DataFrame:
 
     counts = (
         df.groupby(["access_date", "block_label"])
-        .size()
-        .reset_index(name="count")
+        .agg(count=("block_label", "size"))
+        .reset_index()
     )
 
     pivot = counts.pivot(
@@ -231,8 +229,8 @@ def pivot_counts(df: pd.DataFrame) -> pd.DataFrame:
     ).fillna(0)
 
     # Ensure blocks and dates are in a stable, sorted order.
-    pivot = pivot.sort_index(axis=0)   # blocks on y-axis
-    pivot = pivot.sort_index(axis=1)   # dates on x-axis
+    pivot = pivot.sort_index(axis=0)  # blocks on y-axis
+    pivot = pivot.sort_index(axis=1)  # dates on x-axis
 
     return pivot
 

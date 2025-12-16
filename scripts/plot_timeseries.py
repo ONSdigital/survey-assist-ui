@@ -16,13 +16,11 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from collections.abc import Iterable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
-
-from datetime import datetime
-from collections import defaultdict
-
 
 import matplotlib.pyplot as plt
 
@@ -76,9 +74,10 @@ def load_timeseries(path: str) -> list[dict[str, Any]]:
 
 def plot_timeseries(timeseries: list[dict[str, Any]], title: str) -> plt.Figure:
     """Create a daily-aggregated timeseries chart and return the Figure object."""
-
     # --- Aggregate by date ---
-    daily = defaultdict(lambda: {"total": 0, "full": 0, "survey": 0})
+    daily: defaultdict[str, dict[str, int]] = defaultdict(
+        lambda: {"total": 0, "full": 0, "survey": 0}
+    )
 
     for item in timeseries:
         date = item["date"]
@@ -111,6 +110,7 @@ def plot_timeseries(timeseries: list[dict[str, Any]], title: str) -> plt.Figure:
     plt.tight_layout()
 
     return fig
+
 
 def main() -> None:
     """Main function to parse arguments, load data, plot chart, and save/show it."""
