@@ -27,6 +27,41 @@ gcloud logging read \
 	--project=GCP_PROJECT_ID > ui-log-<date-time>.log
 ```
 
+Notes:
+* You can widen or narrow the time window by adjusting the timestamp clause.
+* Ensure you have `gcloud auth login` and correct project permissions.
+* **Do not commit raw log files to the repository.**
+
+## Installing / Environment
+
+The project uses Poetry. Ensure dependencies are installed:
+
+```bash
+poetry install
+```
+
+## Basic Usage
+
+Read from stdin (useful when piping directly from gcloud):
+
+```bash
+gcloud logging read 'resource.type="cloud_run_revision" ...' --format='value(textPayload)' \
+	--project=GCP_PROJECT_ID | \
+	poetry run python scripts/ui_log_analysis.py - --summary
+```
+
+Stream events (JSONL) from a saved log file:
+
+```bash
+poetry run python scripts/ui_log_analysis.py ui-log-20-Nov-09:00.log
+```
+
+Produce a per person summary (single JSON document):
+
+```bash
+poetry run python scripts/ui_log_analysis.py ui-log-20-Nov-09:00.log --summary
+```
+
 Example output
 ```json
 [
@@ -125,41 +160,6 @@ Example output
 ```
 
 
-Notes:
-* You can widen or narrow the time window by adjusting the timestamp clause.
-* Ensure you have `gcloud auth login` and correct project permissions.
-* Do not commit raw log files to the repository.
-
-## Installing / Environment
-
-The project uses Poetry. Ensure dependencies are installed:
-
-```bash
-poetry install
-```
-
-## Basic Usage
-
-Stream events (JSONL) from a saved log file:
-
-```bash
-poetry run python scripts/ui_log_analysis.py ui-log-20-Nov-09:00.log
-```
-
-Produce a per person summary (single JSON document):
-
-```bash
-poetry run python scripts/ui_log_analysis.py ui-log-20-Nov-09:00.log --summary
-```
-
-Read from stdin (useful when piping directly from gcloud):
-
-```bash
-gcloud logging read 'resource.type="cloud_run_revision" ...' --format='value(textPayload)' \
-	--project=GCP_PROJECT_ID | \
-	poetry run python scripts/ui_log_analysis.py - --summary
-```
-
 ## Output Schema
 
 Event JSONL fields:
@@ -178,6 +178,8 @@ Summary JSON fields (per person):
 * `rerouted_no_employment`: True if routing event occurred.
 * `survey_results_saved` / `feedback_results_saved`: Counts of persistence events.
 * `survey_result_ids` / `feedback_result_ids`: Collected document IDs.
+* `classification_code` : The code that was selected when a succesful SIC lookup or unambiguous match was made.
+* `unsuccessful_access` : Indicates if the person_id had an unsuccessful login attempt.
 
 ## Tips
 
@@ -188,7 +190,7 @@ Summary JSON fields (per person):
 
 ## Combining Scripts
 
-The ui_log_analysis.py script is the core script for extracting data from the logs for Survey Assist, but combining the output is produces with the following scripts provides further insight into how users have interacted.
+The ui_log_analysis.py script is the core script for extracting data from the logs for Survey Assist, but combining the output it produces with the following scripts provides further insight into how users have interacted. 
 
 ### Run the analyse log script
 
@@ -297,7 +299,7 @@ jq '[
 
 ### Determine the time each user spent and their flow through the survey
 
-The ui_time_spent.py script will parse the objects from the ui_log_analysis.py script and create a list of json that details times for each user and an overview of the journey the user made.
+The ui_time_spent.py script will parse the objects from the ui_log_analysis.py script and create a list of json that details times for each user and an overview of the journey the user made.  Run this against the ui_log_analysis.py --summary script output.
 
 ```bash
 poetry run python scripts/ui_time_spent.py ui-log-DD-MM-HH:MM.json > DD-MM-HH-MM.txt
@@ -596,3 +598,341 @@ Example output:
 }
 ```
 
+### Drop off
+
+To get a list of all the places where a journey was abandoned (i.e the user accessed successfully but didn’t save a survey result) and the count of each unique individual user that dropped out, run:
+
+```bash
+jq '
+  [ .[]
+    | select(.journey_type == "abandoned" and .access_time != "")
+  ]
+  | group_by(.last_event)
+  | map({
+      last_event: (.[0].last_event),
+      count: length
+    })
+' DD-MM-HH:MM-timespent-output.json > DD-MM-HH:MM-abandoned-counts-by-last-event.json
+```
+
+**Important** - in the generated output when last_event is populated this is the last event the user engaged with (i.e answered), so the point they dropped off is the next event in the flow.
+
+last_event = ““ - indicates the user dropped out at the index “/”, “/intro” or age range question page before answering any questions.
+
+last_event = “age_range“ - indicates the user dropped out at the paid_job “were you in employment” question.
+
+last_event = “paid_job“ - indicates the user dropped out at the job_title “what is your job title” question.
+
+last_event = “job_title“ - indicates the user dropped out at the job_desc “describe what you do in your job” question.
+
+last_event = “job_description“ - indicates the user dropped out at the org_desc “describe the main activity of your organisation” question.
+
+last_event = “organisation_activity_question“ - indicates the user dropped out at the closed organisation_type “describe the type of organisation” question after being unambiguously classified.
+
+last_event = “survey_assist_followup_2” - indicates the user dropped out at the second follow up question presented by Survey Assist without answering
+
+last_event = “An actual text question returned by Survey Assist“ - indicates the user dropped out at the Survey Assist interaction when questions were generated.
+
+Example Output:
+
+```json
+[
+  {
+    "last_event": "",
+    "count": 16
+  },
+  ...
+  {
+    "last_event": "What types of goods does your employer mainly sell?",
+    "count": 1
+  },
+  {
+    "last_event": "age_range",
+    "count": 1
+  },
+  {
+    "last_event": "job_description",
+    "count": 11
+  },
+  {
+    "last_event": "job_title",
+    "count": 21
+  },
+  {
+    "last_event": "organisation_activity_question",
+    "count": 2
+  },
+  {
+    "last_event": "paid_job",
+    "count": 11
+  },
+  {
+    "last_event": "survey_assist_followup_2",
+    "count": 9
+  }
+]
+```
+
+#### Drop off before answering a question (index, intro guidance or age question drop off)
+
+The users accessed the solution and then did not answer the first age range question, they could have dropped at the intro or index page or when the first question was presented.
+
+```json
+{
+  "last_event": "",
+  "count": 16
+},
+```
+
+#### Drop off at the ‘Did you have a paid job…’ question (paid job drop off)
+
+Remember the last event is the last question _answered_.
+
+```json
+{
+    "last_event": "age_range",
+    "count": 1
+},
+```
+
+#### Drop off at the ‘What is the exact job title… ’ question (job title drop off)
+
+```json
+{
+  "last_event": "paid_job",
+  "count": 11
+},
+```
+
+#### Drop off at the 'Describe what you do in that job…' question (job description drop off)
+
+```json
+{
+  "last_event": "job_title",
+  "count": 21
+},
+```
+
+#### Drop off at the 'At your main job, describe the main activity of the business' question (organisation description drop off)
+
+```json
+{
+  "last_event": "job_description",
+  "count": 11
+},
+```
+
+#### Drop off at the ‘What kind of organisation was it?’ question (organisation type drop off after unambiguous classification)
+
+The instances of users that abandoned with this event show "overview": "unambiguous_classification"
+
+```json
+{
+  "last_event": "organisation_activity_question",
+  "count": 2
+},
+```
+
+#### Drop off at dynamic questions (during Survey Assist serving follow up questions)
+
+Count the number of entries with an actual question as last event, e.g:
+
+```json
+{
+  "last_event": "What types of goods does your employer mainly sell?",
+  "count": 1
+},
+```
+
+#### Drop off at last dynamic question (during second follow up question)
+
+```json
+{
+  "last_event": "survey_assist_followup_2",
+  "count": 9
+}
+```
+
+#### Drop off during feedback section
+
+To get this we need to look at the users that completed the survey_only section
+
+```bash
+jq '[ .[] | select(.journey_type == "survey_only") ] | length' DD-MM-HH:MM-timespent-output.json  
+178
+```
+
+#### Drop off trying or after accessing the solution
+
+```bash
+jq '
+  [ .[]
+    | select(.journey_type == "abandoned")
+  ]
+  | length ' DD-MM-HH:MM-timespent-output.json
+218
+```
+
+#### Drop off before accessing the solution
+
+```bash
+jq '
+  [ .[]
+    | select(.journey_type == "abandoned" and .access_time == "")
+  ]
+  | length ' 08-Dec-15:30-timespent-output.json
+132
+```
+
+### Average times for Survey Assist interactions
+
+#### Dynamic questions asked
+
+For those users that were asked a dynamic question the **ui_avg_survey_assist_time.py** script computes the time delta between the organisation activity question and the organisation type question (the time to see and respond to Survey Assist generated questions) and the difference between the organisation activity question and the display of the first dynamic question (the interaction time to do SIC lookup and a classify interaction involving two LLM interactions).
+
+```bash
+poetry run python scripts/ui_avg_survey_assist_time.py ui-log-DD-MM-HH:MM.json > time-in-survey-assist-DD-MM-HH:MM.json
+```
+
+Example output:
+
+```json
+{
+  "not_classified_followup": {
+    "users": [
+      {
+        "person_id": "STP22781-01",
+        "time_in_seconds": 59,
+        "time_to_show_dynamic_question": 10
+      },
+      {
+        "person_id": "STP23212-01",
+        "time_in_seconds": 63,
+        "time_to_show_dynamic_question": 10
+      },
+      ...
+    ],
+    "summary": {
+      "time_org_activity_to_org_type": {
+        "count": 570,
+        "average": 687,
+        "average_excl_min_max": 109,
+        "longest": 329531,
+        "shortest": 23
+      },
+      "time_org_activity_to_dynamic_question": {
+        "count": 570,
+        "average": 8,
+        "average_excl_min_max": 8,
+        "longest": 16,
+        "shortest": 5
+      }
+    }
+  },
+  ...
+}
+```
+
+#### Classified unambiguously by LLM
+
+Output is available from running the same **ui_avg_survey_assist_time.py** script:
+
+```bash
+poetry run python scripts/ui_avg_survey_assist_time.py ui-log-DD-MM-HH:MM.json > time-in-survey-assist-DD-MM-HH:MM.json
+```
+
+Example output:
+
+```json
+"classified_unambiguously": {
+    "users": [
+      {
+        "person_id": "STP24891-01",
+        "time_in_seconds": 43
+      },
+      {
+        "person_id": "STP24893-01",
+        "time_in_seconds": 21
+      },
+      ...
+    ],
+    "summary": {
+      "time_org_activity_to_org_type": {
+        "count": 359,
+        "average": 958,
+        "average_excl_min_max": 41,
+        "longest": 329531,
+        "shortest": 10
+      }
+    }
+  }
+```
+
+### Activity by user id blocks
+
+For analysis on what blocks of user ids were most active over time the summary output can be used to generate a list of well-formatted IDs.
+The following command assumes the ONS ID format was STPnnnnn (where n is any numeric)
+```bash
+jq -r '
+  # Normalise each object by adding .clean_id
+  map(. + { clean_id: (.person_id | sub("-01$"; "")) })
+  # Keep only valid STPnnnnn clean IDs
+  | map(select(.clean_id | test("^STP[0-9]{5}$")))
+  # Deduplicate by clean_id
+  | unique_by(.clean_id)
+  # Prepare output object
+  | {
+      count: length,
+      users: map({
+        person_id: .clean_id,
+        access_time: .access_time
+      })
+    }
+' ui-log-DD-MM-HH:MM.json > user-ids-DD-MM-HH:MM.json
+```
+
+Example output:
+
+```json
+{
+  "count": 1180,
+  "users": [
+    {
+      "person_id": "STP00038",
+      "access_time": "2025-11-24T15:53:31.211494180Z"
+    },
+    {
+      "person_id": "STP00048",
+      "access_time": ""
+    },
+    {
+      "person_id": "STP00098",
+      "access_time": "2025-11-28T10:47:11.462348876Z"
+    },
+    {
+      "person_id": "STP00114",
+      "access_time": "2025-11-27T13:07:19.044068571Z"
+    },
+    ...
+    ]
+}
+```
+
+This output file can then be used to generate a heatmap using the **ui_user_heatmap.py** script.
+
+#### Generate User Id heatmap
+
+Generate a heatmap using the **ui_user_heatmap.py** script:
+
+```bash
+poetry run python scripts/ui_user_heatmap.py user-ids-HH-MM-HH:MM.json survey-access-heatmap-HH-MM-HH:MM.png
+```
+
+#### Generate stacked bar chart of User ID usage
+
+Using the user ids json file you can run the following script to show the unused IDs layered with those IDs that were used.  This outputs a graph to the file _engagement_blocks.png_
+
+```bash
+poetry run python scripts/ui_all_user_ids_against_access.py user-ids-HH-MM-HH:MM.json
+Saved chart → engagement_blocks.png
+```
