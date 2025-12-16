@@ -20,6 +20,10 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from datetime import datetime
+from collections import defaultdict
+
+
 import matplotlib.pyplot as plt
 
 
@@ -71,29 +75,42 @@ def load_timeseries(path: str) -> list[dict[str, Any]]:
 
 
 def plot_timeseries(timeseries: list[dict[str, Any]], title: str) -> plt.Figure:
-    """Create the timeseries chart and return the Figure object."""
-    x_labels = [f"{item['date']} {int(item['hour']):02d}:00" for item in timeseries]
-    totals = [int(item["total"]) for item in timeseries]
-    full_journey = [int(item["full_journey_count"]) for item in timeseries]
-    survey_only = [int(item["survey_only_count"]) for item in timeseries]
+    """Create a daily-aggregated timeseries chart and return the Figure object."""
 
+    # --- Aggregate by date ---
+    daily = defaultdict(lambda: {"total": 0, "full": 0, "survey": 0})
+
+    for item in timeseries:
+        date = item["date"]
+        daily[date]["total"] += int(item["total"])
+        daily[date]["full"] += int(item["full_journey_count"])
+        daily[date]["survey"] += int(item["survey_only_count"])
+
+    # Sort by date to ensure correct order
+    sorted_dates = sorted(daily.keys(), key=lambda d: datetime.strptime(d, "%Y-%m-%d"))
+
+    x_labels = sorted_dates
+    totals = [daily[d]["total"] for d in sorted_dates]
+    full_journey = [daily[d]["full"] for d in sorted_dates]
+    survey_only = [daily[d]["survey"] for d in sorted_dates]
+
+    # --- Plot ---
     fig, ax = plt.subplots(figsize=(18, 7))
 
-    ax.plot(x_labels, totals, marker="o", label="Total")
-    ax.plot(x_labels, full_journey, marker="o", label="Full Journey")
-    ax.plot(x_labels, survey_only, marker="o", label="Survey Only")
+    ax.plot(x_labels, totals, marker="o", label="Total per day")
+    ax.plot(x_labels, full_journey, marker="o", label="Full Journey per day")
+    ax.plot(x_labels, survey_only, marker="o", label="Survey Only per day")
 
     ax.set_title(title)
-    ax.set_xlabel("Date & Hour")
+    ax.set_xlabel("Date")
     ax.set_ylabel("Count")
 
-    plt.xticks(rotation=60, ha="right")
+    plt.xticks(rotation=45, ha="right")
     ax.grid(True, linestyle="--", alpha=0.4)
     ax.legend()
     plt.tight_layout()
 
     return fig
-
 
 def main() -> None:
     """Main function to parse arguments, load data, plot chart, and save/show it."""
