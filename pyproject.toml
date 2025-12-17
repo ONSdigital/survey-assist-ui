@@ -15,6 +15,7 @@ survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.
 pydantic = "^2.11.7"
 gunicorn = "^23.0.0"
 firestore-otp-verification-api-client = {git = "https://github.com/ONSdigital/firestore-otp-verification-api-client.git", tag = "v0.1.0"}
+matplotlib = "^3.10.7"
 
 [tool.poetry.group.dev.dependencies]
 mkdocs-material = "^9.6.7"
@@ -27,6 +28,10 @@ bandit = "^1.8.3"
 pytest = "^8.3.5"
 pytest-cov = "^6.0.0"
 pytest-flask = "^1.3.0"
+
+[tool.poetry.group.scripts.dependencies]
+pandas = "2.3.1"
+numpy = "1.26.4"
 
 [tool.isort]
 profile = "black"
