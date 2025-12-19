@@ -24,6 +24,7 @@ from models.result import (
 )
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
+    MAX_REASONING_LENGTH,
     _convert_datetimes,
     add_classify_interaction,
     add_follow_up_response_to_classify,
@@ -37,6 +38,7 @@ from utils.session_utils import (
     remove_model_from_session,
     save_model_to_session,
     session_debug,
+    truncate_llm_reasoning,
 )
 
 # pylint cannot differentiate the use of fixtures in the test functions
@@ -1040,3 +1042,111 @@ def test_add_follow_up_no_matching_person(
 
         with pytest.raises(ValueError, match="No responses for person_id=non-existent"):
             add_follow_up_response_to_classify("f1", "value", person_id="non-existent")
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_short_text() -> None:
+    """Test truncation with short text that doesn't need truncation."""
+    short_text = "This is a short reasoning text."
+    result = truncate_llm_reasoning(short_text)
+    assert result == short_text
+    assert len(result) == len(short_text)
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_exact_length() -> None:
+    """Test truncation with exactly 500 characters."""
+    exact_500 = "x" * MAX_REASONING_LENGTH
+    result = truncate_llm_reasoning(exact_500)
+    assert result == exact_500
+    assert len(result) == MAX_REASONING_LENGTH
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_long_text(app) -> None:
+    """Test truncation with long text that exceeds 500 characters."""
+    long_text = "x" * 1000
+    with app.test_request_context():
+        session["participant_id"] = "test-user"
+        result = truncate_llm_reasoning(long_text)
+        assert len(result) == MAX_REASONING_LENGTH
+        assert result.endswith("...")
+        assert result == "x" * (MAX_REASONING_LENGTH - 3) + "..."
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_empty_string() -> None:
+    """Test truncation with empty string."""
+    result = truncate_llm_reasoning("")
+    assert result == ""
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_none() -> None:
+    """Test truncation with None value."""
+    result = truncate_llm_reasoning(None)
+    assert result is None or result == ""
+
+
+@pytest.mark.utils
+def test_truncate_llm_reasoning_custom_max_length(app) -> None:
+    """Test truncation with custom max length."""
+    custom_max_length = 100
+    long_text = "x" * 200
+    with app.test_request_context():
+        session["participant_id"] = "test-user"
+        result = truncate_llm_reasoning(long_text, max_length=custom_max_length)
+        assert len(result) == custom_max_length
+        assert result.endswith("...")
+        assert result == "x" * (custom_max_length - 3) + "..."
+
+
+@pytest.mark.utils
+def test_add_classify_interaction_truncates_reasoning(
+    app,
+    generic_classification_response: Any,
+    survey_result_session: dict[str, Any],
+) -> None:
+    """Test that add_classify_interaction truncates long reasoning fields."""
+    # Create a classification response with very long reasoning
+    long_reasoning = "x" * 2000  # Much longer than MAX_REASONING_LENGTH
+    generic_classification_response.results[0].reasoning = long_reasoning
+
+    with app.test_request_context(), app.app_context():
+        session.update(survey_result_session)
+        session["participant_id"] = "user.respondent-a"
+        # get_person_id() appends '-01' to participant_id, so update the response person_id to match
+        survey_result = load_model_from_session(
+            "survey_result", GenericSurveyAssistResult
+        )
+        survey_result.responses[0].person_id = "user.respondent-a-01"
+        save_model_to_session("survey_result", survey_result)
+
+        start_time = datetime.now(timezone.utc)
+        inputs_dict = {
+            "job_title": "Test Job",
+            "job_description": "Test Description",
+            "org_description": "Test Org",
+        }
+
+        add_classify_interaction(
+            flavour="sic",
+            classify_resp=generic_classification_response,
+            start_time=start_time,
+            end_time=start_time,
+            inputs_dict=inputs_dict,
+        )
+
+        # Verify the reasoning was truncated in the session
+        survey_result = load_model_from_session(
+            "survey_result", GenericSurveyAssistResult
+        )
+        interaction = survey_result.responses[0].survey_assist_interactions[-1]
+        assert interaction.type == "classify"
+        assert isinstance(interaction.response, list)
+        # response is a list of GenericClassificationResult objects
+        first_result = interaction.response[0]
+        assert isinstance(first_result, GenericClassificationResult)
+        stored_reasoning = first_result.reasoning
+        assert len(stored_reasoning) == MAX_REASONING_LENGTH
+        assert stored_reasoning.endswith("...")
