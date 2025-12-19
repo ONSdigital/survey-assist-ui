@@ -31,7 +31,7 @@ T = TypeVar("T", bound=BaseModel)
 logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
-# Maximum length for LLM reasoning field to prevent cookie overflow (SA-485)
+# Maximum length for LLM reasoning field to prevent cookie overflow
 MAX_REASONING_LENGTH = 500
 
 prompt_injection_filter = PromptInjectionFilter()
@@ -479,7 +479,7 @@ def add_classify_interaction(
     classification_result = classify_resp.results[0]
     response_dict = classification_result.model_dump()
 
-    # Truncate reasoning field to prevent cookie overflow (SA-485)
+    # Truncate reasoning field to prevent cookie overflow
     if response_dict.get("reasoning"):
         response_dict["reasoning"] = truncate_llm_reasoning(response_dict["reasoning"])
 
