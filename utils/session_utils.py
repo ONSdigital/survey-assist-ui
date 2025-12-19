@@ -31,6 +31,8 @@ T = TypeVar("T", bound=BaseModel)
 logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
+# Maximum length for LLM reasoning field to prevent cookie overflow (SA-485)
+MAX_REASONING_LENGTH = 500
 
 prompt_injection_filter = PromptInjectionFilter()
 safe_input_filter = SafeInputFilter()
@@ -418,6 +420,36 @@ def add_sic_lookup_interaction(
     save_model_to_session("survey_result", survey_result)
 
 
+def truncate_llm_reasoning(
+    reasoning: str | None, max_length: int = MAX_REASONING_LENGTH
+) -> str:
+    """Truncate LLM reasoning field to prevent cookie size issues.
+
+    This function truncates the reasoning field to a maximum length to prevent
+    the session cookie from exceeding browser limits (4093 bytes). If truncation
+    occurs, the text is truncated and an ellipsis is appended.
+
+    Args:
+        reasoning (str | None): The reasoning text to truncate.
+        max_length (int): Maximum length of the reasoning field. Defaults to 500.
+
+    Returns:
+        str: The truncated reasoning text (with ellipsis if truncated).
+    """
+    if not reasoning:
+        return reasoning or ""
+
+    if len(reasoning) <= max_length:
+        return reasoning
+
+    truncated = reasoning[: max_length - 3] + "..."
+    logger.warning(
+        f"person_id:{get_person_id()} LLM reasoning truncated from {len(reasoning)} "
+        f"to {len(truncated)} characters to prevent cookie overflow"
+    )
+    return truncated
+
+
 def add_classify_interaction(
     flavour: str,
     classify_resp: Any,
@@ -446,6 +478,11 @@ def add_classify_interaction(
 
     classification_result = classify_resp.results[0]
     response_dict = classification_result.model_dump()
+
+    # Truncate reasoning field to prevent cookie overflow (SA-485)
+    if response_dict.get("reasoning"):
+        response_dict["reasoning"] = truncate_llm_reasoning(response_dict["reasoning"])
+
     interaction = GenericSurveyAssistInteraction(
         type="classify",
         flavour=flavour,
