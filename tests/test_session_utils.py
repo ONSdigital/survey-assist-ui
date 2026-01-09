@@ -38,7 +38,6 @@ from utils.session_utils import (
     remove_model_from_session,
     save_model_to_session,
     session_debug,
-    truncate_llm_reasoning,
 )
 
 # pylint cannot differentiate the use of fixtures in the test functions
@@ -1042,63 +1041,6 @@ def test_add_follow_up_no_matching_person(
 
         with pytest.raises(ValueError, match="No responses for person_id=non-existent"):
             add_follow_up_response_to_classify("f1", "value", person_id="non-existent")
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_short_text() -> None:
-    """Test truncation with short text that doesn't need truncation."""
-    short_text = "This is a short reasoning text."
-    result = truncate_llm_reasoning(short_text)
-    assert result == short_text
-    assert len(result) == len(short_text)
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_exact_length() -> None:
-    """Test truncation with exactly 500 characters."""
-    exact_500 = "x" * MAX_REASONING_LENGTH
-    result = truncate_llm_reasoning(exact_500)
-    assert result == exact_500
-    assert len(result) == MAX_REASONING_LENGTH
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_long_text(app) -> None:
-    """Test truncation with long text that exceeds 500 characters."""
-    long_text = "x" * 1000
-    with app.test_request_context():
-        session["participant_id"] = "test-user"
-        result = truncate_llm_reasoning(long_text)
-        assert len(result) == MAX_REASONING_LENGTH
-        assert result.endswith("...")
-        assert result == "x" * (MAX_REASONING_LENGTH - 3) + "..."
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_empty_string() -> None:
-    """Test truncation with empty string."""
-    result = truncate_llm_reasoning("")
-    assert result == ""
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_none() -> None:
-    """Test truncation with None value."""
-    result = truncate_llm_reasoning(None)
-    assert result is None or result == ""
-
-
-@pytest.mark.utils
-def test_truncate_llm_reasoning_custom_max_length(app) -> None:
-    """Test truncation with custom max length."""
-    custom_max_length = 100
-    long_text = "x" * 200
-    with app.test_request_context():
-        session["participant_id"] = "test-user"
-        result = truncate_llm_reasoning(long_text, max_length=custom_max_length)
-        assert len(result) == custom_max_length
-        assert result.endswith("...")
-        assert result == "x" * (custom_max_length - 3) + "..."
 
 
 @pytest.mark.utils
