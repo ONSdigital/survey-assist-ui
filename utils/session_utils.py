@@ -31,8 +31,13 @@ T = TypeVar("T", bound=BaseModel)
 logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
-# Maximum length for LLM reasoning field to prevent cookie overflow
-MAX_REASONING_LENGTH = 500
+# Maximum length for LLM reasoning field to prevent cookie overflow (SA-485)
+# Reduced to 90 to ensure cookie stays under 4093 byte limit when combined with
+# other session data (lookup responses, follow-ups, survey responses, etc.)
+# Testing showed: 200 chars → 4153 bytes (60 over), 150 chars → 4129 bytes (36 over),
+# 100 chars → 4094 bytes (1 over). 90 chars should be under the limit.
+# Task specifies ideally 500 chars, but testing showed this still exceeded cookie limit
+MAX_REASONING_LENGTH = 90
 
 prompt_injection_filter = PromptInjectionFilter()
 safe_input_filter = SafeInputFilter()
