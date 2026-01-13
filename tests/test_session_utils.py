@@ -24,7 +24,7 @@ from models.result import (
 )
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
-    MAX_REASONING_LENGTH,
+    MAX_ALLOWED_SESSION_SIZE,
     _convert_datetimes,
     add_classify_interaction,
     add_follow_up_response_to_classify,
@@ -1049,9 +1049,9 @@ def test_add_classify_interaction_truncates_reasoning(
     generic_classification_response: Any,
     survey_result_session: dict[str, Any],
 ) -> None:
-    """Test that add_classify_interaction truncates long reasoning fields."""
+    """Test that add_classify_interaction keeps session size within limits."""
     # Create a classification response with very long reasoning
-    long_reasoning = "x" * 2000  # Much longer than MAX_REASONING_LENGTH
+    long_reasoning = "x" * 2000
     generic_classification_response.results[0].reasoning = long_reasoning
 
     with app.test_request_context(), app.app_context():
@@ -1079,16 +1079,18 @@ def test_add_classify_interaction_truncates_reasoning(
             inputs_dict=inputs_dict,
         )
 
-        # Verify the reasoning was truncated in the session
+        # Verify the interaction was added
         survey_result = load_model_from_session(
             "survey_result", GenericSurveyAssistResult
         )
         interaction = survey_result.responses[0].survey_assist_interactions[-1]
         assert interaction.type == "classify"
         assert isinstance(interaction.response, list)
-        # response is a list of GenericClassificationResult objects
         first_result = interaction.response[0]
         assert isinstance(first_result, GenericClassificationResult)
-        stored_reasoning = first_result.reasoning
-        assert len(stored_reasoning) == MAX_REASONING_LENGTH
-        assert stored_reasoning.endswith("...")
+
+        # Verify session size is within limits (key test - prevents cookie overflow)
+        session_size = get_encoded_session_size(dict(session))
+        assert (
+            session_size <= MAX_ALLOWED_SESSION_SIZE
+        ), f"Session size {session_size} bytes exceeds limit {MAX_ALLOWED_SESSION_SIZE} bytes"
