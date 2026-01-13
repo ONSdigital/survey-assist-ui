@@ -4,6 +4,7 @@ This module provides helper functions for debugging and inspecting the Flask ses
 """
 
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Optional, TypeVar, Union
@@ -31,11 +32,116 @@ T = TypeVar("T", bound=BaseModel)
 logger = get_logger(__name__, level="INFO")
 
 FIRST_QUESTION = 0
-# 90 keeps cookie under 4093 byte limit
-MAX_REASONING_LENGTH = 90
+# Maximum session cookie size (bytes) - browsers limit cookies to 4093 bytes
+MAX_SESSION_COOKIE_SIZE = 4093
+# Safety margin to leave overhead for other session data
+SESSION_SIZE_SAFETY_MARGIN = 256
+# Maximum allowed session size before truncation
+MAX_ALLOWED_SESSION_SIZE = MAX_SESSION_COOKIE_SIZE - SESSION_SIZE_SAFETY_MARGIN
 
 prompt_injection_filter = PromptInjectionFilter()
 safe_input_filter = SafeInputFilter()
+
+
+@dataclass
+class InteractionMetadata:
+    """Metadata for a classification interaction used in truncation calculations."""
+
+    flavour: str
+    start_time: datetime
+    end_time: datetime
+
+
+@dataclass
+class TruncationContext:
+    """Context for truncation calculations."""
+
+    current_session: dict[str, Any]
+    survey_result: GenericSurveyAssistResult
+    person_id: str
+    response_dict: dict[str, Any]
+    interaction_metadata: InteractionMetadata
+
+
+def _calculate_session_size_with_reasoning(
+    context: TruncationContext, reasoning: str
+) -> int:
+    """Calculate the session size if the given reasoning were added.
+
+    Args:
+        context: Truncation context containing session, survey result, and metadata.
+        reasoning: Reasoning text to test.
+
+    Returns:
+        Calculated session size in bytes, or -1 if calculation fails.
+    """
+    test_response_dict = context.response_dict.copy()
+    test_response_dict["reasoning"] = reasoning
+    test_classification_result = GenericClassificationResult.model_validate(
+        test_response_dict
+    )
+
+    test_survey_result = context.survey_result.model_copy(deep=True)
+    test_interaction = GenericSurveyAssistInteraction(
+        type="classify",
+        flavour=context.interaction_metadata.flavour,
+        time_start=context.interaction_metadata.start_time,
+        time_end=context.interaction_metadata.end_time,
+        input=[],
+        response=[test_classification_result],
+    )
+
+    try:
+        test_survey_result = add_interaction_to_response(
+            test_survey_result,
+            person_id=context.person_id,
+            interaction=test_interaction,
+            input_fields={},
+        )
+    except ValueError:
+        return -1
+
+    test_session = context.current_session.copy()
+    test_session["survey_result"] = test_survey_result.model_dump(mode="json")
+    return get_encoded_session_size(test_session)
+
+
+def _find_max_reasoning_length(reasoning: str, context: TruncationContext) -> int:
+    """Find the maximum reasoning length that fits within session size limits.
+
+    Uses binary search to find the optimal length.
+
+    Args:
+        reasoning: Original reasoning text.
+        context: Truncation context containing session, survey result, and metadata.
+
+    Returns:
+        Maximum length that fits, or 0 if even empty reasoning is too large.
+    """
+    min_length = 0
+    max_length = len(reasoning)
+    best_length = 0
+
+    while min_length <= max_length:
+        mid_length = (min_length + max_length) // 2
+        test_reasoning = reasoning[:mid_length] + (
+            "..." if mid_length < len(reasoning) else ""
+        )
+
+        test_size = _calculate_session_size_with_reasoning(context, test_reasoning)
+
+        if test_size == -1:
+            # Calculation failed, try shorter length
+            max_length = mid_length - 1
+            continue
+
+        if test_size <= MAX_ALLOWED_SESSION_SIZE:
+            best_length = mid_length
+            min_length = mid_length + 1
+        else:
+            max_length = mid_length - 1
+
+    return best_length
 
 
 def log_route(participant_override: str | None = None):
@@ -420,32 +526,82 @@ def add_sic_lookup_interaction(
     save_model_to_session("survey_result", survey_result)
 
 
-def truncate_llm_reasoning(
-    reasoning: str | None, max_length: int = MAX_REASONING_LENGTH
+def truncate_llm_reasoning_if_needed(
+    reasoning: str | None,
+    survey_result: GenericSurveyAssistResult,
+    person_id: str,
+    response_dict: dict[str, Any],
+    interaction_metadata: InteractionMetadata,
 ) -> str:
-    """Truncate LLM reasoning field to prevent cookie size issues.
+    """Truncate LLM reasoning field only if adding it would exceed session size limit.
 
-    This function truncates the reasoning field to a maximum length to prevent
-    the session cookie from exceeding browser limits (4093 bytes). If truncation
-    occurs, the text is truncated and an ellipsis is appended.
+    This function checks the current session size and only truncates the reasoning
+    if adding it would cause the session cookie to exceed the maximum allowed size
+    (4093 bytes - 256 byte safety margin = 3837 bytes). If truncation is needed,
+    it finds the maximum reasoning length that fits within the limit.
 
     Args:
-        reasoning (str | None): The reasoning text to truncate.
-        max_length (int): Maximum length of the reasoning field. Defaults to 500.
+        reasoning (str | None): The reasoning text to potentially truncate.
+        survey_result (GenericSurveyAssistResult): The current survey result model.
+        person_id (str): The person ID for the interaction.
+        response_dict (dict[str, Any]): The response dictionary that will contain the reasoning.
+        interaction_metadata (InteractionMetadata): Metadata for the interaction (flavour, times).
 
     Returns:
-        str: The truncated reasoning text (with ellipsis if truncated).
+        str: The reasoning text, truncated if necessary to fit within session size limits.
     """
     if not reasoning:
         return reasoning or ""
 
-    if len(reasoning) <= max_length:
+    current_session = dict(session)
+    context = TruncationContext(
+        current_session=current_session,
+        survey_result=survey_result,
+        person_id=person_id,
+        response_dict=response_dict,
+        interaction_metadata=interaction_metadata,
+    )
+
+    # Calculate session size with reasoning added
+    test_size = _calculate_session_size_with_reasoning(context, reasoning)
+
+    # If calculation failed, return original reasoning (can't determine if truncation needed)
+    if test_size == -1:
+        logger.warning(
+            f"person_id:{person_id} Could not calculate session size with reasoning "
+            "(person_id not found in survey result), "
+            "returning original reasoning without truncation"
+        )
         return reasoning
 
-    truncated = reasoning[: max_length - 3] + "..."
+    # Only truncate if adding reasoning would exceed the limit (4093 - 256 = 3837 bytes)
+    if test_size <= MAX_ALLOWED_SESSION_SIZE:
+        logger.debug(
+            f"person_id:{person_id} Reasoning fits within session size limit "
+            f"({test_size} <= {MAX_ALLOWED_SESSION_SIZE} bytes), no truncation needed"
+        )
+        return reasoning
+
+    # Truncate - find maximum length that fits within the limit
+    logger.info(
+        f"person_id:{person_id} Reasoning would cause session to exceed limit "
+        f"({test_size} > {MAX_ALLOWED_SESSION_SIZE} bytes), truncating..."
+    )
+
+    best_length = _find_max_reasoning_length(reasoning, context)
+
+    # Truncate to best length found
+    if best_length == 0:
+        truncated = "..."
+    elif best_length >= len(reasoning):
+        return reasoning
+    else:
+        truncated = reasoning[: best_length - 3] + "..."
+
     logger.warning(
-        f"person_id:{get_person_id()} LLM reasoning truncated from {len(reasoning)} "
-        f"to {len(truncated)} characters to prevent cookie overflow"
+        f"person_id:{person_id} LLM reasoning truncated from {len(reasoning)} "
+        f"to {len(truncated)} characters to prevent cookie overflow "
+        f"(session would be {test_size} bytes, limit: {MAX_ALLOWED_SESSION_SIZE} bytes)"
     )
     return truncated
 
@@ -473,15 +629,24 @@ def add_classify_interaction(
     Returns:
         None
     """
-    get_person_id()
+    person_id = get_person_id()
     survey_result = load_model_from_session("survey_result", GenericSurveyAssistResult)
 
     classification_result = classify_resp.results[0]
     response_dict = classification_result.model_dump()
 
-    # Truncate reasoning field to prevent cookie overflow
+    # Truncate reasoning field only if it would cause session to exceed size limit
     if response_dict.get("reasoning"):
-        response_dict["reasoning"] = truncate_llm_reasoning(response_dict["reasoning"])
+        interaction_metadata = InteractionMetadata(
+            flavour=flavour, start_time=start_time, end_time=end_time
+        )
+        response_dict["reasoning"] = truncate_llm_reasoning_if_needed(
+            response_dict["reasoning"],
+            survey_result,
+            person_id,
+            response_dict,
+            interaction_metadata,
+        )
 
     interaction = GenericSurveyAssistInteraction(
         type="classify",
@@ -494,7 +659,7 @@ def add_classify_interaction(
 
     survey_result = add_interaction_to_response(
         survey_result,
-        person_id=get_person_id(),
+        person_id=person_id,
         interaction=interaction,
         input_fields=inputs_dict,
     )
