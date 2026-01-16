@@ -330,12 +330,13 @@ def remove_model_from_session(key: str) -> None:
 
 def remove_access_from_session() -> None:
     """Remove access grant from the verify API and Flask session."""
-    delete_access(session.get("participant_id", ""))
+    logger.warning("Disable access code deletion - INTERNAL DEMO ONLY!")
+    #delete_access(session.get("participant_id", ""))
 
-    session.pop("participant_id", None)
-    session.pop("access_code", None)
+    #session.pop("participant_id", None)
+    #session.pop("access_code", None)
 
-    session.modified = True
+    #session.modified = True
 
 
 def add_interaction_to_response(
