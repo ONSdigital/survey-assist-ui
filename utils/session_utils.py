@@ -38,6 +38,8 @@ MAX_SESSION_COOKIE_SIZE = 4093
 SESSION_SIZE_SAFETY_MARGIN = 256
 # Maximum allowed session size before truncation
 MAX_ALLOWED_SESSION_SIZE = MAX_SESSION_COOKIE_SIZE - SESSION_SIZE_SAFETY_MARGIN
+# Fixed truncation length for reasoning when session size would be exceeded
+REASONING_TRUNCATION_LENGTH = 500
 
 prompt_injection_filter = PromptInjectionFilter()
 safe_input_filter = SafeInputFilter()
@@ -104,44 +106,6 @@ def _calculate_session_size_with_reasoning(
     test_session = context.current_session.copy()
     test_session["survey_result"] = test_survey_result.model_dump(mode="json")
     return get_encoded_session_size(test_session)
-
-
-def _find_max_reasoning_length(reasoning: str, context: TruncationContext) -> int:
-    """Find the maximum reasoning length that fits within session size limits.
-
-    Uses binary search to find the optimal length.
-
-    Args:
-        reasoning: Original reasoning text.
-        context: Truncation context containing session, survey result, and metadata.
-
-    Returns:
-        Maximum length that fits, or 0 if even empty reasoning is too large.
-    """
-    min_length = 0
-    max_length = len(reasoning)
-    best_length = 0
-
-    while min_length <= max_length:
-        mid_length = (min_length + max_length) // 2
-        test_reasoning = reasoning[:mid_length] + (
-            "..." if mid_length < len(reasoning) else ""
-        )
-
-        test_size = _calculate_session_size_with_reasoning(context, test_reasoning)
-
-        if test_size == -1:
-            # Calculation failed, try shorter length
-            max_length = mid_length - 1
-            continue
-
-        if test_size <= MAX_ALLOWED_SESSION_SIZE:
-            best_length = mid_length
-            min_length = mid_length + 1
-        else:
-            max_length = mid_length - 1
-
-    return best_length
 
 
 def log_route(participant_override: str | None = None):
@@ -538,7 +502,7 @@ def truncate_llm_reasoning_if_needed(
     This function checks the current session size and only truncates the reasoning
     if adding it would cause the session cookie to exceed the maximum allowed size
     (4093 bytes - 256 byte safety margin = 3837 bytes). If truncation is needed,
-    it finds the maximum reasoning length that fits within the limit.
+    it truncates to a fixed length of 500 characters.
 
     Args:
         reasoning (str | None): The reasoning text to potentially truncate.
@@ -548,7 +512,8 @@ def truncate_llm_reasoning_if_needed(
         interaction_metadata (InteractionMetadata): Metadata for the interaction (flavour, times).
 
     Returns:
-        str: The reasoning text, truncated if necessary to fit within session size limits.
+        str: The reasoning text, truncated to 500 chars if necessary to fit
+        within session size limits.
     """
     if not reasoning:
         return reasoning or ""
@@ -578,21 +543,19 @@ def truncate_llm_reasoning_if_needed(
     if test_size <= MAX_ALLOWED_SESSION_SIZE:
         return reasoning
 
-    # Truncate - find maximum length that fits within the limit
+    # Truncate to fixed length if it would exceed the limit
     logger.info(
         f"person_id:{person_id} Reasoning would cause session to exceed limit "
-        f"({test_size} > {MAX_ALLOWED_SESSION_SIZE} bytes), truncating..."
+        f"({test_size} > {MAX_ALLOWED_SESSION_SIZE} bytes), "
+        f"truncating to {REASONING_TRUNCATION_LENGTH} chars"
     )
 
-    best_length = _find_max_reasoning_length(reasoning, context)
-
-    # Truncate to best length found
-    if best_length == 0:
-        truncated = "..."
-    elif best_length >= len(reasoning):
+    if len(reasoning) <= REASONING_TRUNCATION_LENGTH:
+        # Already short enough, but session size calculation says it would exceed
+        # This shouldn't happen, but return as-is
         return reasoning
-    else:
-        truncated = reasoning[: best_length - 3] + "..."
+
+    truncated = reasoning[: REASONING_TRUNCATION_LENGTH - 3] + "..."
 
     logger.warning(
         f"person_id:{person_id} LLM reasoning truncated from {len(reasoning)} "
