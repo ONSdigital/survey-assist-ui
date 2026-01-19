@@ -24,6 +24,7 @@ from models.result import (
 )
 from utils.app_types import SurveyAssistFlask
 from utils.session_utils import (
+    MAX_ALLOWED_SESSION_SIZE,
     _convert_datetimes,
     add_classify_interaction,
     add_follow_up_response_to_classify,
@@ -1040,3 +1041,56 @@ def test_add_follow_up_no_matching_person(
 
         with pytest.raises(ValueError, match="No responses for person_id=non-existent"):
             add_follow_up_response_to_classify("f1", "value", person_id="non-existent")
+
+
+@pytest.mark.utils
+def test_add_classify_interaction_truncates_reasoning(
+    app,
+    generic_classification_response: Any,
+    survey_result_session: dict[str, Any],
+) -> None:
+    """Test that add_classify_interaction keeps session size within limits."""
+    # Create a classification response with very long reasoning
+    long_reasoning = "x" * 2000
+    generic_classification_response.results[0].reasoning = long_reasoning
+
+    with app.test_request_context(), app.app_context():
+        session.update(survey_result_session)
+        session["participant_id"] = "user.respondent-a"
+        # get_person_id() appends '-01' to participant_id, so update the response person_id to match
+        survey_result = load_model_from_session(
+            "survey_result", GenericSurveyAssistResult
+        )
+        survey_result.responses[0].person_id = "user.respondent-a-01"
+        save_model_to_session("survey_result", survey_result)
+
+        start_time = datetime.now(timezone.utc)
+        inputs_dict = {
+            "job_title": "Test Job",
+            "job_description": "Test Description",
+            "org_description": "Test Org",
+        }
+
+        add_classify_interaction(
+            flavour="sic",
+            classify_resp=generic_classification_response,
+            start_time=start_time,
+            end_time=start_time,
+            inputs_dict=inputs_dict,
+        )
+
+        # Verify the interaction was added
+        survey_result = load_model_from_session(
+            "survey_result", GenericSurveyAssistResult
+        )
+        interaction = survey_result.responses[0].survey_assist_interactions[-1]
+        assert interaction.type == "classify"
+        assert isinstance(interaction.response, list)
+        first_result = interaction.response[0]
+        assert isinstance(first_result, GenericClassificationResult)
+
+        # Verify session size is within limits (key test - prevents cookie overflow)
+        session_size = get_encoded_session_size(dict(session))
+        assert (
+            session_size <= MAX_ALLOWED_SESSION_SIZE
+        ), f"Session size {session_size} bytes exceeds limit {MAX_ALLOWED_SESSION_SIZE} bytes"
