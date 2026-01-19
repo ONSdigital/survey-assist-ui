@@ -576,10 +576,6 @@ def truncate_llm_reasoning_if_needed(
 
     # Only truncate if adding reasoning would exceed the limit (4093 - 256 = 3837 bytes)
     if test_size <= MAX_ALLOWED_SESSION_SIZE:
-        logger.info(
-            f"person_id:{person_id} Reasoning fits within session size limit "
-            f"({test_size} <= {MAX_ALLOWED_SESSION_SIZE} bytes), no truncation needed"
-        )
         return reasoning
 
     # Truncate - find maximum length that fits within the limit
