@@ -303,7 +303,7 @@
     ]
   },
   "feedback": {
-    "enabled": true,
+    "enabled": false,
     "questions": [
       {
         "question_id": "fq1",
