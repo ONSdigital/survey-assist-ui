@@ -18,7 +18,7 @@ else
   exit 1
 fi
 
-if [[ -z "${SURVEY_ASSIST_API_URL}" ]]; then
+if [[ -z "${SURVEY_ASSIST_UI_URL}" ]]; then
     echo Environment variable SURVEY_ASSIST_UI_URL was not set, getting $1 url from parameter store:
     SURVEY_ASSIST_UI_URL=$(gcloud parametermanager parameters versions describe $1 --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['alb-survey-url'])")
     #SURVEY_ASSIST_UI_URL="https://survey.sandbox.survey-assist.gcp.onsdigital.uk"
