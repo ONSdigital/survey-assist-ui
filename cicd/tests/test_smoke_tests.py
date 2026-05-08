@@ -12,7 +12,7 @@ class TestSurveyAssistUI:
 
     url_base = os.environ.get("SURVEY_ASSIST_UI_URL")
     if url_base is None:
-        raise ValueError("SURVEY_ASSIST_API_URL environment variable is not set.")
+        raise ValueError("SURVEY_ASSIST_UI_URL environment variable is not set.")
 
     id_token = os.environ.get("UI_SA_ID_TOKEN")
     if id_token is None:
@@ -39,6 +39,6 @@ class TestSurveyAssistUI:
         ), f"Expected status code 200, but got {response.status_code}."
 
         if self.git_short_sha:
-            print(f"Checking git short sha matches the expected value {git_short_sha}..")
+            print(f"Checking git short sha matches the expected value {self.git_short_sha}..")
             response_json = response.json()
-            assert git_short_sha == response_json["git_sha"]
+            assert self.git_short_sha == response_json["git_sha"]
