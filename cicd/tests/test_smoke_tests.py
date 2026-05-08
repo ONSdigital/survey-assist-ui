@@ -24,7 +24,7 @@ class TestSurveyAssistUI:
 
     def test_survey_assist_api_status(self) -> None:
         """Test Survey Assist UI returns successful /meta response (via proxy API)."""
-        endpoint = f"{self.url_base}/__meta"
+        endpoint = f"{self.url_base}/survey-ui/meta"
 
         print(f"Calling {endpoint}...")
         response = requests.get(

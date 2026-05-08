@@ -14,9 +14,10 @@ steps:
         pytest --version
         poetry --version
 
+        # TODO Get these from paremeter manager, not trigger
         export BACKEND_API_URL=$_BACKEND_API_URL
         export BACKEND_API_VERSION=v1
-        export UI_SA_EMAIL=$_BACKEND_SA_EMAIL
+        export SA_EMAIL=$_BACKEND_SA_EMAIL
         export VERIFY_API_URL=$_VERIFY_API_URL
 
         echo === Install dependencies and run unit tests ===
@@ -26,12 +27,7 @@ steps:
         #make load-design-system-templates
         sh ./get_design_system.sh
 
-        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_UI_SA_EMAIL)
-      
-        echo ------
-        echo $_UI_SA_EMAIL
-        echo $_UI_SA_ID_TOKEN
-        echo ------
+        export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_BACKEND_SA_EMAIL)
       
         poetry run pytest --ignore=cicd --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75 | tee coverage-report.txt
         if grep -q "FAIL Required test coverage" coverage-report.txt; then
@@ -55,9 +51,7 @@ steps:
 
         echo === Run smoke tests ===
 
-        #export SURVEY_ASSIST_UI_URL=$(gcloud parametermanager parameters versions describe $1 --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['alb-survey-url'])")
-        export SURVEY_ASSIST_UI_URL="https://proxy-api-670504361336.europe-west2.run.app"
-        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) 
+        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
         pytest cicd
     id: Unit Test, Build, Tag and Deploy UI
     entrypoint: bash
