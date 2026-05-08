@@ -30,12 +30,12 @@ fi
 #
 # Example way to set token after gcloud auth login
 # export SA_ID_TOKEN=`gcloud auth print-identity-token`
-if [[ -z "${SA_ID_TOKEN}" ]]; then
+if [[ -z "${UI_SA_ID_TOKEN}" ]]; then
     echo Environment variable SA_ID_TOKEN was not set, getting a new identity token from local credentials, if authenticated.
-    SA_ID_TOKEN=$(gcloud auth print-identity-token)   
-    export SA_ID_TOKEN 
+    UI_SA_ID_TOKEN=$(gcloud auth print-identity-token)   
+    export UI_SA_ID_TOKEN 
 else
-    echo Using currently set SA_ID_TOKEN. If this becomes stale, run export SA_ID_TOKEN=\`gcloud auth print-identity-token\`
+    echo Using currently set SA_ID_TOKEN. If this becomes stale, run export UI_SA_ID_TOKEN=\`gcloud auth print-identity-token\`
 fi
 
 if [[ -z "${GIT_SHORT_SHA}" ]]; then

@@ -14,9 +14,9 @@ class TestSurveyAssistUI:
     if url_base is None:
         raise ValueError("SURVEY_ASSIST_API_URL environment variable is not set.")
 
-    id_token = os.environ.get("SA_ID_TOKEN")
+    id_token = os.environ.get("UI_SA_ID_TOKEN")
     if id_token is None:
-        raise ValueError("SA_ID_TOKEN environment variable is not set.")
+        raise ValueError("UI_SA_ID_TOKEN environment variable is not set.")
 
     git_short_sha = os.environ.get("GIT_SHORT_SHA")
     if git_short_sha is None:
