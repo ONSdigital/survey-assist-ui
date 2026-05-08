@@ -51,8 +51,10 @@ steps:
 
         echo === Run smoke tests ===
 
-        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
+        #export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
         pytest cicd
+        cd cicd
+        sh run_smoke_tests.sh
     id: Unit Test, Build, Tag and Deploy UI
     entrypoint: bash
 timeout: 600s
