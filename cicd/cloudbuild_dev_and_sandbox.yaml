@@ -54,7 +54,7 @@ steps:
         #export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
         #pytest cicd
         # TODO replace sandbox with variable
-        ./cicd/tests/run_smoke_tests.sh sandbox
+        poetry run ./cicd/tests/run_smoke_tests.sh sandbox
     id: Unit Test, Build, Tag and Deploy UI
     entrypoint: bash
 timeout: 600s
