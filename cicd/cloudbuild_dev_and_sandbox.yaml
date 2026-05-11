@@ -14,11 +14,18 @@ steps:
         pytest --version
         poetry --version
 
-        # TODO Get these from paremeter manager, not trigger
-        export BACKEND_API_URL=$_BACKEND_API_URL
-        export BACKEND_API_VERSION=v1
-        export SA_EMAIL=$_BACKEND_SA_EMAIL
-        export VERIFY_API_URL=$_VERIFY_API_URL
+        echo === Looking up config from parameter store ===
+        dev_config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
+        SOC_IMAGE=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-soc-image'])")
+
+        export VERIFY_API_URL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-otp-api-url'])") # ok
+        export BACKEND_API_URL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])") # ok
+        export SA_EMAIL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
+
+        #export BACKEND_API_URL=$_BACKEND_API_URL
+        #export BACKEND_API_VERSION=v1 # TODO Move to Trigger / var
+        #export SA_EMAIL=$_BACKEND_SA_EMAIL
+        #export VERIFY_API_URL=$_VERIFY_API_URL
 
         echo === Install dependencies and run unit tests ===
 
@@ -28,10 +35,10 @@ steps:
         export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_BACKEND_SA_EMAIL)
       
         poetry run pytest --ignore=cicd --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75 | tee coverage-report.txt
-        #if grep -q "FAIL Required test coverage" coverage-report.txt; then
-        #  echo "ERROR: Target coverage was not reached, stopping pipeline."
-        #  exit 1
-        #fi
+        if grep -q "FAIL Required test coverage" coverage-report.txt; then
+          echo "ERROR: Target coverage was not reached, stopping pipeline."
+          exit 1
+        fi
 
         echo === Build, tag and push image ===
 
