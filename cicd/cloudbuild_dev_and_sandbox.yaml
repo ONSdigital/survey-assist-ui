@@ -23,8 +23,6 @@ steps:
         echo === Install dependencies and run unit tests ===
 
         poetry install
-
-        #make load-design-system-templates
         sh ./get_design_system.sh
 
         export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_BACKEND_SA_EMAIL)
@@ -51,10 +49,13 @@ steps:
 
         echo === Run smoke tests ===
 
-        #export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
-        #pytest cicd
+        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
+        export SURVEY_ASSIST_UI_URL="https://proxy-api-670504361336.europe-west2.run.app" # set to proxy API
+        export GIT_SHORT_SHA=$SHORT_SHA
+        poetry run pytest cicd
+
         # TODO replace sandbox with variable
-        poetry run ./cicd/tests/run_smoke_tests.sh sandbox
+        #poetry run ./cicd/tests/run_smoke_tests.sh sandbox
     id: Unit Test, Build, Tag and Deploy UI
     entrypoint: bash
 timeout: 600s
