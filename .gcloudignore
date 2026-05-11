@@ -9,7 +9,7 @@
 
 # ingnore additional folders not needed for building
 docs/
-tests/
+# tests/
 .ruff_cache/
 
 # ignore additional individual files
@@ -18,11 +18,11 @@ CHANGELOG.md
 .pre-commit-config.yaml
 PIRR.md
 CODEOWNERS
-Makefile
+# Makefile
 ui-cloud-build-submit.sh
 
 # scripts that are not needed for building
-scripts/
+# scripts/
 
 # secrets and example files
 .secrets.baseline
