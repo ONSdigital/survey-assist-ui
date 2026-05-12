@@ -15,24 +15,20 @@ steps:
         poetry --version
 
         echo === Looking up config from parameter store ===
-        dev_config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
-        SOC_IMAGE=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-soc-image'])")
-
-        export VERIFY_API_URL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-otp-api-url'])") # ok
-        export BACKEND_API_URL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])") # ok
-        export SA_EMAIL=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
-
-        #export BACKEND_API_URL=$_BACKEND_API_URL
-        #export BACKEND_API_VERSION=v1 # TODO Move to Trigger / var
-        #export SA_EMAIL=$_BACKEND_SA_EMAIL
-        #export VERIFY_API_URL=$_VERIFY_API_URL
+        config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
+        
+        export TARGET_PROJECT_ID=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['project-id'])")
+        export VERIFY_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-otp-api-url'])")
+        export BACKEND_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])")
+        export BACKEND_SA_EMAIL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
+        export SA_EMAIL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
 
         echo === Install dependencies and run unit tests ===
 
         poetry install
         make load-design-system-templates
 
-        export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_BACKEND_SA_EMAIL)
+        export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$$BACKEND_SA_EMAIL)
       
         poetry run pytest --ignore=cicd --cov=utils --cov=survey_assist_ui --cov-report=term-missing --cov-fail-under=75 | tee coverage-report.txt
         if grep -q "FAIL Required test coverage" coverage-report.txt; then
@@ -52,7 +48,7 @@ steps:
 
         echo === Deploy survey UI ===
 
-        gcloud run deploy survey-ui --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $_TARGET_PROJECT_ID
+        gcloud run deploy survey-ui --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $$TARGET_PROJECT_ID
 
         echo === Run smoke tests ===
 
