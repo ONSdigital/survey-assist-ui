@@ -15,6 +15,7 @@ steps:
         poetry --version
 
         echo === Looking up config from parameter store ===
+        
         config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
         
         export TARGET_PROJECT_ID=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['project-id'])")
@@ -22,6 +23,8 @@ steps:
         export BACKEND_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])")
         export BACKEND_SA_EMAIL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
         export SA_EMAIL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['apigw-sa-email'])")
+        export GAR_IMAGE=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
+        export PROXY_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['proxy-api-url'])")
 
         echo === Install dependencies and run unit tests ===
 
@@ -40,20 +43,20 @@ steps:
 
         poetry version -s > /workspace/version.txt
 
-        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg GUNICORN_WORKERS=$_GUNICORN_WORKERS -t $_GAR_IMAGE:$(cat /workspace/version.txt) -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
+        docker build --build-arg GIT_SHA=$SHORT_SHA --build-arg VERSION="$(cat /workspace/version.txt)" --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --build-arg GUNICORN_WORKERS=$_GUNICORN_WORKERS -t $$GAR_IMAGE:$(cat /workspace/version.txt) -t $$GAR_IMAGE:$SHORT_SHA -t $$GAR_IMAGE:latest .
 
-        docker push $_GAR_IMAGE:$(cat /workspace/version.txt)
-        docker push $_GAR_IMAGE:latest
-        docker push $_GAR_IMAGE:$SHORT_SHA
+        docker push $$GAR_IMAGE:$(cat /workspace/version.txt)
+        docker push $$GAR_IMAGE:latest
+        docker push $$GAR_IMAGE:$SHORT_SHA
 
         echo === Deploy survey UI ===
 
-        gcloud run deploy survey-ui --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $$TARGET_PROJECT_ID
+        gcloud run deploy survey-ui --image=$$GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $$TARGET_PROJECT_ID
 
         echo === Run smoke tests ===
 
         export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
-        export SURVEY_ASSIST_UI_URL=$_PROXY_API_URL # set to proxy API
+        export SURVEY_ASSIST_UI_URL=$$PROXY_API_URL # set to proxy API
         export GIT_SHORT_SHA=$SHORT_SHA
         poetry run pytest -s cicd
 
