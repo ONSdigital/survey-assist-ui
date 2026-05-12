@@ -4,26 +4,46 @@ steps:
       - '-c'
       - |
         set -e
+
+        echo === Looking up config from parameter store ===
         
+        config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
+        dev_config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
+
+        export TARGET_PROJECT_ID=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['project-id'])")
+        export GAR_IMAGE_RELEASES=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
+        export GAR_IMAGE_DEV=$(echo $_dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
+        export PROXY_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['proxy-api-url'])")
+
         echo === Pulling image dev image with tag $SHORT_SHA ===
 
-        docker pull $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA
+        #docker pull $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA
+        docker pull $$GAR_IMAGE_DEV:$SHORT_SHA
 
         echo === Tagging pulled image as a release candidate $TAG_NAME ===
 
-        docker tag $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
-        docker tag $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:latest
+        #docker tag $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
+        #docker tag $LOCATION-docker.pkg.dev/$_DEV_PROJECT_ID/$_GAR_DEV_REPO/$_GAR_PACKAGE:$SHORT_SHA $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:latest
+        docker tag $$GAR_IMAGE_DEV:$SHORT_SHA $$GAR_IMAGE_RELEASES:$TAG_NAME
+        docker tag $$GAR_IMAGE_DEV:$SHORT_SHA $$GAR_IMAGE_RELEASES:latest
 
         echo === Pushing tagged image to release GAR ===
 
-        docker push $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
-        docker push $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:latest
+        #docker push $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME
+        #docker push $LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:latest
+        docker push $$GAR_IMAGE_RELEASES:$TAG_NAME
+        docker push $$GAR_IMAGE_RELEASES:latest
 
         echo === Deploy survey UI ===
 
-        gcloud run deploy survey-ui --image=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME --region $LOCATION --project $_PREPROD_PROJECT_ID
+        gcloud run deploy survey-ui --image=$$GAR_IMAGE_RELEASES:$TAG_NAME --region $LOCATION --project $$TARGET_PROJECT_ID
 
         echo === Run smoke tests ===
+
+        export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
+        export SURVEY_ASSIST_UI_URL=$$PROXY_API_URL # set to proxy API
+        export GIT_SHORT_SHA=$SHORT_SHA
+        poetry run pytest -s cicd
 
     id: 'Promote release image, Deploy and Run Smoke Tests'
     entrypoint: bash
