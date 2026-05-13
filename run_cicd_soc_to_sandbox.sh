@@ -16,7 +16,6 @@ GIT_SHA=$(git rev-parse --short HEAD)
 sandbox_config=$(gcloud parametermanager parameters versions describe $ENV_NAME --parameter=infra-test-config --location=global --project $CICD_PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
 PROJECT_ID=$(echo $sandbox_config | python3 -c "import sys, json; print(json.load(sys.stdin)['project-id'])")
 CICD_SA=$(echo $sandbox_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cicd-sa-email'])")
-CR_BUCKET=$(echo $sandbox_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-bucket'])")
 REGION=$(echo $sandbox_config | python3 -c "import sys, json; print(json.load(sys.stdin)['region'])")
 
 CB_BUCKET=gs://${PROJECT_ID}_cloudbuild/survey-assist-ui
