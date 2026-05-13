@@ -1,4 +1,4 @@
-"""Tests for the SIC API."""
+"""Smoke Tests for the Survey UI."""
 
 import os, json
 
@@ -8,7 +8,12 @@ from urllib3.util import Retry
 
 
 class TestSurveyAssistUI:
-    """Test for the Survey Assist UI."""
+    """Smoke Tests for the Survey Assist UI."""
+
+    target_environment = os.environ.get("TARGET_ENVIRONMENT")
+    if target_environment is None:
+        print("TARGET_ENVIRONMENT environment variable is not set. Optionally, set this to select the environment to proxy to i.e. sandbox(default), dev or preprod.")
+        target_environment = "sandbox"
 
     url_base = os.environ.get("SURVEY_ASSIST_UI_URL")
     if url_base is None:
@@ -24,7 +29,9 @@ class TestSurveyAssistUI:
 
     def test_survey_assist_api_status(self) -> None:
         """Test Survey Assist UI returns successful /meta response (via proxy API)."""
-        endpoint = f"{self.url_base}/survey-ui/meta"
+
+
+        endpoint = f"{self.url_base}/survey-ui/meta/{self.target_environment}"
 
         print(f"Calling {endpoint}...")
         response = requests.get(

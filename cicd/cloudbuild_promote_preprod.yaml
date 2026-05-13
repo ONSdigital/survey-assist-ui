@@ -8,11 +8,11 @@ steps:
         echo === Looking up config from parameter store ===
         
         config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
-        dev_config=$(gcloud parametermanager parameters versions describe $_ENV_NAME --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
+        dev_config=$(gcloud parametermanager parameters versions describe dev --parameter=infra-test-config --location=global --project $PROJECT_ID --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode)
 
         export TARGET_PROJECT_ID=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['project-id'])")
         export GAR_IMAGE_RELEASES=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
-        export GAR_IMAGE_DEV=$(echo $_dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
+        export GAR_IMAGE_DEV=$(echo $dev_config | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-survey-ui-image'])")
         export PROXY_API_URL=$(echo $config | python3 -c "import sys, json; print(json.load(sys.stdin)['proxy-api-url'])")
 
         echo === Pulling image dev image with tag $SHORT_SHA ===
@@ -35,6 +35,7 @@ steps:
 
         echo === Run smoke tests ===
 
+        export TARGET_ENVIRONMENT=$_ENV_NAME
         export UI_SA_ID_TOKEN=$(gcloud auth print-identity-token) # Use CICD service account
         export SURVEY_ASSIST_UI_URL=$$PROXY_API_URL # set to proxy API
         export GIT_SHORT_SHA=$SHORT_SHA

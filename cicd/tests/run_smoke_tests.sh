@@ -11,10 +11,11 @@
 #
 # Example ./run_smoke_tests.sh dev
 
-if [[ $1 = "sandbox" ]] || [[ $1 = "dev" ]]; then
+if [[ $1 = "sandbox" ]] || [[ $1 = "dev" ]] || [[ $1 = "preprod" ]]; then
    echo Test environment "$1"
+   export TARGET_ENVIRONMENT=$1
 else
-  echo "Please pass test environment of 'sandbox' or 'dev' e.g. ./run_smoke_tests.sh sandbox"
+  echo "Please pass test environment of 'sandbox', 'dev' or 'preprod' e.g. ./run_smoke_tests.sh sandbox"
   exit 1
 fi
 
