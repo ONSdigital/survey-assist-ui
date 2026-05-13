@@ -5,13 +5,15 @@ import os
 import requests
 
 
-class TestSurveyAssistUI:
+class TestSurveyAssistUI:  # pylint: disable=too-few-public-methods
     """Smoke Tests for the Survey Assist UI."""
 
     target_environment = os.environ.get("TARGET_ENVIRONMENT")
     if target_environment is None:
         print(
-            "TARGET_ENVIRONMENT environment variable is not set. Optionally, set this to select the environment to proxy to i.e. sandbox(default), dev or preprod."
+            """TARGET_ENVIRONMENT environment variable is not set.
+            Optionally, set this to select the environment to proxy
+            i.e. sandbox(default), dev or preprod."""
         )
         target_environment = "sandbox"
 
@@ -26,7 +28,8 @@ class TestSurveyAssistUI:
     git_short_sha = os.environ.get("GIT_SHORT_SHA")
     if git_short_sha is None:
         print(
-            "GIT_SHORT_SHA environment variable is not set. Optionally, set this to assert the meta data value matches."
+            """GIT_SHORT_SHA environment variable is not set.
+            Optionally, set this to assert the meta data value matches."""
         )
 
     def test_survey_assist_api_status(self) -> None:
