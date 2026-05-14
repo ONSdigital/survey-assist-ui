@@ -176,6 +176,6 @@ survey_assist_ui/templates/layout
 .vscode/
 
 # ignore JSON, txt and png files output by scripts
-*.json
-*.txt
-*.png
+/*.json
+/*.txt
+/*.png
