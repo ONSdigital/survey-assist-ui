@@ -21,9 +21,7 @@ fi
 
 if [[ -z "${SURVEY_ASSIST_UI_URL}" ]]; then
     echo Environment variable SURVEY_ASSIST_UI_URL was not set, getting $1 url from parameter store:
-    # TODO This needs to be the address of the proxy-api
-    #SURVEY_ASSIST_UI_URL=$(gcloud parametermanager parameters versions describe $1 --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['alb-survey-url'])")
-    SURVEY_ASSIST_UI_URL="https://proxy-api-670504361336.europe-west2.run.app" # TOTO get from paremeter store for each env
+    SURVEY_ASSIST_UI_URL=$(gcloud parametermanager parameters versions describe $1 --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['proxy-api-url'])")
     export SURVEY_ASSIST_UI_URL
     echo "$SURVEY_ASSIST_UI_URL"
 else
